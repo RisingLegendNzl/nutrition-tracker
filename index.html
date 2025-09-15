@@ -14,14 +14,12 @@
       <button id="tabSupps" class="tab" aria-controls="suppsPage">Sup-Stack</button>
       <button id="tabHydro" class="tab" aria-controls="hydroPage">Hydration</button>
     </nav>
+    <div id="daySwitcher" class="day-switcher">
+      <button id="prevDay" class="ghost" aria-label="Previous day">Prev</button>
+      <div id="dayName" class="day-name">Monday</div>
+      <button id="nextDay" class="ghost" aria-label="Next day">Next</button>
+    </div>
   </header>
-
-  <!-- DIET NAV -->
-  <section class="day-switcher">
-    <button id="prevDay" class="pill">Prev</button>
-    <div id="dayName" class="day-name">Monday</div>
-    <button id="nextDay" class="pill">Next</button>
-  </section>
 
   <!-- DIET -->
   <main id="dietPage">
@@ -34,43 +32,32 @@
       <h2 class="section-title">Remaining Today</h2>
       <div id="macroSummary" class="summary-row"></div>
       <div id="bars"></div>
-      <div style="margin-top:8px; display:flex; gap:10px;">
-        <button id="resetDay" class="ghost">Reset day</button>
-        <button id="resetWeek" class="ghost">Reset week</button>
+      <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap">
+        <button id="resetDiet" class="ghost small">Reset day</button>
+        <button id="resetWeek" class="ghost small">Reset week</button>
       </div>
     </section>
-
-    <p class="footnote">
-      Diet: toggle meals to update remaining nutrients. Sup-Stack: track “taken today”.
-      Hydration: log water and watch the fill rise.
-    </p>
   </main>
 
   <!-- SUPPLEMENTS -->
-  <main id="suppsPage" hidden>
+  <main id="suppsPage" class="hidden">
     <section class="card">
       <h2 class="section-title">Supplements</h2>
       <div id="suppList"></div>
+      <div class="supp-actions">
+        <button id="restoreDefaults" class="ghost small">Restore defaults</button>
+      </div>
     </section>
 
-    <section class="card">
-      <div class="sheet-header">
-        <h3>Add supplement</h3>
-        <div class="sheet-actions">
-          <button id="undoAdd" class="ghost small" type="button">Undo</button>
-        </div>
-      </div>
-
-      <form id="addSuppForm" class="sheet">
-        <div class="sheet-row">
+    <!-- Add/Edit Sheet -->
+    <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet-card">
+        <h3 id="sheetTitle">Add supplement</h3>
+        <form id="suppForm">
           <label class="field">
             <span>Name</span>
-            <input id="fName" type="text" placeholder="e.g., Zinc" list="suppSuggestions"/>
-            <datalist id="suppSuggestions"></datalist>
+            <input id="fName" type="text" placeholder="e.g., Zinc"/>
           </label>
-        </div>
-
-        <div class="sheet-row">
           <label class="field">
             <span>Dosage</span>
             <input id="fDose" type="text" placeholder="e.g., 25 mg"/>
@@ -79,90 +66,80 @@
             <span>Timing</span>
             <input id="fTiming" type="text" placeholder="e.g., With breakfast"/>
           </label>
-        </div>
-
-        <div class="sheet-row">
           <label class="field">
             <span>Pairs best with</span>
             <input id="fPairs" type="text" placeholder="e.g., Fat-containing meal"/>
           </label>
           <label class="field">
             <span>Notes</span>
-            <input id="fNotes" type="text" placeholder="e.g., Keep 2h away from iron"/>
+            <textarea id="fNotes" rows="3" placeholder="e.g., Keep 2h away from iron"></textarea>
           </label>
-        </div>
+          <div class="sheet-row">
+            <button type="button" id="cancelSheet" class="ghost">Cancel</button>
+            <button type="submit" id="saveSheet" class="primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
-        <div class="sheet-row">
-          <button type="button" id="cancelSheet" class="ghost">Cancel</button>
-          <button type="submit" id="saveSheet" class="primary">Save</button>
-        </div>
-      </form>
-    </section>
+    <button id="addSupp" class="fab" aria-label="Add supplement">Add</button>
+
+    <div id="snackbar" class="snackbar hidden">
+      <span id="snackMsg"></span>
+      <button id="undoBtn" class="link">Undo</button>
+    </div>
   </main>
 
   <!-- HYDRATION -->
-  <main id="hydroPage" hidden>
+  <main id="hydroPage" class="hidden">
     <section class="card">
       <h2 class="section-title">Hydration</h2>
 
-      <div class="goal-row">
-        <div>
-          <div class="goal-title">Daily goal</div>
-          <div class="goal-sub"><span id="goalLiters">3 L</span> (<span id="goalMl">3000</span> ml)</div>
+      <div class="hydro-goal-row">
+        <div class="hydro-goal">
+          <div class="hydro-goal-label">Daily goal</div>
+          <button id="editGoalBtn" class="ghost small">Edit</button>
         </div>
-        <div class="goal-actions">
-          <button id="editGoal" class="ghost small" type="button">Edit</button>
-          <label class="switch">
-            <input id="autoCreatine" type="checkbox"/>
+        <div class="hydro-goal-values">
+          <div><strong id="goalLitres">3.0</strong> L (<span id="goalMl">3000</span> ml)</div>
+          <label class="switch small">
+            <input id="autoGoal" type="checkbox">
             <span class="slider"></span>
           </label>
-          <span class="hint">Auto-goal (Creatine)</span>
+          <span class="auto-hint">Auto-goal (Creatine)</span>
         </div>
       </div>
 
-      <!-- Bottle -->
       <div class="bottle-wrap">
-        <svg id="bottle" viewBox="0 0 200 420" class="bottle">
-          <defs>
-            <linearGradient id="waterGrad" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stop-color="#34d399"/>
-              <stop offset="100%" stop-color="#059669"/>
-            </linearGradient>
-            <clipPath id="bottleClip">
-              <path d="M40,30 h120 v40 c0,20 -10,30 -10,50 v240 c0,40 -25,60 -50,60 s-50,-20 -50,-60 V120 c0,-20 -10,-30 -10,-50 z"/>
-            </clipPath>
-          </defs>
-          <rect x="40" y="30" width="120" height="360" rx="16" ry="16" fill="#0b1323" stroke="#334155" stroke-width="2"/>
-          <!-- water level -->
-          <g clip-path="url(#bottleClip)">
-            <rect id="water" x="40" y="350" width="120" height="40" fill="url(#waterGrad)"/>
-            <circle id="blob1" cx="90" cy="345" r="14" fill="#38bdf8" opacity="0.35"/>
-            <circle id="blob2" cx="150" cy="360" r="10" fill="#38bdf8" opacity="0.35"/>
-          </g>
-        </svg>
-
-        <div class="today">
-          <div class="today-line">
-            <span>Today:</span>
-            <strong><span id="todayLiters">0</span> L</strong>
-            <span>&nbsp;/&nbsp;</span>
-            <span id="todayGoalLiters">3</span> L
+        <div class="bottle">
+          <div class="bottle-fill" id="bottleFill">
+            <svg class="liq" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
+              <path class="wave w1" d="M0,190 C45,170 90,210 135,190 C180,170 225,210 270,190 L300,190 L300,300 L0,300 Z"/>
+              <path class="wave w2" d="M0,200 C60,180 120,220 180,200 C240,180 300,220 300,200 L300,300 L0,300 Z"/>
+            </svg>
           </div>
-          <div class="today-sub" id="todayPct">0%</div>
+          <div class="bottle-gloss"></div>
+        </div>
+        <div class="hydro-numbers">
+          <div id="todayStr" class="today-str">Today: 0 L / 0 L</div>
+          <div id="pctStr" class="pct-str">0%</div>
         </div>
       </div>
 
-      <div class="quick-row">
-        <button class="pill" data-add="250">+250 ml</button>
-        <button class="pill" data-add="500">+500 ml</button>
-        <button class="pill" data-add="750">+750 ml</button>
-        <button class="pill" data-add="1000">+1 L</button>
-      </div>
-
-      <div class="entry-row">
-        <input id="customMl" type="number" placeholder="Enter ml"/>
-        <button id="addCustom" class="primary">Add</button>
-        <button id="resetToday" class="ghost">Reset today</button>
+      <div class="hydro-actions">
+        <div class="quick-adds">
+          <button class="ghost pill-btn" data-ml="250">+250 ml</button>
+          <button class="ghost pill-btn" data-ml="500">+500 ml</button>
+          <button class="ghost pill-btn" data-ml="750">+750 ml</button>
+          <button class="ghost pill-btn" data-ml="1000">+1 L</button>
+        </div>
+        <div class="custom-add">
+          <input id="customMl" type="number" inputmode="numeric" placeholder="Enter ml" />
+          <button id="addCustom" class="primary">Add</button>
+        </div>
+        <div class="hydro-subrow">
+          <button id="resetWater" class="ghost small">Reset today</button>
+        </div>
       </div>
     </section>
 
@@ -178,7 +155,7 @@
 
   <!-- Data (meals & suggestions) -->
   <script src="data.js"></script>
-  <!-- App modules (ES modules entry) -->
+  <!-- App modules -->
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
