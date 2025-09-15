@@ -1,0 +1,21 @@
+body {
+  font-family: sans-serif;
+  padding: 15px;
+  max-width: 600px;
+  margin: auto;
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+label {
+  display: block;
+  margin: 8px 0;
+}
+
+button {
+  padding: 8px 14px;
+  margin: 5px;
+  font-size: 16px;
+}
