@@ -1,122 +1,166 @@
-/* -------- Diet page scoped styles (won't affect other tabs) -------- */
-#dietPage .card{
-  border:1px solid var(--card-border, #1f2940);
-  border-radius:16px;
-  background:var(--card-bg, #0f172a);
+/* ===========================
+   Global Layout & Theme
+   =========================== */
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+  margin: 0;
+  padding: 0;
 }
 
-#dietPage .section-head{
-  display:flex; align-items:center; justify-content:space-between;
-  gap:12px; padding:12px 0;
+h1, h2, h3, h4 {
+  margin: 0 0 10px 0;
+  font-weight: 600;
 }
 
-#dietPage #dayName{ font-weight:800; }
-
-/* Pills/summary only inside Diet page */
-#dietPage .pills{ display:flex; flex-wrap:wrap; gap:8px; }
-#dietPage .pill{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:6px 10px; border-radius:999px; background:var(--chip-bg, #111a30);
-  border:1px solid var(--card-border, #1f2940);
-  font-size:14px;
+/* Container */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
 }
 
-/* Progress bars */
-#dietPage #bars{ display:flex; flex-direction:column; gap:10px; margin:10px 0 6px; }
-#dietPage .bar-row{ display:flex; flex-direction:column; gap:6px; }
-#dietPage .bar-label{ display:flex; align-items:baseline; justify-content:space-between; font-size:14px; opacity:.8; }
-#dietPage .bar-value{ font-variant-numeric: tabular-nums; }
-#dietPage .bar-outer{
-  width:100%; height:10px; background:#15203a; border-radius:999px; overflow:hidden;
-  border:1px solid var(--card-border, #1f2940);
-}
-#dietPage .bar-inner{ height:100%; width:0; background:#38bdf8; }
-
-/* Meal rows */
-#dietPage .meal-row{ border-top:1px solid var(--card-border, #1f2940); padding:10px 0; }
-#dietPage .meal-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-#dietPage .meal-title{
-  display:flex; flex-direction:column; align-items:flex-start; gap:4px;
-  border:0; background:transparent; padding:0; cursor:pointer; color:inherit;
-}
-#dietPage .title-line{ display:flex; align-items:center; gap:8px; font-weight:800; font-size:16px; }
-#dietPage .chev{
-  width:10px; height:10px; border-right:2px solid #9aa3b2; border-bottom:2px solid #9aa3b2;
-  transform:rotate(-45deg); transition:transform .18s ease;
-}
-#dietPage .meal-row.open .chev{ transform:rotate(45deg); }
-#dietPage .meal-macros{ font-size:13px; opacity:.8; font-variant-numeric:tabular-nums; }
-
-/* Toggle switch */
-#dietPage .switch{ position:relative; display:inline-block; width:48px; height:28px; }
-#dietPage .switch input{ opacity:0; width:0; height:0; }
-#dietPage .slider{
-  position:absolute; inset:0; background:#1f2940; border-radius:999px; transition:.2s;
-  box-shadow: inset 0 0 0 1px #223150;
-}
-#dietPage .slider:before{
-  content:""; position:absolute; height:22px; width:22px; left:3px; top:3px;
-  background:#0b1020; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.35);
-}
-#dietPage .switch input:checked + .slider{ background:#0b3b2c; box-shadow: inset 0 0 0 1px #14532d; }
-#dietPage .switch input:checked + .slider:before{ transform:translateX(20px); }
-
-/* Ingredients list + inline editor (scoped & closed by default) */
-#dietPage .ingredients{ margin-top:10px; }
-#dietPage .ing-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
-
-#dietPage .ing{
-  border:1px solid var(--card-border, #1f2940);
-  background:var(--card-bg, #0f172a);
-  border-radius:12px;
-  padding:10px;
+/* ===========================
+   Tabs
+   =========================== */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
-#dietPage .ing-line{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-#dietPage .ing-food{ font-weight:700; }
-#dietPage .ing-qty{ opacity:.75; font-variant-numeric:tabular-nums; }
-
-#dietPage .ing-edit-btn{
-  border:1px solid #223150; background:transparent; color:inherit;
-  padding:6px 10px; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer;
+.tab {
+  padding: 10px 16px;
+  border: 1px solid #223150;
+  border-radius: 8px;
+  background: transparent;
+  color: #e5e7eb;
+  font-weight: 500;
+  cursor: pointer;
 }
-#dietPage .ing-edit-btn:hover{ border-color:#38bdf8; color:#7dd3fc; }
 
-#dietPage .ing-editor{ display:none; padding-top:10px; }       /* <-- stays closed by default */
-#dietPage .ing.edit-open .ing-editor{ display:block; }        /* opens only after tapping Edit */
+.tab.active {
+  border-color: #38bdf8;
+  color: #7dd3fc;
+}
 
-#dietPage .ing-editor-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-#dietPage .ing-input{
-  width:120px; padding:8px 10px; border:1px solid #223150; border-radius:10px;
-  background:#0b1020; color:inherit; font-variant-numeric:tabular-nums;
+/* ===========================
+   Sections
+   =========================== */
+.section {
+  display: none;
 }
-#dietPage .ing-unit{
-  padding:8px 10px; border:1px solid #223150; border-radius:10px; background:#0b1020; color:inherit;
+.section.active {
+  display: block;
 }
-#dietPage .ing-save, #dietPage .ing-reset{
-  padding:8px 12px; border-radius:10px; border:1px solid #223150; background:transparent; color:inherit; font-weight:700;
-}
-#dietPage .ing-save{ border-color:#38bdf8; color:#7dd3fc; }
-#dietPage .ing-reset{ opacity:.85; }
 
-/* Empty state (diet only) */
-#dietPage .empty-state{ text-align:center; padding:24px; opacity:.8; }
-#dietPage .empty-title{ font-weight:800; margin-bottom:6px; }
-
-/* Snack bar (diet only, if you use it) */
-#dietPage #snackbar{
-  position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
-  background:#0b1020; color:#e5e7eb; padding:12px 16px; border-radius:10px;
-  border:1px solid #223150; box-shadow:0 6px 20px rgba(0,0,0,.35);
-  display:flex; align-items:center; gap:10px; z-index:100;
+.card {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
 }
-#dietPage #snackbar.hidden{ display:none; }
-#dietPage #undoBtn{ background:#e5e7eb; color:#111827; border:0; padding:6px 10px; border-radius:8px; font-weight:700; }
 
-/* Compact tweaks */
-@media (max-width:420px){
-  #dietPage .meal-macros{ font-size:12px; }
-  #dietPage .ing-input{ width:100px; }
-  #dietPage .switch{ width:46px; height:26px; }
-  #dietPage .slider:before{ height:20px; width:20px; }
+button {
+  background: #22c55e;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
 }
+button:hover {
+  background: #16a34a;
+}
+
+/* ===========================
+   Progress Bars
+   =========================== */
+.progress {
+  background: #334155;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 12px;
+  margin-top: 6px;
+}
+
+.progress-fill {
+  background: #22c55e;
+  height: 100%;
+  transition: width 0.3s;
+}
+
+/* ===========================
+   Ingredient Editor
+   =========================== */
+.ing {
+  border: 1px solid #223150;
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.ing-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ing-food { font-weight: 600; }
+.ing-qty { opacity: 0.75; font-variant-numeric: tabular-nums; }
+
+.ing-edit-btn {
+  border: 1px solid #223150;
+  background: transparent;
+  color: inherit;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ing-edit-btn:hover { border-color:#38bdf8; color:#7dd3fc; }
+
+.ing-editor { display: none; padding-top: 10px; }
+.ing.edit-open .ing-editor { display: block; }
+
+.ing-editor-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ing-input {
+  width: 100px;
+  padding: 6px 10px;
+  border: 1px solid #223150;
+  border-radius: 8px;
+  background: #0b1020;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.ing-unit {
+  padding: 6px 10px;
+  border: 1px solid #223150;
+  border-radius: 8px;
+  background: #0b1020;
+  color: inherit;
+}
+
+.ing-save, .ing-reset {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #223150;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+}
+.ing-save { border-color: #38bdf8; color:#7dd3fc; }
+.ing-reset { opacity: .85; }
