@@ -12,6 +12,7 @@
     <nav class="tabs">
       <button id="tabDiet" class="tab active" aria-controls="dietPage">Diet</button>
       <button id="tabSupps" class="tab" aria-controls="suppsPage">Sup-Stack</button>
+      <button id="tabHydro" class="tab" aria-controls="hydroPage">Hydration</button>
     </nav>
     <div id="daySwitcher" class="day-switcher">
       <button id="prevDay" class="ghost" aria-label="Previous day">Prev</button>
@@ -94,8 +95,65 @@
     </div>
   </main>
 
+  <!-- HYDRATION PAGE -->
+  <main id="hydroPage" class="hidden">
+    <section class="card">
+      <h2 class="section-title">Hydration</h2>
+
+      <!-- Goal & Auto mode -->
+      <div class="hydro-goal-row">
+        <div class="hydro-goal">
+          <div class="hydro-goal-label">Daily goal</div>
+          <button id="editGoalBtn" class="ghost small">Edit</button>
+        </div>
+        <div class="hydro-goal-values">
+          <div><strong id="goalLitres">3.0</strong> L (<span id="goalMl">3000</span> ml)</div>
+          <label class="switch small">
+            <input id="autoGoal" type="checkbox">
+            <span class="slider"></span>
+          </label>
+          <span class="auto-hint">Auto-goal (Creatine)</span>
+        </div>
+      </div>
+
+      <!-- Animated bottle -->
+      <div class="bottle-wrap">
+        <div class="bottle">
+          <div class="bottle-fill" id="bottleFill"></div>
+          <div class="bottle-gloss"></div>
+        </div>
+        <div class="hydro-numbers">
+          <div id="todayStr" class="today-str">Today: 0 L / 0 L</div>
+          <div id="pctStr" class="pct-str">0%</div>
+        </div>
+      </div>
+
+      <!-- Quick-adds & custom -->
+      <div class="hydro-actions">
+        <div class="quick-adds">
+          <button class="ghost pill-btn" data-ml="250">+250 ml</button>
+          <button class="ghost pill-btn" data-ml="500">+500 ml</button>
+          <button class="ghost pill-btn" data-ml="750">+750 ml</button>
+          <button class="ghost pill-btn" data-ml="1000">+1 L</button>
+        </div>
+        <div class="custom-add">
+          <input id="customMl" type="number" inputmode="numeric" placeholder="Enter ml" />
+          <button id="addCustom" class="primary">Add</button>
+        </div>
+        <div class="hydro-subrow">
+          <button id="resetWater" class="ghost small">Reset today</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Last 7 days</h2>
+      <div id="hydroHistory" class="hydro-history"></div>
+    </section>
+  </main>
+
   <footer class="app-footer">
-    <div class="tip">Diet: toggle meals to update remaining nutrients. Sup-Stack: track “taken today” and manage your list.</div>
+    <div class="tip">Diet: toggle meals to update remaining nutrients. Sup-Stack: track “taken today”. Hydration: log water and watch the fill rise.</div>
   </footer>
 
   <script src="data.js"></script>
@@ -105,20 +163,29 @@
        ========================= */
     const AEST_DATE = () =>
       new Date().toLocaleString("en-CA", { timeZone: "Australia/Brisbane" }).slice(0,10); // YYYY-MM-DD
+    const clamp = (v,min,max)=> Math.max(min, Math.min(max,v));
+    const toLitres = ml => (ml/1000).toFixed(2).replace(/\.00$/,'');
+    const fromLitres = l => Math.round(parseFloat(l)*1000)||0;
 
     // DIET state
     let dayIndex = 0;
     const days = Object.keys(mealPlan);
-    const mealEaten = {};     // { Monday: { Breakfast: true } }
-    const openMeals = {};     // expanded accordions
+    const mealEaten = {};
+    const openMeals = {};
 
     // SUPPS state
     const DEFAULTS_KEY = "supps_defaults_v1";
     const SUPPS_KEY = "supps_v1";
     const TAKEN_PREFIX = "supps_taken_"; // + date
     const LAST_DATE_KEY = "last_seen_date_aest";
-    let editingIndex = null;  // index in current list when editing
-    let lastDeleted = null;   // { item, index }
+    let editingIndex = null;
+    let lastDeleted = null;
+
+    // HYDRATION state
+    const WATER_TARGET_KEY = "water_target_ml_v1";
+    const WATER_AUTO_KEY = "water_auto_goal_v1";
+    const WATER_PREFIX = "water_"; // + date
+    const USER_WEIGHT_KG = 71;     // used for auto-goal baseline (you can change later)
 
     // DOM refs (Diet)
     const dayNameEl = document.getElementById("dayName");
@@ -131,56 +198,38 @@
     const resetDietBtn = document.getElementById("resetDiet");
     const resetWeekBtn = document.getElementById("resetWeek");
 
-    // DOM refs (Supps)
-    const suppListEl = document.getElementById("suppList");
-    const addSuppBtn = document.getElementById("addSupp");
-    const restoreBtn = document.getElementById("restoreDefaults");
-    const sheet = document.getElementById("sheet");
-    const snack = document.getElementById("snackbar");
-    const snackMsg = document.getElementById("snackMsg");
-    const undoBtn = document.getElementById("undoBtn");
-
-    // Form refs
-    const form = document.getElementById("suppForm");
-    const fName = document.getElementById("fName");
-    const fDose = document.getElementById("fDose");
-    const fTiming = document.getElementById("fTiming");
-    const fPairs = document.getElementById("fPairs");
-    const fNotes = document.getElementById("fNotes");
-    const cancelSheet = document.getElementById("cancelSheet");
-    const saveSheet = document.getElementById("saveSheet");
-    const sheetTitle = document.getElementById("sheetTitle");
-
     // Tabs
     const tabDiet = document.getElementById("tabDiet");
     const tabSupps = document.getElementById("tabSupps");
+    const tabHydro = document.getElementById("tabHydro");
     const dietPage = document.getElementById("dietPage");
     const suppsPage = document.getElementById("suppsPage");
+    const hydroPage = document.getElementById("hydroPage");
 
-    tabDiet.onclick = () => setTab("diet");
+    tabDiet.onclick  = () => setTab("diet");
     tabSupps.onclick = () => setTab("supps");
+    tabHydro.onclick = () => setTab("hydro");
 
     function setTab(which){
-      // Always ensure the sheet is closed when switching tabs
-      sheet.classList.add("hidden");
+      // Always close sheets/menus on tab switch
+      document.getElementById("sheet").classList.add("hidden");
       editingIndex = null;
 
-      if (which === "diet") {
-        tabDiet.classList.add("active");
-        tabSupps.classList.remove("active");
-        dietPage.classList.remove("hidden");
-        suppsPage.classList.add("hidden");
-        daySwitcher.style.display = "flex";
-      } else {
-        tabSupps.classList.add("active");
-        tabDiet.classList.remove("active");
-        suppsPage.classList.remove("hidden");
-        dietPage.classList.add("hidden");
-        daySwitcher.style.display = "none";
-        if (document.activeElement) document.activeElement.blur();
-        ensureToday();   // enforce daily reset on tab switch
-        renderSupps();
-      }
+      // show/hide pages
+      const showDiet = which==="diet";
+      const showSupp = which==="supps";
+      const showHydr = which==="hydro";
+      tabDiet.classList.toggle("active", showDiet);
+      tabSupps.classList.toggle("active", showSupp);
+      tabHydro.classList.toggle("active", showHydr);
+      dietPage.classList.toggle("hidden", !showDiet);
+      suppsPage.classList.toggle("hidden", !showSupp);
+      hydroPage.classList.toggle("hidden", !showHydr);
+      daySwitcher.style.display = showDiet ? "flex" : "none";
+
+      if (showSupp){ ensureToday(); renderSupps(); }
+      if (showHydr){ ensureToday(); renderHydro(); }
+      if (showDiet){ renderDiet(); }
     }
 
     /* =========================
@@ -189,15 +238,13 @@
     prevBtn.addEventListener("click", () => { if (dayIndex>0){ dayIndex--; renderDiet(); } });
     nextBtn.addEventListener("click", () => { if (dayIndex<days.length-1){ dayIndex++; renderDiet(); } });
 
-    // Reset today’s meal toggles
     resetDietBtn.addEventListener("click", ()=>{
       const day = days[dayIndex];
-      mealEaten[day] = {};     // clear toggles for current day
-      renderDiet();            // rebuild UI (all unchecked)
+      mealEaten[day] = {};
+      renderDiet();
       showSnack("Today’s meals have been reset.");
     });
 
-    // Reset the whole week
     resetWeekBtn.addEventListener("click", ()=>{
       days.forEach(d => { mealEaten[d] = {}; });
       renderDiet();
@@ -362,6 +409,24 @@
     /* =========================
        SUPPS TAB
        ========================= */
+    const suppListEl = document.getElementById("suppList");
+    const addSuppBtn = document.getElementById("addSupp");
+    const restoreBtn = document.getElementById("restoreDefaults");
+    const sheet = document.getElementById("sheet");
+    const snack = document.getElementById("snackbar");
+    const snackMsg = document.getElementById("snackMsg");
+    const undoBtn = document.getElementById("undoBtn");
+
+    const form = document.getElementById("suppForm");
+    const fName = document.getElementById("fName");
+    const fDose = document.getElementById("fDose");
+    const fTiming = document.getElementById("fTiming");
+    const fPairs = document.getElementById("fPairs");
+    const fNotes = document.getElementById("fNotes");
+    const cancelSheet = document.getElementById("cancelSheet");
+    const saveSheet = document.getElementById("saveSheet");
+    const sheetTitle = document.getElementById("sheetTitle");
+
     function loadSupps(){
       if (!localStorage.getItem(DEFAULTS_KEY)) {
         localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaultSupps));
@@ -376,19 +441,19 @@
     function loadTakenMap(dateStr=AEST_DATE()){ return JSON.parse(localStorage.getItem(dayKey(dateStr)) || "{}"); }
     function saveTakenMap(map, dateStr=AEST_DATE()){ localStorage.setItem(dayKey(dateStr), JSON.stringify(map)); }
 
-    // Daily reset enforcement for Sup-Stack
+    // Daily reset enforcement (Sup-Stack + Hydration share this)
     function ensureToday(){
       const today = AEST_DATE();
       const last = localStorage.getItem(LAST_DATE_KEY);
       if (last !== today){
         localStorage.setItem(LAST_DATE_KEY, today);
-        // New day: do nothing else; today's map is naturally empty (fresh key).
-        showSnack("New day detected — Sup-Stack reset.");
+        // Sup-Stack: new date means a fresh key with no "taken" flags
+        // Hydration: likewise, new key for water log
+        showSnack("New day detected — Sup-Stack and Hydration reset.");
       }
     }
 
     function renderSupps(){
-      // Always close the sheet first
       sheet.classList.add("hidden");
       editingIndex = null;
 
@@ -422,6 +487,7 @@
           ${s.notes ? `<div class="supp-notes">${s.notes}</div>`:""}
         `;
 
+        // toggle taken
         const toggle = document.createElement("label");
         toggle.className = "switch";
         const inp = document.createElement("input");
@@ -437,6 +503,7 @@
           saveTakenMap(m);
         });
 
+        // menu
         const menu = document.createElement("div");
         menu.className = "menu";
         menu.innerHTML = `
@@ -559,11 +626,13 @@
       showSnack("Defaults restored");
     };
 
-    // Snackbar + Undo
+    /* =========================
+       Snackbar + Typeahead (unchanged)
+       ========================= */
     function showSnack(msg){
       snackMsg.textContent = msg;
       snack.classList.remove("hidden");
-      let to = setTimeout(()=> snack.classList.add("hidden"), 8000);
+      let to = setTimeout(()=> snack.classList.add("hidden"), 6000);
       undoBtn.onclick = ()=>{
         snack.classList.add("hidden");
         clearTimeout(to);
@@ -578,89 +647,231 @@
       };
     }
 
-    /* =========================
-       TYPEAHEAD (Name field)
-       ========================= */
-    const nameFieldWrapper = document.querySelector('#fName').parentElement;
-    nameFieldWrapper.style.position = 'relative';
-    const ta = document.createElement('div');
-    ta.id = 'typeahead';
-    ta.className = 'typeahead hidden';
-    nameFieldWrapper.appendChild(ta);
+    // Typeahead for supplement name
+    (function setupTypeahead(){
+      const nameFieldWrapper = document.querySelector('#fName').parentElement;
+      nameFieldWrapper.style.position = 'relative';
+      const ta = document.createElement('div');
+      ta.id = 'typeahead';
+      ta.className = 'typeahead hidden';
+      nameFieldWrapper.appendChild(ta);
 
-    function suggestionsFor(inputStr, limit=6){
-      const s = inputStr.trim().toLowerCase();
-      if (!s) return [];
-      const uniq = new Set();
-      const results = [];
-      const keys = Object.keys(ALIAS_TO_CANON);
-      // startsWith priority
-      keys.forEach(key=>{
-        const flat = key.replace(/[^a-z0-9]/g,'');
-        const flatS = s.replace(/[^a-z0-9]/g,'');
-        if (key.startsWith(s) || flat.startsWith(flatS)){
-          const canon = ALIAS_TO_CANON[key];
-          if (!uniq.has(canon)){ uniq.add(canon); results.push(canon); }
-        }
-      });
-      // includes fallback
-      keys.forEach(key=>{
-        if (results.length>=limit) return;
-        if (key.includes(s)){
-          const canon = ALIAS_TO_CANON[key];
-          if (!uniq.has(canon)){ uniq.add(canon); results.push(canon); }
-        }
-      });
-      return results.slice(0, limit);
-    }
-
-    function showTypeahead(list){
-      if (!list.length){ ta.classList.add('hidden'); ta.innerHTML=''; return; }
-      ta.innerHTML = list.map(canon => `<button type="button" data-canon="${canon}">${canon}</button>`).join('');
-      ta.classList.remove('hidden');
-      [...ta.querySelectorAll('button')].forEach(btn=>{
-        btn.onclick = ()=>{
-          const canon = btn.getAttribute('data-canon');
-          fName.value = canon;
-          const sug = SMART_SUGGESTIONS[canon];
-          if (sug){
-            if (!fDose.value)   fDose.value   = sug.dose || '';
-            if (!fTiming.value) fTiming.value = sug.timing || '';
-            if (!fPairs.value)  fPairs.value  = sug.pairs || '';
-            if (!fNotes.value)  fNotes.value  = sug.notes || '';
+      function suggestionsFor(inputStr, limit=6){
+        const s = inputStr.trim().toLowerCase();
+        if (!s) return [];
+        const uniq = new Set();
+        const results = [];
+        const keys = Object.keys(ALIAS_TO_CANON);
+        keys.forEach(key=>{
+          const flat = key.replace(/[^a-z0-9]/g,'');
+          const flatS = s.replace(/[^a-z0-9]/g,'');
+          if (key.startsWith(s) || flat.startsWith(flatS)){
+            const canon = ALIAS_TO_CANON[key];
+            if (!uniq.has(canon)){ uniq.add(canon); results.push(canon); }
           }
-          ta.classList.add('hidden'); ta.innerHTML='';
-        };
-      });
-    }
+        });
+        keys.forEach(key=>{
+          if (results.length>=limit) return;
+          if (key.includes(s)){
+            const canon = ALIAS_TO_CANON[key];
+            if (!uniq.has(canon)){ uniq.add(canon); results.push(canon); }
+          }
+        });
+        return results.slice(0, limit);
+      }
 
-    fName.addEventListener('input', ()=>{
-      const list = suggestionsFor(fName.value);
-      showTypeahead(list);
-    });
-    fName.addEventListener('blur', ()=> setTimeout(()=>{ ta.classList.add('hidden'); }, 150));
+      function showTypeahead(list){
+        if (!list.length){ ta.classList.add('hidden'); ta.innerHTML=''; return; }
+        ta.innerHTML = list.map(canon => `<button type="button" data-canon="${canon}">${canon}</button>`).join('');
+        ta.classList.remove('hidden');
+        [...ta.querySelectorAll('button')].forEach(btn=>{
+          btn.onclick = ()=>{
+            const canon = btn.getAttribute('data-canon');
+            fName.value = canon;
+            const sug = SMART_SUGGESTIONS[canon];
+            if (sug){
+              if (!fDose.value)   fDose.value   = sug.dose || '';
+              if (!fTiming.value) fTiming.value = sug.timing || '';
+              if (!fPairs.value)  fPairs.value  = sug.pairs || '';
+              if (!fNotes.value)  fNotes.value  = sug.notes || '';
+            }
+            ta.classList.add('hidden'); ta.innerHTML='';
+          };
+        });
+      }
+
+      fName.addEventListener('input', ()=>{
+        const list = suggestionsFor(fName.value);
+        showTypeahead(list);
+      });
+      fName.addEventListener('blur', ()=> setTimeout(()=>{ ta.classList.add('hidden'); }, 150));
+    })();
 
     /* =========================
-       INIT + Daily-check timers
+       HYDRATION TAB
+       ========================= */
+    const goalLitresEl = document.getElementById('goalLitres');
+    const goalMlEl = document.getElementById('goalMl');
+    const editGoalBtn = document.getElementById('editGoalBtn');
+    const autoGoalEl = document.getElementById('autoGoal');
+    const bottleFill = document.getElementById('bottleFill');
+    const todayStr = document.getElementById('todayStr');
+    const pctStr = document.getElementById('pctStr');
+    const quickBtns = document.querySelectorAll('.pill-btn');
+    const customMl = document.getElementById('customMl');
+    const addCustom = document.getElementById('addCustom');
+    const resetWater = document.getElementById('resetWater');
+    const hydroHistory = document.getElementById('hydroHistory');
+
+    function waterKey(dateStr=AEST_DATE()){ return WATER_PREFIX + dateStr; }
+    function loadWater(dateStr=AEST_DATE()){
+      return JSON.parse(localStorage.getItem(waterKey(dateStr)) || '{"total_ml":0}');
+    }
+    function saveWater(total_ml, dateStr=AEST_DATE()){
+      localStorage.setItem(waterKey(dateStr), JSON.stringify({ total_ml: Math.max(0,total_ml) }));
+    }
+
+    function takingCreatine(){
+      try{
+        const list = JSON.parse(localStorage.getItem(SUPPS_KEY) || "[]");
+        return list.some(s => (s.name || "").toLowerCase().includes("creatine"));
+      }catch{ return false; }
+    }
+
+    function computeAutoTargetMl(){
+      // Baseline 35 ml/kg
+      const baseline = Math.round(USER_WEIGHT_KG * 35); // e.g., 2485 ml
+      // Creatine bump +500 ml when creatine present
+      const bump = takingCreatine() ? 500 : 0;
+      // Round to nearest 100 ml
+      return Math.round((baseline + bump)/100)*100;
+    }
+
+    function currentTargetMl(){
+      const auto = localStorage.getItem(WATER_AUTO_KEY) === "1";
+      if (auto) return computeAutoTargetMl();
+      const saved = parseInt(localStorage.getItem(WATER_TARGET_KEY)||"0",10);
+      return saved>0 ? saved : 3000; // default 3L
+    }
+
+    function setTargetMl(ml){
+      localStorage.setItem(WATER_TARGET_KEY, String(ml));
+      renderHydro();
+    }
+
+    function setAutoGoal(on){
+      localStorage.setItem(WATER_AUTO_KEY, on ? "1" : "0");
+      renderHydro();
+    }
+
+    function addWater(ml){
+      const w = loadWater();
+      const tgt = currentTargetMl();
+      const updated = clamp(w.total_ml + ml, 0, tgt*2); // cap at 200% for display
+      saveWater(updated);
+      animateFill(updated, tgt);
+      renderHydroNumbers(updated, tgt);
+      renderHistory(); // update bar for today
+    }
+
+    function resetTodayWater(){
+      saveWater(0);
+      renderHydro();
+      showSnack("Hydration reset for today.");
+    }
+
+    function animateFill(totalMl, targetMl){
+      const pct = clamp((totalMl/targetMl)*100, 0, 100);
+      bottleFill.style.setProperty('--fill', pct + '%');
+      pctStr.textContent = Math.round(pct) + '%';
+    }
+
+    function renderHydroNumbers(totalMl, targetMl){
+      todayStr.textContent = `Today: ${toLitres(totalMl)} L / ${toLitres(targetMl)} L`;
+      goalLitresEl.textContent = (targetMl/1000).toFixed(1).replace(/\.0$/,'');
+      goalMlEl.textContent = targetMl;
+    }
+
+    function renderHistory(){
+      // last 7 days including today
+      const daysArr = [];
+      const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Australia/Brisbane" }));
+      for (let i=6; i>=0; i--){
+        const d = new Date(now);
+        d.setDate(d.getDate()-i);
+        const ds = new Date(d).toLocaleString("en-CA",{ timeZone:"Australia/Brisbane" }).slice(0,10);
+        const total = loadWater(ds).total_ml || 0;
+        const tgt = currentTargetMl(); // use current target as reference bar
+        const pct = clamp((total/tgt)*100, 0, 100);
+        const label = ds.slice(5); // MM-DD
+        daysArr.push({ label, pct, total });
+      }
+      hydroHistory.innerHTML = daysArr.map(({label,pct,total})=>`
+        <div class="hbar">
+          <div class="hbar-bar"><span style="height:${pct}%;"></span></div>
+          <div class="hbar-lab">${label}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderHydro(){
+      const target = currentTargetMl();
+      const { total_ml } = loadWater();
+      // UI state
+      autoGoalEl.checked = localStorage.getItem(WATER_AUTO_KEY) === "1";
+      renderHydroNumbers(total_ml, target);
+      // Fill animation
+      requestAnimationFrame(()=> animateFill(total_ml, target));
+      renderHistory();
+    }
+
+    // Events
+    editGoalBtn.onclick = ()=>{
+      const current = currentTargetMl();
+      const val = prompt("Set daily water goal (ml). Tip: 2500–4000 ml for most active days.", String(current));
+      if (val===null) return;
+      const ml = clamp(parseInt(val,10)||0, 500, 10000);
+      localStorage.setItem(WATER_AUTO_KEY, "0"); // switch to manual when user edits
+      setTargetMl(ml);
+      showSnack(`Water goal set to ${ml} ml.`);
+    };
+    autoGoalEl.onchange = ()=> setAutoGoal(autoGoalEl.checked);
+
+    quickBtns.forEach(b=>{
+      b.addEventListener('click', ()=> addWater(parseInt(b.dataset.ml,10)));
+    });
+    addCustom.onclick = ()=>{
+      const ml = Math.max(0, parseInt(customMl.value||"0",10));
+      if (!ml) return;
+      addWater(ml);
+      customMl.value = "";
+    };
+    resetWater.onclick = ()=> resetTodayWater();
+
+    /* =========================
+       INIT + Daily checks
        ========================= */
     function init(){
-      // Initialize daily anchor
       if (!localStorage.getItem(LAST_DATE_KEY)) {
         localStorage.setItem(LAST_DATE_KEY, AEST_DATE());
       }
-      loadSupps();
+      // defaults for hydration
+      if (!localStorage.getItem(WATER_TARGET_KEY)) localStorage.setItem(WATER_TARGET_KEY, "3000");
+      if (!localStorage.getItem(WATER_AUTO_KEY)) localStorage.setItem(WATER_AUTO_KEY, "0");
+
       renderDiet();
       renderSupps();
+      renderHydro();
       setTab("diet"); // start on Diet
 
-      // If tab becomes visible again (after background), re-check date
+      // Daily re-checks across midnight / background resume
       document.addEventListener("visibilitychange", ()=>{
-        if (!document.hidden) { ensureToday(); if (tabSupps.classList.contains("active")) renderSupps(); }
+        if (!document.hidden) { ensureToday(); if (!hydroPage.classList.contains('hidden')) renderHydro(); if (!suppsPage.classList.contains('hidden')) renderSupps(); }
       });
-      // Periodic check (handles crossing midnight while app is open)
       setInterval(()=> {
         ensureToday();
-        if (tabSupps.classList.contains("active")) renderSupps();
+        if (!hydroPage.classList.contains('hidden')) renderHydro();
+        if (!suppsPage.classList.contains('hidden')) renderSupps();
       }, 60000);
     }
     init();
