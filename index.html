@@ -1,59 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nutrify</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="app">
-    <h1>Nutrify</h1>
+  <div id="app"><!-- Wrapper starts -->
 
-    <!-- Navigation -->
-    <nav id="tabs">
-      <button class="tab active" data-tab="diet">Diet</button>
-      <button class="tab" data-tab="supps">Sup-Stack</button>
-      <button class="tab" data-tab="hydration">Hydration</button>
-    </nav>
+    <header>
+      <h1>Nutrify</h1>
+      <nav>
+        <button class="tab active" data-tab="diet">Diet</button>
+        <button class="tab" data-tab="supps">Sup-Stack</button>
+        <button class="tab" data-tab="hydration">Hydration</button>
+      </nav>
+    </header>
 
-    <!-- Diet tab -->
-    <section class="section active" id="diet">
-      <section id="dietPage" class="page">
+    <main>
+      <!-- Diet Section -->
+      <section id="diet" class="tab-content active">
         <div class="day-nav">
           <button id="prevDay">Prev</button>
-          <span id="dayName">Monday</span>
+          <span id="currentDay"></span>
           <button id="nextDay">Next</button>
         </div>
 
-        <div id="mealsContainer"></div>
-        <div id="remainingContainer"></div>
-      </section>
-    </section>
+        <h2>Meals</h2>
+        <div id="meals"></div>
 
-    <!-- Sup-Stack tab -->
-    <section class="section" id="supps">
-      <section id="suppsPage" class="page">
-        <div id="suppsContainer"></div>
-        <div id="addSuppForm"></div>
+        <h2>Remaining Today</h2>
+        <div id="totals"></div>
+        <button id="resetDay">Reset day</button>
+        <button id="resetWeek">Reset week</button>
       </section>
-    </section>
 
-    <!-- Hydration tab -->
-    <section class="section" id="hydration">
-      <section id="hydroPage" class="page">
-        <div id="hydrationContainer"></div>
-        <div id="hydrationHistory"></div>
+      <!-- Supp Stack Section -->
+      <section id="supps" class="tab-content">
+        <h2>Supplements</h2>
+        <div id="suppList"></div>
+        <h3>Add Supplement</h3>
+        <form id="addSuppForm">
+          <input type="text" id="suppName" placeholder="Name" list="suppSuggestions" />
+          <datalist id="suppSuggestions"></datalist>
+          <input type="text" id="suppDose" placeholder="Dose" />
+          <input type="text" id="suppTiming" placeholder="Timing" />
+          <input type="text" id="suppPairs" placeholder="Pairs with" />
+          <input type="text" id="suppNotes" placeholder="Notes" />
+          <button type="submit">Add</button>
+        </form>
       </section>
-    </section>
-  </div>
+
+      <!-- Hydration Section -->
+      <section id="hydration" class="tab-content">
+        <h2>Hydration</h2>
+        <div id="hydrationTracker"></div>
+        <button id="addWater">+250 ml</button>
+        <button id="resetWater">Reset</button>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Diet: toggle meals to update remaining nutrients.
+        Sup-Stack: track “taken today”.
+        Hydration: log water and watch the fill rise.
+      </p>
+    </footer>
+
+  </div><!-- Wrapper ends -->
 
   <!-- Scripts -->
-  <script src="js/data.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/diet.js"></script>
-  <script src="js/supps.js"></script>
-  <script src="js/hydration.js"></script>
-  <script src="js/app.js"></script>
+  <script src="data.js"></script>
+  <script src="supps.js"></script>
+  <script src="utils.js"></script>
+  <script src="diet.js"></script>
+  <script src="hydration.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
