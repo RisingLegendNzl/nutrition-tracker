@@ -2,14 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Nutrition Tracker</title>
-  <link rel="stylesheet" href="style.css"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nutrify</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="app"></div>
+  <header class="app-header">
+    <h1>Nutrify</h1>
+    <div class="day-switcher">
+      <button id="prevDay" class="ghost" aria-label="Previous day">Prev</button>
+      <div id="dayName" class="day-name">Monday</div>
+      <button id="nextDay" class="ghost" aria-label="Next day">Next</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <section class="card">
+      <h2 class="section-title">Meals</h2>
+      <div id="meals"></div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Remaining Today</h2>
+      <div id="macroSummary" class="summary-row"></div>
+      <div id="bars"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="tip">Toggle meals as you eat. Totals update automatically.</div>
+  </footer>
+
   <script src="data.js"></script>
   <script>
+    // Goals (RDI/targets)
     const goals = {
       calories: 3500,
       protein: 200,
@@ -22,84 +48,131 @@
       potassium: 3800
     };
 
+    // State
     let dayIndex = 0;
     const days = Object.keys(mealPlan);
-    const checkedMeals = {};
+    const toggles = {}; // e.g., { Monday: { Breakfast: true } }
+
+    // DOM refs
+    const dayNameEl = document.getElementById("dayName");
+    const mealsEl = document.getElementById("meals");
+    const barsEl = document.getElementById("bars");
+    const macroSummaryEl = document.getElementById("macroSummary");
+    const prevBtn = document.getElementById("prevDay");
+    const nextBtn = document.getElementById("nextDay");
+
+    prevBtn.addEventListener("click", () => { if (dayIndex > 0) { dayIndex--; render(); } });
+    nextBtn.addEventListener("click", () => { if (dayIndex < days.length - 1) { dayIndex++; render(); } });
 
     function render() {
-      const app = document.getElementById("app");
-      app.innerHTML = "";
-
       const day = days[dayIndex];
       const meals = mealPlan[day];
 
-      const title = document.createElement("h1");
-      title.textContent = day + " Plan";
-      app.appendChild(title);
+      // Header state
+      dayNameEl.textContent = day;
+      prevBtn.disabled = dayIndex === 0;
+      nextBtn.disabled = dayIndex === days.length - 1;
 
       // Meals list
-      for (const mealName in meals) {
-        const mealDiv = document.createElement("div");
-        const label = document.createElement("label");
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.checked = checkedMeals[day]?.[mealName] || false;
-        checkbox.addEventListener("change", () => {
-          checkedMeals[day] = checkedMeals[day] || {};
-          checkedMeals[day][mealName] = checkbox.checked;
-          render();
+      mealsEl.innerHTML = "";
+      Object.entries(meals).forEach(([mealName, mealData]) => {
+        const card = document.createElement("div");
+        card.className = "meal-row";
+
+        const title = document.createElement("div");
+        title.className = "meal-title";
+        title.innerHTML = `<span class="meal-name">${mealName}</span>
+          <span class="meal-macros">${mealData.calories} kcal • ${mealData.protein} g protein • ${mealData.fibre} g fibre</span>`;
+
+        // Toggle
+        const toggleWrap = document.createElement("label");
+        toggleWrap.className = "switch";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = toggles[day]?.[mealName] || false;
+        const slider = document.createElement("span");
+        slider.className = "slider";
+
+        input.addEventListener("change", () => {
+          toggles[day] = toggles[day] || {};
+          toggles[day][mealName] = input.checked;
+          updateTotals();
         });
-        label.appendChild(checkbox);
-        label.innerHTML += `<b> ${mealName}</b> — ${meals[mealName].calories} kcal, ${meals[mealName].protein} g protein, ${meals[mealName].fibre} g fibre`;
-        mealDiv.appendChild(label);
-        app.appendChild(mealDiv);
-      }
 
-      // Totals
-      const totals = {};
-      for (const key in goals) totals[key] = 0;
-      for (const mealName in meals) {
-        if (!checkedMeals[day]?.[mealName]) {
-          for (const key in meals[mealName]) {
-            totals[key] += meals[mealName][key];
-          }
+        toggleWrap.appendChild(input);
+        toggleWrap.appendChild(slider);
+
+        card.appendChild(title);
+        card.appendChild(toggleWrap);
+        mealsEl.appendChild(card);
+      });
+
+      updateTotals();
+    }
+
+    function updateTotals() {
+      const day = days[dayIndex];
+      const meals = mealPlan[day];
+
+      // Compute remaining nutrients (subtract toggled meals)
+      const totals = Object.keys(goals).reduce((a, k) => (a[k] = 0, a), {});
+      Object.entries(meals).forEach(([mealName, meal]) => {
+        const isEaten = toggles[day]?.[mealName] || false;
+        if (!isEaten) {
+          for (const k in goals) totals[k] += meal[k] || 0;
         }
-      }
+      });
 
-      const h2 = document.createElement("h2");
-      h2.textContent = "Remaining Nutrients";
-      app.appendChild(h2);
+      // Macro summary (top line)
+      macroSummaryEl.innerHTML = `
+        <div class="pill"><span>Calories</span><strong>${Math.max(0, Math.round(totals.calories))}</strong></div>
+        <div class="pill"><span>Protein</span><strong>${Math.max(0, Math.round(totals.protein))} g</strong></div>
+        <div class="pill"><span>Fibre</span><strong>${Math.max(0, Math.round(totals.fibre))} g</strong></div>
+      `;
 
-      for (const key in goals) {
-        const div = document.createElement("div");
-        div.innerHTML = `<b>${key}:</b> ${totals[key]} / ${goals[key]}`;
-        const bar = document.createElement("div");
-        bar.style.background = "#eee";
-        bar.style.height = "10px";
-        bar.style.width = "100%";
-        const inner = document.createElement("div");
-        inner.style.height = "10px";
-        inner.style.width = Math.min((totals[key]/goals[key])*100,100) + "%";
-        inner.style.background = "#4caf50";
-        bar.appendChild(inner);
-        div.appendChild(bar);
-        app.appendChild(div);
-      }
+      // Bars
+      barsEl.innerHTML = "";
+      Object.entries(goals).forEach(([k, goal]) => {
+        const val = Math.max(0, totals[k]);
+        const pct = Math.min(100, (val / goal) * 100);
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        row.innerHTML = `
+          <div class="bar-label">
+            <span>${labelPretty(k)}</span>
+            <span class="bar-value">${formatValue(k, val)} / ${formatValue(k, goal)}</span>
+          </div>
+          <div class="bar-outer">
+            <div class="bar-inner" style="width:${pct}%"></div>
+          </div>
+        `;
+        barsEl.appendChild(row);
+      });
+    }
 
-      // Navigation
-      const nav = document.createElement("div");
-      nav.style.marginTop = "15px";
-      const prevBtn = document.createElement("button");
-      prevBtn.textContent = "⬅ Prev";
-      prevBtn.disabled = dayIndex === 0;
-      prevBtn.onclick = () => { dayIndex--; render(); };
-      const nextBtn = document.createElement("button");
-      nextBtn.textContent = "Next ➡";
-      nextBtn.disabled = dayIndex === days.length - 1;
-      nextBtn.onclick = () => { dayIndex++; render(); };
-      nav.appendChild(prevBtn);
-      nav.appendChild(nextBtn);
-      app.appendChild(nav);
+    function labelPretty(key) {
+      const map = {
+        calories: "Calories",
+        protein: "Protein",
+        fibre: "Fibre",
+        iron: "Iron",
+        zinc: "Zinc",
+        calcium: "Calcium",
+        vitaminC: "Vitamin C",
+        folate: "Folate",
+        potassium: "Potassium"
+      };
+      return map[key] || key;
+    }
+
+    function formatValue(key, v) {
+      if (key === "calories") return Math.round(v) + " kcal";
+      if (key === "protein" || key === "fibre") return Math.round(v) + " g";
+      if (key === "iron" || key === "zinc") return v.toFixed(1) + " mg";
+      if (key === "calcium" || key === "potassium") return Math.round(v) + " mg";
+      if (key === "vitaminC") return Math.round(v) + " mg";
+      if (key === "folate") return Math.round(v) + " µg";
+      return v;
     }
 
     render();
