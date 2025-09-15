@@ -1,22 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Nutrify</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
   <header class="app-header">
     <h1>Nutrify</h1>
-    <div class="day-switcher">
+    <!-- Tabs -->
+    <nav class="tabs">
+      <button id="tabDiet" class="tab active" aria-controls="dietPage">Diet</button>
+      <button id="tabSupps" class="tab" aria-controls="suppsPage">Sup-Stack</button>
+    </nav>
+
+    <!-- Day switcher (Diet tab only) -->
+    <div id="daySwitcher" class="day-switcher">
       <button id="prevDay" class="ghost" aria-label="Previous day">Prev</button>
       <div id="dayName" class="day-name">Monday</div>
       <button id="nextDay" class="ghost" aria-label="Next day">Next</button>
     </div>
   </header>
 
-  <main id="app">
+  <!-- DIET PAGE -->
+  <main id="dietPage">
     <section class="card">
       <h2 class="section-title">Meals</h2>
       <div id="meals"></div>
@@ -29,46 +37,149 @@
     </section>
   </main>
 
+  <!-- SUPPS PAGE -->
+  <main id="suppsPage" class="hidden">
+    <section class="card">
+      <h2 class="section-title">Supplements</h2>
+      <div id="suppList"></div>
+      <div class="supp-actions">
+        <button id="restoreDefaults" class="ghost small">Restore defaults</button>
+      </div>
+    </section>
+
+    <!-- Add/Edit Sheet -->
+    <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet-card">
+        <h3 id="sheetTitle">Add supplement</h3>
+        <form id="suppForm">
+          <label class="field">
+            <span>Name</span>
+            <input id="fName" type="text" placeholder="e.g., Zinc"/>
+          </label>
+          <label class="field">
+            <span>Dosage</span>
+            <input id="fDose" type="text" placeholder="e.g., 25 mg"/>
+          </label>
+          <label class="field">
+            <span>Timing</span>
+            <input id="fTiming" type="text" placeholder="e.g., With breakfast"/>
+          </label>
+          <label class="field">
+            <span>Pairs best with</span>
+            <input id="fPairs" type="text" placeholder="e.g., Fat-containing meal"/>
+          </label>
+          <label class="field">
+            <span>Notes</span>
+            <textarea id="fNotes" rows="3" placeholder="e.g., Keep 2h away from iron"></textarea>
+          </label>
+          <div class="sheet-row">
+            <button type="button" id="cancelSheet" class="ghost">Cancel</button>
+            <button type="submit" id="saveSheet" class="primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Floating Add Button -->
+    <button id="addSupp" class="fab" aria-label="Add supplement">Add</button>
+
+    <!-- Snackbar for undo -->
+    <div id="snackbar" class="snackbar hidden">
+      <span id="snackMsg"></span>
+      <button id="undoBtn" class="link">Undo</button>
+    </div>
+  </main>
+
   <footer class="app-footer">
-    <div class="tip">Toggle meals as you eat. Tap a meal row to view ingredients.</div>
+    <div class="tip">Diet: toggle meals to update remaining nutrients. Sup-Stack: track “taken today” and manage your list.</div>
   </footer>
 
   <script src="data.js"></script>
   <script>
-    const goals = {
-      calories: 3500,
-      protein: 200,
-      fibre: 30,
-      iron: 8,
-      zinc: 14,
-      calcium: 1000,
-      vitaminC: 45,
-      folate: 400,
-      potassium: 3800
-    };
+    /* =========================
+       Helpers & Global State
+       ========================= */
+    const AEST_DATE = () =>
+      new Date().toLocaleString("en-CA", { timeZone: "Australia/Brisbane" }).slice(0,10); // YYYY-MM-DD
 
+    // DIET state
     let dayIndex = 0;
     const days = Object.keys(mealPlan);
-    const toggles = {};
-    const openMeals = {};
+    const mealEaten = {};     // { Monday: { Breakfast: true } }
+    const openMeals = {};     // expanded accordions
 
+    // SUPPS state
+    const DEFAULTS_KEY = "supps_defaults_v1";
+    const SUPPS_KEY = "supps_v1";
+    const TAKEN_PREFIX = "supps_taken_"; // + date
+    let editingIndex = null;  // index in current list when editing
+    let lastDeleted = null;   // { item, index }
+
+    // DOM refs (Diet)
     const dayNameEl = document.getElementById("dayName");
     const mealsEl = document.getElementById("meals");
     const barsEl = document.getElementById("bars");
     const macroSummaryEl = document.getElementById("macroSummary");
     const prevBtn = document.getElementById("prevDay");
     const nextBtn = document.getElementById("nextDay");
+    const daySwitcher = document.getElementById("daySwitcher");
 
-    prevBtn.addEventListener("click", () => { if (dayIndex > 0) { dayIndex--; render(); } });
-    nextBtn.addEventListener("click", () => { if (dayIndex < days.length - 1) { dayIndex++; render(); } });
+    // DOM refs (Supps)
+    const suppListEl = document.getElementById("suppList");
+    const addSuppBtn = document.getElementById("addSupp");
+    const restoreBtn = document.getElementById("restoreDefaults");
+    const sheet = document.getElementById("sheet");
+    const snack = document.getElementById("snackbar");
+    const snackMsg = document.getElementById("snackMsg");
+    const undoBtn = document.getElementById("undoBtn");
 
-    function render() {
+    // Form refs
+    const form = document.getElementById("suppForm");
+    const fName = document.getElementById("fName");
+    const fDose = document.getElementById("fDose");
+    const fTiming = document.getElementById("fTiming");
+    const fPairs = document.getElementById("fPairs");
+    const fNotes = document.getElementById("fNotes");
+    const cancelSheet = document.getElementById("cancelSheet");
+    const saveSheet = document.getElementById("saveSheet");
+    const sheetTitle = document.getElementById("sheetTitle");
+
+    // Tabs
+    const tabDiet = document.getElementById("tabDiet");
+    const tabSupps = document.getElementById("tabSupps");
+    const dietPage = document.getElementById("dietPage");
+    const suppsPage = document.getElementById("suppsPage");
+
+    tabDiet.onclick = () => setTab("diet");
+    tabSupps.onclick = () => setTab("supps");
+
+    function setTab(which){
+      if (which === "diet") {
+        tabDiet.classList.add("active");
+        tabSupps.classList.remove("active");
+        dietPage.classList.remove("hidden");
+        suppsPage.classList.add("hidden");
+        daySwitcher.style.display = "flex";
+      } else {
+        tabSupps.classList.add("active");
+        tabDiet.classList.remove("active");
+        suppsPage.classList.remove("hidden");
+        dietPage.classList.add("hidden");
+        daySwitcher.style.display = "none";
+      }
+    }
+
+    /* =========================
+       DIET TAB (existing)
+       ========================= */
+    prevBtn.addEventListener("click", () => { if (dayIndex>0){ dayIndex--; renderDiet(); } });
+    nextBtn.addEventListener("click", () => { if (dayIndex<days.length-1){ dayIndex++; renderDiet(); } });
+
+    function renderDiet(){
       const day = days[dayIndex];
       const meals = mealPlan[day];
-
       dayNameEl.textContent = day;
-      prevBtn.disabled = dayIndex === 0;
-      nextBtn.disabled = dayIndex === days.length - 1;
+      prevBtn.disabled = dayIndex===0; nextBtn.disabled = dayIndex===days.length-1;
 
       mealsEl.innerHTML = "";
       Object.entries(meals).forEach(([mealName, mealData]) => {
@@ -76,7 +187,6 @@
         card.className = "meal-row";
         if (openMeals[day]?.[mealName]) card.classList.add("open");
 
-        // clickable row (everything except toggle)
         const rowBtn = document.createElement("div");
         rowBtn.className = "meal-title";
         rowBtn.innerHTML = `
@@ -89,26 +199,22 @@
         rowBtn.addEventListener("click", () => {
           openMeals[day] = openMeals[day] || {};
           openMeals[day][mealName] = !openMeals[day][mealName];
-          render();
+          renderDiet();
         });
 
-        // toggle
         const toggleWrap = document.createElement("label");
         toggleWrap.className = "switch";
         const input = document.createElement("input");
         input.type = "checkbox";
-        input.checked = toggles[day]?.[mealName] || false;
+        input.checked = mealEaten[day]?.[mealName] || false;
         const slider = document.createElement("span");
         slider.className = "slider";
-
-        // stop toggle clicks from expanding
-        toggleWrap.addEventListener("click", (e) => e.stopPropagation());
+        toggleWrap.addEventListener("click", (e)=> e.stopPropagation());
         input.addEventListener("change", () => {
-          toggles[day] = toggles[day] || {};
-          toggles[day][mealName] = input.checked;
-          updateTotals();
+          mealEaten[day] = mealEaten[day] || {};
+          mealEaten[day][mealName] = input.checked;
+          updateNutrients();
         });
-
         toggleWrap.appendChild(input);
         toggleWrap.appendChild(slider);
 
@@ -117,17 +223,16 @@
         top.appendChild(rowBtn);
         top.appendChild(toggleWrap);
 
-        // ingredients
         const details = document.createElement("div");
         details.className = "ingredients";
         if (mealData.ingredients?.length) {
-          const list = document.createElement("ul");
-          mealData.ingredients.forEach(item => {
+          const ul = document.createElement("ul");
+          mealData.ingredients.forEach(it => {
             const li = document.createElement("li");
-            li.textContent = item;
-            list.appendChild(li);
+            li.textContent = it;
+            ul.appendChild(li);
           });
-          details.appendChild(list);
+          details.appendChild(ul);
         }
 
         card.appendChild(top);
@@ -135,17 +240,22 @@
         mealsEl.appendChild(card);
       });
 
-      updateTotals();
+      updateNutrients();
     }
 
-    function updateTotals() {
+    const goals = {
+      calories: 3500, protein: 200, fibre: 30,
+      iron: 8, zinc: 14, calcium: 1000,
+      vitaminC: 45, folate: 400, potassium: 3800
+    };
+
+    function updateNutrients(){
       const day = days[dayIndex];
       const meals = mealPlan[day];
       const totals = Object.keys(goals).reduce((a,k)=>(a[k]=0,a),{});
-
-      Object.entries(meals).forEach(([mealName, meal]) => {
-        if (!toggles[day]?.[mealName]) {
-          for (const k in goals) totals[k] += meal[k] || 0;
+      Object.entries(meals).forEach(([mName,mData])=>{
+        if (!mealEaten[day]?.[mName]){
+          for (const k in goals) totals[k] += mData[k] || 0;
         }
       });
 
@@ -156,15 +266,15 @@
       `;
 
       barsEl.innerHTML = "";
-      Object.entries(goals).forEach(([k, goal]) => {
-        const val = totals[k];
-        const pct = Math.min(100, (val/goal)*100);
+      Object.entries(goals).forEach(([k,goal])=>{
+        const v = totals[k];
+        const pct = Math.min(100, (v/goal)*100);
         const row = document.createElement("div");
         row.className = "bar-row";
         row.innerHTML = `
           <div class="bar-label">
             <span>${labelPretty(k)}</span>
-            <span class="bar-value">${formatValue(k,val)} / ${formatValue(k,goal)}</span>
+            <span class="bar-value">${formatValue(k,v)} / ${formatValue(k,goal)}</span>
           </div>
           <div class="bar-outer"><div class="bar-inner" style="width:${pct}%"></div></div>
         `;
@@ -174,22 +284,265 @@
 
     function labelPretty(key){
       return {
-        calories:"Calories",protein:"Protein",fibre:"Fibre",iron:"Iron",zinc:"Zinc",
-        calcium:"Calcium",vitaminC:"Vitamin C",folate:"Folate",potassium:"Potassium"
-      }[key]||key;
+        calories:"Calories", protein:"Protein", fibre:"Fibre", iron:"Iron", zinc:"Zinc",
+        calcium:"Calcium", vitaminC:"Vitamin C", folate:"Folate", potassium:"Potassium"
+      }[key] || key;
     }
-
     function formatValue(key,v){
-      if(key==="calories")return Math.round(v)+" kcal";
-      if(["protein","fibre"].includes(key))return Math.round(v)+" g";
-      if(["iron","zinc"].includes(key))return v.toFixed(1)+" mg";
-      if(["calcium","potassium"].includes(key))return Math.round(v)+" mg";
-      if(key==="vitaminC")return Math.round(v)+" mg";
-      if(key==="folate")return Math.round(v)+" µg";
+      if (key==="calories") return Math.round(v)+" kcal";
+      if (key==="protein"||key==="fibre") return Math.round(v)+" g";
+      if (key==="iron"||key==="zinc") return v.toFixed(1)+" mg";
+      if (key==="vitaminC") return Math.round(v)+" mg";
+      if (key==="folate") return Math.round(v)+" µg";
+      if (key==="calcium"||key==="potassium") return Math.round(v)+" mg";
       return v;
     }
 
-    render();
+    /* =========================
+       SUPP SUGGESTION ENGINE
+       ========================= */
+    const KB = SMART_SUGGESTIONS; // from data.js
+
+    function suggestFor(name){
+      const key = name.trim().toLowerCase();
+      let hit = null;
+      for (const k in KB){
+        if (key.includes(k)) { hit = KB[k]; break; }
+      }
+      if (!hit) {
+        return {
+          dose:"", timing:"With a meal",
+          pairs:"Food (improves tolerance/absorption)",
+          notes:"General guidance; adjust if you notice sensitivity.",
+          why:"Complements your diet by filling potential micronutrient gaps."
+        };
+      }
+      return { ...hit };
+    }
+
+    /* =========================
+       SUPPS TAB
+       ========================= */
+    function loadSupps(){
+      // Seed defaults if first time
+      if (!localStorage.getItem(DEFAULTS_KEY)) {
+        localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaultSupps));
+      }
+      if (!localStorage.getItem(SUPPS_KEY)) {
+        localStorage.setItem(SUPPS_KEY, JSON.stringify(defaultSupps));
+      }
+      return JSON.parse(localStorage.getItem(SUPPS_KEY) || "[]");
+    }
+    function saveSupps(list){
+      localStorage.setItem(SUPPS_KEY, JSON.stringify(list));
+    }
+    function loadTakenMap(){
+      const k = TAKEN_PREFIX + AEST_DATE();
+      return JSON.parse(localStorage.getItem(k) || "{}");
+    }
+    function saveTakenMap(map){
+      const k = TAKEN_PREFIX + AEST_DATE();
+      localStorage.setItem(k, JSON.stringify(map));
+    }
+
+    function renderSupps(){
+      const list = loadSupps();
+      const taken = loadTakenMap();
+      suppListEl.innerHTML = "";
+
+      list.forEach((s, idx) => {
+        const row = document.createElement("div");
+        row.className = "supp-row";
+
+        const left = document.createElement("div");
+        left.className = "supp-left";
+        left.innerHTML = `
+          <div class="supp-title">${s.name}</div>
+          <div class="supp-sub">${s.dose || ""} ${s.timing ? "• "+s.timing : ""}</div>
+          <div class="supp-sub muted">
+            ${s.pairs ? "Pairs: "+s.pairs : ""} ${s.why ? "• "+s.why : ""}
+          </div>
+          ${s.notes ? `<div class="supp-notes">${s.notes}</div>`:""}
+        `;
+
+        // toggle taken
+        const toggle = document.createElement("label");
+        toggle.className = "switch";
+        const inp = document.createElement("input");
+        inp.type = "checkbox";
+        inp.checked = !!taken[s.name];
+        const slid = document.createElement("span");
+        slid.className = "slider";
+        toggle.appendChild(inp); toggle.appendChild(slid);
+
+        inp.addEventListener("change", ()=>{
+          const m = loadTakenMap();
+          if (inp.checked) m[s.name] = true; else delete m[s.name];
+          saveTakenMap(m);
+        });
+
+        // menu
+        const menu = document.createElement("div");
+        menu.className = "menu";
+        menu.innerHTML = `
+          <button class="menu-btn" aria-label="More">⋮</button>
+          <div class="menu-sheet hidden">
+            <button class="menu-item" data-act="edit">Edit</button>
+            <button class="menu-item danger" data-act="delete">Delete</button>
+            <button class="menu-item" data-act="info">Info</button>
+          </div>
+        `;
+        const btn = menu.querySelector(".menu-btn");
+        const sheetEl = menu.querySelector(".menu-sheet");
+        btn.onclick = (e)=> {
+          e.stopPropagation();
+          sheetEl.classList.toggle("hidden");
+          // close on outside click
+          document.addEventListener("click", function docClose(ev){
+            if (!menu.contains(ev.target)) { sheetEl.classList.add("hidden"); document.removeEventListener("click", docClose); }
+          });
+        };
+        sheetEl.onclick = (e)=>{
+          const act = e.target.getAttribute("data-act");
+          if (!act) return;
+          sheetEl.classList.add("hidden");
+          if (act==="edit") openEditor(s, idx);
+          if (act==="delete") doDelete(idx);
+          if (act==="info") showInfo(s);
+        };
+
+        row.appendChild(left);
+        const right = document.createElement("div");
+        right.className = "supp-right";
+        right.appendChild(toggle);
+        right.appendChild(menu);
+        row.appendChild(right);
+
+        suppListEl.appendChild(row);
+      });
+    }
+
+    function openEditor(s=null, idx=null){
+      editingIndex = idx;
+      if (s){
+        sheetTitle.textContent = "Edit supplement";
+        fName.value = s.name; fDose.value = s.dose||""; fTiming.value=s.timing||"";
+        fPairs.value = s.pairs||""; fNotes.value = s.notes||"";
+      } else {
+        sheetTitle.textContent = "Add supplement";
+        fName.value = ""; fDose.value=""; fTiming.value=""; fPairs.value=""; fNotes.value="";
+      }
+      sheet.classList.remove("hidden");
+      fName.focus();
+    }
+    function closeEditor(){ sheet.classList.add("hidden"); }
+
+    addSuppBtn.onclick = ()=>{
+      openEditor(null, null);
+    };
+    cancelSheet.onclick = ()=> closeEditor();
+
+    form.onsubmit = (e)=>{
+      e.preventDefault();
+      const name = fName.value.trim();
+      if (!name){ fName.focus(); return; }
+
+      let dose = fDose.value.trim();
+      let timing = fTiming.value.trim();
+      let pairs = fPairs.value.trim();
+      let notes = fNotes.value.trim();
+      let why = "";
+
+      // If adding (not editing) and fields empty -> suggest
+      if (editingIndex===null){
+        const sug = suggestFor(name);
+        if (!dose) dose = sug.dose || "";
+        if (!timing) timing = sug.timing || "";
+        if (!pairs) pairs = sug.pairs || "";
+        if (!notes) notes = sug.notes || "";
+        why = sug.why || "";
+      }
+
+      const list = loadSupps();
+      // prevent duplicate names (case-insensitive)
+      const exists = list.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
+      if (exists !== -1 && exists !== editingIndex){
+        alert("A supplement with that name already exists.");
+        return;
+      }
+
+      const obj = { name, dose, timing, pairs, notes, why: why || (list[editingIndex]?.why || "") };
+
+      if (editingIndex===null){
+        list.unshift(obj);
+      } else {
+        list[editingIndex] = obj;
+      }
+      saveSupps(list);
+      renderSupps();
+      closeEditor();
+    };
+
+    function doDelete(idx){
+      const list = loadSupps();
+      lastDeleted = { item: list[idx], index: idx };
+      list.splice(idx,1);
+      saveSupps(list);
+      renderSupps();
+      showSnack(`Deleted ${lastDeleted.item.name}`);
+    }
+
+    function showInfo(s){
+      const parts = [
+        s.name,
+        s.dose && `Dose: ${s.dose}`,
+        s.timing && `Timing: ${s.timing}`,
+        s.pairs && `Pairs best with: ${s.pairs}`,
+        s.why && `Why: ${s.why}`,
+        s.notes && `Notes: ${s.notes}`
+      ].filter(Boolean).join("\n");
+      alert(parts || s.name);
+    }
+
+    restoreBtn.onclick = ()=>{
+      const defs = JSON.parse(localStorage.getItem(DEFAULTS_KEY) || "[]");
+      const curr = loadSupps();
+      const names = new Set(curr.map(x=>x.name.toLowerCase()));
+      defs.forEach(d => { if (!names.has(d.name.toLowerCase())) curr.push(d); });
+      saveSupps(curr);
+      renderSupps();
+      showSnack("Defaults restored");
+    };
+
+    // Snackbar + Undo
+    function showSnack(msg){
+      snackMsg.textContent = msg;
+      snack.classList.remove("hidden");
+      let to = setTimeout(()=> snack.classList.add("hidden"), 8000);
+      undoBtn.onclick = ()=>{
+        snack.classList.add("hidden");
+        clearTimeout(to);
+        if (lastDeleted){
+          const list = loadSupps();
+          const idx = Math.min(lastDeleted.index, list.length);
+          list.splice(idx, 0, lastDeleted.item);
+          saveSupps(list);
+          renderSupps();
+          lastDeleted = null;
+        }
+      };
+    }
+
+    /* =========================
+       INIT
+       ========================= */
+    function init(){
+      // Seed defaults storage (first load handled in loadSupps)
+      loadSupps();
+      renderDiet();
+      renderSupps();
+    }
+    init();
   </script>
 </body>
 </html>
