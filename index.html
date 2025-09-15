@@ -153,7 +153,14 @@
     tabDiet.onclick = () => setTab("diet");
     tabSupps.onclick = () => setTab("supps");
 
+    /* =========================================
+       UPDATED: setTab — closes sheet on switch
+       ========================================= */
     function setTab(which){
+      // Ensure the sheet is closed when switching tabs
+      sheet.classList.add("hidden");
+      editingIndex = null;
+
       if (which === "diet") {
         tabDiet.classList.add("active");
         tabSupps.classList.remove("active");
@@ -166,6 +173,8 @@
         suppsPage.classList.remove("hidden");
         dietPage.classList.add("hidden");
         daySwitcher.style.display = "none";
+        // Explicitly blur active element to avoid mobile keyboards popping up
+        if (document.activeElement) document.activeElement.blur();
       }
     }
 
@@ -323,6 +332,7 @@
     /* =========================
        SUPPS TAB
        ========================= */
+
     function loadSupps(){
       // Seed defaults if first time
       if (!localStorage.getItem(DEFAULTS_KEY)) {
@@ -345,10 +355,25 @@
       localStorage.setItem(k, JSON.stringify(map));
     }
 
+    /* ====================================================
+       UPDATED: renderSupps — no auto-open; show empty state
+       ==================================================== */
     function renderSupps(){
       const list = loadSupps();
       const taken = loadTakenMap();
       suppListEl.innerHTML = "";
+
+      if (!Array.isArray(list) || list.length === 0) {
+        // Empty state (no auto-opening sheet)
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.innerHTML = `
+          <div class="empty-title">No supplements yet</div>
+          <div class="empty-sub">Tap “Add” to create your Sup-Stack. You can restore defaults anytime.</div>
+        `;
+        suppListEl.appendChild(empty);
+        return;
+      }
 
       list.forEach((s, idx) => {
         const row = document.createElement("div");
@@ -397,7 +422,6 @@
         btn.onclick = (e)=> {
           e.stopPropagation();
           sheetEl.classList.toggle("hidden");
-          // close on outside click
           document.addEventListener("click", function docClose(ev){
             if (!menu.contains(ev.target)) { sheetEl.classList.add("hidden"); document.removeEventListener("click", docClose); }
           });
@@ -437,9 +461,7 @@
     }
     function closeEditor(){ sheet.classList.add("hidden"); }
 
-    addSuppBtn.onclick = ()=>{
-      openEditor(null, null);
-    };
+    addSuppBtn.onclick = ()=> { openEditor(null, null); };
     cancelSheet.onclick = ()=> closeEditor();
 
     form.onsubmit = (e)=>{
