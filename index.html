@@ -30,12 +30,12 @@
   </main>
 
   <footer class="app-footer">
-    <div class="tip">Toggle meals as you eat. Totals update automatically.</div>
+    <div class="tip">Toggle meals as you eat. Tap a meal to view ingredients.</div>
   </footer>
 
   <script src="data.js"></script>
   <script>
-    // Goals (RDI/targets)
+    // Goals (targets/RDI)
     const goals = {
       calories: 3500,
       protein: 200,
@@ -51,9 +51,10 @@
     // State
     let dayIndex = 0;
     const days = Object.keys(mealPlan);
-    const toggles = {}; // e.g., { Monday: { Breakfast: true } }
+    const toggles = {}; // eaten state
+    const openMeals = {}; // expanded ingredient state
 
-    // DOM refs
+    // DOM
     const dayNameEl = document.getElementById("dayName");
     const mealsEl = document.getElementById("meals");
     const barsEl = document.getElementById("bars");
@@ -68,23 +69,36 @@
       const day = days[dayIndex];
       const meals = mealPlan[day];
 
-      // Header state
       dayNameEl.textContent = day;
       prevBtn.disabled = dayIndex === 0;
       nextBtn.disabled = dayIndex === days.length - 1;
 
-      // Meals list
       mealsEl.innerHTML = "";
       Object.entries(meals).forEach(([mealName, mealData]) => {
+        // card
         const card = document.createElement("div");
         card.className = "meal-row";
+        if (openMeals[day]?.[mealName]) card.classList.add("open");
 
-        const title = document.createElement("div");
-        title.className = "meal-title";
-        title.innerHTML = `<span class="meal-name">${mealName}</span>
-          <span class="meal-macros">${mealData.calories} kcal • ${mealData.protein} g protein • ${mealData.fibre} g fibre</span>`;
+        // left: title + macros + chevron
+        const titleWrap = document.createElement("button");
+        titleWrap.className = "meal-title";
+        titleWrap.type = "button";
+        titleWrap.innerHTML = `
+          <div class="title-line">
+            <span class="meal-name">${mealName}</span>
+            <span class="chev" aria-hidden="true"></span>
+          </div>
+          <div class="meal-macros">${mealData.calories} kcal • ${mealData.protein} g protein • ${mealData.fibre} g fibre</div>
+        `;
 
-        // Toggle
+        titleWrap.addEventListener("click", () => {
+          openMeals[day] = openMeals[day] || {};
+          openMeals[day][mealName] = !openMeals[day][mealName];
+          render();
+        });
+
+        // right: toggle eaten
         const toggleWrap = document.createElement("label");
         toggleWrap.className = "switch";
         const input = document.createElement("input");
@@ -92,6 +106,11 @@
         input.checked = toggles[day]?.[mealName] || false;
         const slider = document.createElement("span");
         slider.className = "slider";
+
+        // prevent toggle click from triggering expand
+        input.addEventListener("click", (e) => e.stopPropagation());
+        slider.addEventListener("click", (e) => e.stopPropagation());
+        toggleWrap.addEventListener("click", (e) => e.stopPropagation());
 
         input.addEventListener("change", () => {
           toggles[day] = toggles[day] || {};
@@ -102,8 +121,29 @@
         toggleWrap.appendChild(input);
         toggleWrap.appendChild(slider);
 
-        card.appendChild(title);
-        card.appendChild(toggleWrap);
+        // ingredients (accordion)
+        const details = document.createElement("div");
+        details.className = "ingredients";
+        if (mealData.ingredients && mealData.ingredients.length) {
+          const list = document.createElement("ul");
+          mealData.ingredients.forEach(item => {
+            const li = document.createElement("li");
+            li.textContent = item;
+            list.appendChild(li);
+          });
+          details.appendChild(list);
+        } else {
+          details.textContent = "No ingredients listed.";
+        }
+
+        // assemble
+        const top = document.createElement("div");
+        top.className = "meal-top";
+        top.appendChild(titleWrap);
+        top.appendChild(toggleWrap);
+
+        card.appendChild(top);
+        card.appendChild(details);
         mealsEl.appendChild(card);
       });
 
@@ -114,7 +154,6 @@
       const day = days[dayIndex];
       const meals = mealPlan[day];
 
-      // Compute remaining nutrients (subtract toggled meals)
       const totals = Object.keys(goals).reduce((a, k) => (a[k] = 0, a), {});
       Object.entries(meals).forEach(([mealName, meal]) => {
         const isEaten = toggles[day]?.[mealName] || false;
@@ -123,14 +162,12 @@
         }
       });
 
-      // Macro summary (top line)
       macroSummaryEl.innerHTML = `
         <div class="pill"><span>Calories</span><strong>${Math.max(0, Math.round(totals.calories))}</strong></div>
         <div class="pill"><span>Protein</span><strong>${Math.max(0, Math.round(totals.protein))} g</strong></div>
         <div class="pill"><span>Fibre</span><strong>${Math.max(0, Math.round(totals.fibre))} g</strong></div>
       `;
 
-      // Bars
       barsEl.innerHTML = "";
       Object.entries(goals).forEach(([k, goal]) => {
         const val = Math.max(0, totals[k]);
