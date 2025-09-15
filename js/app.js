@@ -11,8 +11,28 @@ const suppsPage= document.getElementById("suppsPage");
 const hydroPage= document.getElementById("hydroPage");
 const daySwitcher = document.getElementById("daySwitcher");
 
+/* NEW: verify data.js is present & defines window.mealPlan/defaultSupps */
+function assertDataLoaded() {
+  const ok =
+    window.mealPlan && Object.keys(window.mealPlan).length &&
+    window.defaultSupps && Array.isArray(window.defaultSupps);
+  if (!ok) {
+    const meals = document.getElementById("meals");
+    if (meals) {
+      meals.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-title">Missing data</div>
+          <div class="empty-sub">
+            Couldn’t find <code>data.js</code> or it doesn’t define
+            <code>window.mealPlan</code> / <code>window.defaultSupps</code>.
+          </div>
+        </div>`;
+    }
+  }
+  return ok;
+}
+
 function setTab(which){
-  // Close any open sheet
   const sh = document.getElementById("sheet");
   if (sh) sh.classList.add("hidden");
 
@@ -34,8 +54,11 @@ function setTab(which){
 }
 
 function init(){
+  /* NEW: run check before mounting */
+  assertDataLoaded();
+
   ensureToday();
-  // mount each section
+  // mount sections
   mountDiet();
   mountSupps();
   mountHydration();
