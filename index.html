@@ -26,10 +26,16 @@
       <h2 class="section-title">Meals</h2>
       <div id="meals"></div>
     </section>
+
     <section class="card">
       <h2 class="section-title">Remaining Today</h2>
       <div id="macroSummary" class="summary-row"></div>
       <div id="bars"></div>
+      <!-- Reset controls for Diet -->
+      <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap">
+        <button id="resetDiet" class="ghost small" aria-label="Reset today’s meals">Reset day</button>
+        <button id="resetWeek" class="ghost small" aria-label="Reset the whole week">Reset week</button>
+      </div>
     </section>
   </main>
 
@@ -110,6 +116,7 @@
     const DEFAULTS_KEY = "supps_defaults_v1";
     const SUPPS_KEY = "supps_v1";
     const TAKEN_PREFIX = "supps_taken_"; // + date
+    const LAST_DATE_KEY = "last_seen_date_aest";
     let editingIndex = null;  // index in current list when editing
     let lastDeleted = null;   // { item, index }
 
@@ -121,6 +128,8 @@
     const prevBtn = document.getElementById("prevDay");
     const nextBtn = document.getElementById("nextDay");
     const daySwitcher = document.getElementById("daySwitcher");
+    const resetDietBtn = document.getElementById("resetDiet");
+    const resetWeekBtn = document.getElementById("resetWeek");
 
     // DOM refs (Supps)
     const suppListEl = document.getElementById("suppList");
@@ -169,7 +178,8 @@
         dietPage.classList.add("hidden");
         daySwitcher.style.display = "none";
         if (document.activeElement) document.activeElement.blur();
-        renderSupps(); // refresh list and enforce sheet closed
+        ensureToday();   // enforce daily reset on tab switch
+        renderSupps();
       }
     }
 
@@ -178,6 +188,21 @@
        ========================= */
     prevBtn.addEventListener("click", () => { if (dayIndex>0){ dayIndex--; renderDiet(); } });
     nextBtn.addEventListener("click", () => { if (dayIndex<days.length-1){ dayIndex++; renderDiet(); } });
+
+    // Reset today’s meal toggles
+    resetDietBtn.addEventListener("click", ()=>{
+      const day = days[dayIndex];
+      mealEaten[day] = {};     // clear toggles for current day
+      renderDiet();            // rebuild UI (all unchecked)
+      showSnack("Today’s meals have been reset.");
+    });
+
+    // Reset the whole week
+    resetWeekBtn.addEventListener("click", ()=>{
+      days.forEach(d => { mealEaten[d] = {}; });
+      renderDiet();
+      showSnack("All meals for the week have been reset.");
+    });
 
     function renderDiet(){
       const day = days[dayIndex];
@@ -305,9 +330,6 @@
     /* =========================
        SUPP SUGGESTION ENGINE
        ========================= */
-    // SMART_SUGGESTIONS and ALIAS_TO_CANON come from data.js
-
-    // fallback suggester (used if alias doesn't hit)
     function baseSuggest(name){
       const key = name.trim().toLowerCase();
       for (const canon in SMART_SUGGESTIONS){
@@ -323,7 +345,6 @@
         why:"Complements your diet by filling potential micronutrient gaps."
       };
     }
-
     function resolveCanonicalName(inputStr){
       const s = inputStr.trim().toLowerCase();
       if (!s) return null;
@@ -332,7 +353,6 @@
       if (hits.length) return ALIAS_TO_CANON[hits[0]];
       return null;
     }
-
     function suggestFor(name){
       const canon = resolveCanonicalName(name);
       if (canon && SMART_SUGGESTIONS[canon]) return { ...SMART_SUGGESTIONS[canon] };
@@ -343,7 +363,6 @@
        SUPPS TAB
        ========================= */
     function loadSupps(){
-      // Seed defaults if first time
       if (!localStorage.getItem(DEFAULTS_KEY)) {
         localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaultSupps));
       }
@@ -353,11 +372,23 @@
       return JSON.parse(localStorage.getItem(SUPPS_KEY) || "[]");
     }
     function saveSupps(list){ localStorage.setItem(SUPPS_KEY, JSON.stringify(list)); }
-    function loadTakenMap(){ return JSON.parse(localStorage.getItem(TAKEN_PREFIX + AEST_DATE()) || "{}"); }
-    function saveTakenMap(map){ localStorage.setItem(TAKEN_PREFIX + AEST_DATE(), JSON.stringify(map)); }
+    function dayKey(dateStr){ return TAKEN_PREFIX + dateStr; }
+    function loadTakenMap(dateStr=AEST_DATE()){ return JSON.parse(localStorage.getItem(dayKey(dateStr)) || "{}"); }
+    function saveTakenMap(map, dateStr=AEST_DATE()){ localStorage.setItem(dayKey(dateStr), JSON.stringify(map)); }
+
+    // Daily reset enforcement for Sup-Stack
+    function ensureToday(){
+      const today = AEST_DATE();
+      const last = localStorage.getItem(LAST_DATE_KEY);
+      if (last !== today){
+        localStorage.setItem(LAST_DATE_KEY, today);
+        // New day: do nothing else; today's map is naturally empty (fresh key).
+        showSnack("New day detected — Sup-Stack reset.");
+      }
+    }
 
     function renderSupps(){
-      // hard guard: make sure sheet is closed
+      // Always close the sheet first
       sheet.classList.add("hidden");
       editingIndex = null;
 
@@ -391,7 +422,6 @@
           ${s.notes ? `<div class="supp-notes">${s.notes}</div>`:""}
         `;
 
-        // toggle taken
         const toggle = document.createElement("label");
         toggle.className = "switch";
         const inp = document.createElement("input");
@@ -407,7 +437,6 @@
           saveTakenMap(m);
         });
 
-        // menu
         const menu = document.createElement("div");
         menu.className = "menu";
         menu.innerHTML = `
@@ -458,7 +487,6 @@
         fName.value = ""; fDose.value=""; fTiming.value=""; fPairs.value=""; fNotes.value="";
       }
       sheet.classList.remove("hidden");
-      // typeahead will be created once below
     }
     function closeEditor(){ sheet.classList.add("hidden"); }
 
@@ -476,7 +504,6 @@
       let notes = fNotes.value.trim();
       let why = "";
 
-      // If adding (not editing) and fields empty -> suggest
       if (editingIndex===null){
         const sug = suggestFor(name);
         if (!dose) dose = sug.dose || "";
@@ -487,7 +514,6 @@
       }
 
       const list = loadSupps();
-      // prevent duplicate names (case-insensitive)
       const exists = list.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
       if (exists !== -1 && exists !== editingIndex){
         alert("A supplement with that name already exists.");
@@ -496,11 +522,7 @@
 
       const obj = { name, dose, timing, pairs, notes, why: why || (list[editingIndex]?.why || "") };
 
-      if (editingIndex===null){
-        list.unshift(obj);
-      } else {
-        list[editingIndex] = obj;
-      }
+      if (editingIndex===null){ list.unshift(obj); } else { list[editingIndex] = obj; }
       saveSupps(list);
       renderSupps();
       closeEditor();
@@ -559,7 +581,6 @@
     /* =========================
        TYPEAHEAD (Name field)
        ========================= */
-    // Create dropdown under the Name field
     const nameFieldWrapper = document.querySelector('#fName').parentElement;
     nameFieldWrapper.style.position = 'relative';
     const ta = document.createElement('div');
@@ -572,8 +593,9 @@
       if (!s) return [];
       const uniq = new Set();
       const results = [];
-      // Priority: startsWith
-      Object.keys(ALIAS_TO_CANON).forEach(key=>{
+      const keys = Object.keys(ALIAS_TO_CANON);
+      // startsWith priority
+      keys.forEach(key=>{
         const flat = key.replace(/[^a-z0-9]/g,'');
         const flatS = s.replace(/[^a-z0-9]/g,'');
         if (key.startsWith(s) || flat.startsWith(flatS)){
@@ -581,8 +603,8 @@
           if (!uniq.has(canon)){ uniq.add(canon); results.push(canon); }
         }
       });
-      // Then includes
-      Object.keys(ALIAS_TO_CANON).forEach(key=>{
+      // includes fallback
+      keys.forEach(key=>{
         if (results.length>=limit) return;
         if (key.includes(s)){
           const canon = ALIAS_TO_CANON[key];
@@ -619,13 +641,27 @@
     fName.addEventListener('blur', ()=> setTimeout(()=>{ ta.classList.add('hidden'); }, 150));
 
     /* =========================
-       INIT
+       INIT + Daily-check timers
        ========================= */
     function init(){
+      // Initialize daily anchor
+      if (!localStorage.getItem(LAST_DATE_KEY)) {
+        localStorage.setItem(LAST_DATE_KEY, AEST_DATE());
+      }
       loadSupps();
       renderDiet();
       renderSupps();
       setTab("diet"); // start on Diet
+
+      // If tab becomes visible again (after background), re-check date
+      document.addEventListener("visibilitychange", ()=>{
+        if (!document.hidden) { ensureToday(); if (tabSupps.classList.contains("active")) renderSupps(); }
+      });
+      // Periodic check (handles crossing midnight while app is open)
+      setInterval(()=> {
+        ensureToday();
+        if (tabSupps.classList.contains("active")) renderSupps();
+      }, 60000);
     }
     init();
   </script>
