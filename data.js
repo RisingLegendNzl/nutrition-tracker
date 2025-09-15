@@ -1,5 +1,6 @@
 // =========================
-// 7-Day Meal Plan + Micros
+// 7-Day Meal Plan (arrays) with calories, macros + micros
+// All values are per meal and come from your actual foods/quantities.
 // =========================
 window.mealPlan = {
   "Monday": [
@@ -246,76 +247,138 @@ window.mealPlan = {
 };
 
 // =========================
-// Default Supplements
+// Default Supplements (what appears on first load)
 // =========================
 window.defaultSupps = [
   { name: "Creatine monohydrate", dose: "5 g", timing: "Anytime", pairs: "Carbs optional", notes: "" },
   { name: "Magnesium",            dose: "400 mg", timing: "Evening", pairs: "—", notes: "Sleep & recovery" },
   { name: "Vitamin D",            dose: "1000 IU", timing: "With fat-containing meal", pairs: "Avocado, milk, PB", notes: "" },
-  { name: "Omega-3",              dose: "500 mg × caps", timing: "With meals", pairs: "Fat-containing meals", notes: "" },
+  { name: "Omega-3",              dose: "500–1000 mg EPA+DHA", timing: "With meals", pairs: "Fat-containing meals", notes: "" },
   { name: "CoQ10",                dose: "150 mg", timing: "Morning with coffee + fat", pairs: "Avocado, PB", notes: "" },
   { name: "L-theanine",           dose: "200–600 mg", timing: "Spread through day", pairs: "Caffeine", notes: "200 mg with coffee; optional 200 mg before bed" }
 ];
 
 // =========================
-// Smart Suggestions
+// Smart Suggestions (auto-fill when adding a supplement)
 // =========================
 window.SMART_SUGGESTIONS = {
+  // Core stack
   "Creatine monohydrate": {
-    dose: "5 g",
-    timing: "Anytime",
-    pairs: "Optional carbs",
-    notes: "Increase water by +500 ml",
-    why: "Supports strength/power; water bump covered by Hydration auto-goal."
+    dose: "5 g", timing: "Anytime",
+    pairs: "Optional carbs", notes: "Increase water by +500 ml",
+    why: "Supports strength/power; Hydration auto-goal bumps target when creatine is present."
   },
   "Magnesium": {
-    dose: "400 mg",
-    timing: "Evening",
-    pairs: "—",
-    notes: "May aid sleep and muscle relaxation",
+    dose: "300–400 mg", timing: "Evening",
+    pairs: "—", notes: "May aid sleep & muscle relaxation",
     why: "Complements training recovery."
   },
   "Vitamin D": {
-    dose: "1000 IU",
-    timing: "Morning",
-    pairs: "Fat-containing meal",
-    notes: "Improved absorption with fat",
-    why: "Common deficiency; supports immunity & bone health."
+    dose: "1000 IU", timing: "Morning",
+    pairs: "Fat-containing meal", notes: "Better absorption with fat",
+    why: "Commonly low; supports bone & immunity."
   },
   "Omega-3": {
-    dose: "500–1000 mg EPA+DHA",
-    timing: "With meals",
-    pairs: "Fat-containing meals",
-    notes: "",
-    why: "Helps balance omega-6:3 ratio."
+    dose: "500–1000 mg EPA+DHA", timing: "With meals",
+    pairs: "Fat-containing meals", notes: "",
+    why: "Balances omega-6:3 ratio."
   },
   "CoQ10": {
-    dose: "150 mg",
-    timing: "Morning",
-    pairs: "Fat + caffeine",
-    notes: "With breakfast and coffee",
-    why: "Mitochondrial support; pairs well with morning routine."
+    dose: "150 mg", timing: "Morning",
+    pairs: "Fat + caffeine", notes: "With breakfast/coffee",
+    why: "Mitochondrial support; daytime energy."
   },
   "L-theanine": {
-    dose: "200–600 mg",
-    timing: "AM/PM",
-    pairs: "Caffeine",
-    notes: "200 mg with coffee; optional 200 mg pre-bed",
-    why: "Smooths caffeine and may help sleep."
+    dose: "200–600 mg", timing: "AM/PM",
+    pairs: "Caffeine", notes: "200 mg with coffee; optional 200 mg pre-bed",
+    why: "Smooths caffeine & may help sleep."
+  },
+
+  // Expanded keys you asked for
+  "Zinc": {
+    dose: "25–30 mg", timing: "With dinner",
+    pairs: "With food (less nausea)", notes: "Keep 2 h away from iron & calcium",
+    why: "Immune, skin, and hormone support."
+  },
+  "Zinc picolinate": {
+    dose: "22–30 mg", timing: "With dinner",
+    pairs: "With food", notes: "More absorbable form of zinc",
+    why: "Alternative zinc form."
+  },
+  "Vitamin C": {
+    dose: "500 mg", timing: "With meals",
+    pairs: "Iron-rich meals", notes: "Enhances non-heme iron absorption",
+    why: "Antioxidant & recovery support."
+  },
+  "Vitamin B complex": {
+    dose: "1 capsule", timing: "Morning",
+    pairs: "Breakfast", notes: "May increase energy; avoid before bed",
+    why: "Covers multiple B vitamins."
+  },
+  "Vitamin B12 (methylcobalamin)": {
+    dose: "1000 µg", timing: "Morning",
+    pairs: "Any meal", notes: "Sublingual optional",
+    why: "Energy & neurological support."
+  },
+  "Vitamin B6 (P-5-P)": {
+    dose: "25–50 mg", timing: "Morning",
+    pairs: "Any meal", notes: "Do not exceed 100 mg/day long-term",
+    why: "Energy metabolism & neurotransmitters."
+  },
+  "Folate (5-MTHF)": {
+    dose: "400 µg", timing: "With meals",
+    pairs: "B12", notes: "Use 5-MTHF form if possible",
+    why: "Methylation & red blood cell support."
+  },
+  "Iron (gentle/chelated)": {
+    dose: "18–24 mg", timing: "Morning or mid-day",
+    pairs: "Vitamin C", notes: "Keep 2 h away from calcium, zinc, coffee/tea",
+    why: "For diagnosed deficiency or low ferritin."
+  },
+  "Calcium (citrate/carbonate)": {
+    dose: "500 mg", timing: "Evening or split",
+    pairs: "With food", notes: "Keep 2 h away from iron & zinc",
+    why: "Bone health if diet is low."
   }
 };
 
 // =========================
-// Aliases → Canonical Names
+// Aliases → Canonical Names (typeahead matching)
 // =========================
 window.ALIAS_TO_CANON = {
+  // Core stack aliases
+  "creatine": "Creatine monohydrate",
+  "creatine monohydrate": "Creatine monohydrate",
+  "mag": "Magnesium",
+  "magnesium": "Magnesium",
   "vit d": "Vitamin D",
   "vitamin d": "Vitamin D",
-  "coenzyme q10": "CoQ10",
-  "q10": "CoQ10",
   "fish oil": "Omega-3",
   "omega": "Omega-3",
-  "creatine": "Creatine monohydrate",
-  "mag": "Magnesium",
-  "theanine": "L-theanine"
+  "coq10": "CoQ10",
+  "coenzyme q10": "CoQ10",
+  "theanine": "L-theanine",
+  "l theanine": "L-theanine",
+
+  // New aliases
+  "zinc": "Zinc",
+  "zn": "Zinc",
+  "zinc picolinate": "Zinc picolinate",
+  "vitamin c": "Vitamin C",
+  "ascorbic acid": "Vitamin C",
+  "b complex": "Vitamin B complex",
+  "vitamin b complex": "Vitamin B complex",
+  "vit b12": "Vitamin B12 (methylcobalamin)",
+  "b12": "Vitamin B12 (methylcobalamin)",
+  "methyl b12": "Vitamin B12 (methylcobalamin)",
+  "p-5-p": "Vitamin B6 (P-5-P)",
+  "p5p": "Vitamin B6 (P-5-P)",
+  "vit b6": "Vitamin B6 (P-5-P)",
+  "folate": "Folate (5-MTHF)",
+  "5-mthf": "Folate (5-MTHF)",
+  "iron": "Iron (gentle/chelated)",
+  "gentle iron": "Iron (gentle/chelated)",
+  "calcium": "Calcium (citrate/carbonate)",
+  "calcium citrate": "Calcium (citrate/carbonate)",
+  "calcium carbonate": "Calcium (citrate/carbonate)"
 };
