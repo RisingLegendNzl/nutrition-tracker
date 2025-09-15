@@ -1,4 +1,4 @@
-// js/diet.js
+// filename: js/diet.js
 import { loadState, saveState, GOAL_KEY } from './utils.js';
 
 /* -------------------- Nutrition helpers -------------------- */
@@ -134,7 +134,7 @@ export function renderDiet(){
   if (!mealsRaw.length){
     mealsEl.innerHTML = `<div class="empty-state">
       <div class="empty-title">No meals found for ${day}.</div>
-      <div class="empty-sub">Ensure <code>data.js</code> loads before <code>diet.js</code> and day names match.</div>
+      <div class="empty-sub">Ensure <code>data.js</code> loads before <code>js/app.js</code> and day names match.</div>
     </div>`;
     return;
   }
