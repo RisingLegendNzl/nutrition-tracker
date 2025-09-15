@@ -46,11 +46,14 @@ main{padding:16px;max-width:720px;margin:0 auto}
 
 /* Toggle switch */
 .switch{position:relative;display:inline-block;width:54px;height:30px}
+.switch.small{width:46px;height:26px}
 .switch input{display:none}
 .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#7b8191;border-radius:30px;transition:all .25s}
 .slider:before{content:"";position:absolute;height:24px;width:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:all .25s}
+.switch.small .slider:before{height:20px;width:20px;left:3px;top:3px}
 .switch input:checked+.slider{background:var(--accent)}
 .switch input:checked+.slider:before{transform:translateX(24px)}
+.switch.small input:checked+.slider:before{transform:translateX(20px)}
 
 /* Progress bars */
 .bar-row{margin:10px 0}
@@ -128,3 +131,53 @@ main{padding:16px;max-width:720px;margin:0 auto}
   font-size: 14px;
 }
 .typeahead button:hover { background: rgba(255,255,255,.05); }
+
+/* ========== HYDRATION UI ========== */
+.hydro-goal-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;margin-bottom:10px}
+.hydro-goal{display:flex;gap:8px;align-items:center}
+.hydro-goal-label{font-weight:600}
+.hydro-goal-values{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.auto-hint{font-size:12px}
+
+.bottle-wrap{display:flex;flex-direction:column;align-items:center;margin:10px 0}
+.bottle{
+  position:relative;
+  width:160px;height:260px;
+  border:2px solid var(--border);
+  border-radius:20px 20px 24px 24px;
+  background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02));
+  overflow:hidden;
+}
+.bottle:before{
+  /* neck */
+  content:""; position:absolute; top:-18px; left:45px; right:45px; height:22px;
+  border:2px solid var(--border); border-bottom:0; border-radius:10px 10px 0 0; background:var(--card);
+}
+.bottle-fill{
+  position:absolute; left:0; right:0; bottom:0;
+  height:var(--fill,0%);
+  background:linear-gradient(180deg, rgba(76,175,80,.35), rgba(76,175,80,.6));
+  transition:height .6s ease, background .3s ease;
+}
+.bottle-gloss{
+  position:absolute; top:0; bottom:0; left:0;
+  width:34px; background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,0));
+  mix-blend-mode:screen; pointer-events:none;
+}
+.hydro-numbers{margin-top:10px;text-align:center}
+.today-str{font-weight:600}
+.pct-str{color:var(--muted);font-size:13px;margin-top:4px}
+
+.hydro-actions{margin-top:12px}
+.quick-adds{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.pill-btn{border-radius:999px}
+.custom-add{display:flex;gap:8px}
+.custom-add input{flex:1}
+
+.hydro-subrow{display:flex;justify-content:flex-end;margin-top:8px}
+
+.hydro-history{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:8px}
+.hbar{display:flex;flex-direction:column;align-items:center;gap:6px}
+.hbar-bar{height:92px;width:16px;border:1px solid var(--border);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02))}
+.hbar-bar span{display:block;width:100%;background:var(--accent);transition:height .4s}
+.hbar-lab{font-size:11px;color:var(--muted)}
