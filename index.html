@@ -32,7 +32,6 @@
       <h2 class="section-title">Remaining Today</h2>
       <div id="macroSummary" class="summary-row"></div>
       <div id="bars"></div>
-      <!-- Reset controls for Diet -->
       <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap">
         <button id="resetDiet" class="ghost small" aria-label="Reset today’s meals">Reset day</button>
         <button id="resetWeek" class="ghost small" aria-label="Reset the whole week">Reset week</button>
@@ -59,7 +58,6 @@
             <span>Name</span>
             <input id="fName" type="text" placeholder="e.g., Zinc"/>
           </label>
-          <!-- typeahead dropdown injected under Name field -->
 
           <label class="field">
             <span>Dosage</span>
@@ -85,10 +83,8 @@
       </div>
     </div>
 
-    <!-- Floating Add Button -->
     <button id="addSupp" class="fab" aria-label="Add supplement">Add</button>
 
-    <!-- Snackbar -->
     <div id="snackbar" class="snackbar hidden">
       <span id="snackMsg"></span>
       <button id="undoBtn" class="link">Undo</button>
@@ -100,7 +96,6 @@
     <section class="card">
       <h2 class="section-title">Hydration</h2>
 
-      <!-- Goal & Auto mode -->
       <div class="hydro-goal-row">
         <div class="hydro-goal">
           <div class="hydro-goal-label">Daily goal</div>
@@ -116,10 +111,14 @@
         </div>
       </div>
 
-      <!-- Animated bottle -->
+      <!-- Animated bottle (with liquid waves) -->
       <div class="bottle-wrap">
         <div class="bottle">
-          <div class="bottle-fill" id="bottleFill"></div>
+          <!-- The liquid container slides up/down based on --fill -->
+          <div class="bottle-fill" id="bottleFill">
+            <div class="wave wave1"></div>
+            <div class="wave wave2"></div>
+          </div>
           <div class="bottle-gloss"></div>
         </div>
         <div class="hydro-numbers">
@@ -128,7 +127,6 @@
         </div>
       </div>
 
-      <!-- Quick-adds & custom -->
       <div class="hydro-actions">
         <div class="quick-adds">
           <button class="ghost pill-btn" data-ml="250">+250 ml</button>
@@ -162,18 +160,18 @@
        Helpers & Global State
        ========================= */
     const AEST_DATE = () =>
-      new Date().toLocaleString("en-CA", { timeZone: "Australia/Brisbane" }).slice(0,10); // YYYY-MM-DD
+      new Date().toLocaleString("en-CA", { timeZone: "Australia/Brisbane" }).slice(0,10);
     const clamp = (v,min,max)=> Math.max(min, Math.min(max,v));
     const toLitres = ml => (ml/1000).toFixed(2).replace(/\.00$/,'');
     const fromLitres = l => Math.round(parseFloat(l)*1000)||0;
 
-    // DIET state
+    // DIET
     let dayIndex = 0;
     const days = Object.keys(mealPlan);
     const mealEaten = {};
     const openMeals = {};
 
-    // SUPPS state
+    // SUPPS
     const DEFAULTS_KEY = "supps_defaults_v1";
     const SUPPS_KEY = "supps_v1";
     const TAKEN_PREFIX = "supps_taken_"; // + date
@@ -181,13 +179,13 @@
     let editingIndex = null;
     let lastDeleted = null;
 
-    // HYDRATION state
+    // HYDRATION
     const WATER_TARGET_KEY = "water_target_ml_v1";
-    const WATER_AUTO_KEY = "water_auto_goal_v1";
-    const WATER_PREFIX = "water_"; // + date
-    const USER_WEIGHT_KG = 71;     // used for auto-goal baseline (you can change later)
+    const WATER_AUTO_KEY   = "water_auto_goal_v1";
+    const WATER_PREFIX     = "water_"; // + date
+    const USER_WEIGHT_KG   = 71;
 
-    // DOM refs (Diet)
+    // DOM – DIET
     const dayNameEl = document.getElementById("dayName");
     const mealsEl = document.getElementById("meals");
     const barsEl = document.getElementById("bars");
@@ -211,11 +209,9 @@
     tabHydro.onclick = () => setTab("hydro");
 
     function setTab(which){
-      // Always close sheets/menus on tab switch
       document.getElementById("sheet").classList.add("hidden");
       editingIndex = null;
 
-      // show/hide pages
       const showDiet = which==="diet";
       const showSupp = which==="supps";
       const showHydr = which==="hydro";
@@ -232,9 +228,7 @@
       if (showDiet){ renderDiet(); }
     }
 
-    /* =========================
-       DIET TAB
-       ========================= */
+    /* ============= DIET ============= */
     prevBtn.addEventListener("click", () => { if (dayIndex>0){ dayIndex--; renderDiet(); } });
     nextBtn.addEventListener("click", () => { if (dayIndex<days.length-1){ dayIndex++; renderDiet(); } });
 
@@ -374,9 +368,7 @@
       return v;
     }
 
-    /* =========================
-       SUPP SUGGESTION ENGINE
-       ========================= */
+    /* =========== SUPPS SUGGESTION ENGINE (unchanged) =========== */
     function baseSuggest(name){
       const key = name.trim().toLowerCase();
       for (const canon in SMART_SUGGESTIONS){
@@ -406,9 +398,7 @@
       return baseSuggest(name);
     }
 
-    /* =========================
-       SUPPS TAB
-       ========================= */
+    /* =========== SUPPS TAB (unchanged core) =========== */
     const suppListEl = document.getElementById("suppList");
     const addSuppBtn = document.getElementById("addSupp");
     const restoreBtn = document.getElementById("restoreDefaults");
@@ -441,14 +431,11 @@
     function loadTakenMap(dateStr=AEST_DATE()){ return JSON.parse(localStorage.getItem(dayKey(dateStr)) || "{}"); }
     function saveTakenMap(map, dateStr=AEST_DATE()){ localStorage.setItem(dayKey(dateStr), JSON.stringify(map)); }
 
-    // Daily reset enforcement (Sup-Stack + Hydration share this)
     function ensureToday(){
       const today = AEST_DATE();
       const last = localStorage.getItem(LAST_DATE_KEY);
       if (last !== today){
         localStorage.setItem(LAST_DATE_KEY, today);
-        // Sup-Stack: new date means a fresh key with no "taken" flags
-        // Hydration: likewise, new key for water log
         showSnack("New day detected — Sup-Stack and Hydration reset.");
       }
     }
@@ -487,7 +474,6 @@
           ${s.notes ? `<div class="supp-notes">${s.notes}</div>`:""}
         `;
 
-        // toggle taken
         const toggle = document.createElement("label");
         toggle.className = "switch";
         const inp = document.createElement("input");
@@ -503,7 +489,6 @@
           saveTakenMap(m);
         });
 
-        // menu
         const menu = document.createElement("div");
         menu.className = "menu";
         menu.innerHTML = `
@@ -626,9 +611,7 @@
       showSnack("Defaults restored");
     };
 
-    /* =========================
-       Snackbar + Typeahead (unchanged)
-       ========================= */
+    /* ===== Snackbar ===== */
     function showSnack(msg){
       snackMsg.textContent = msg;
       snack.classList.remove("hidden");
@@ -647,7 +630,7 @@
       };
     }
 
-    // Typeahead for supplement name
+    // Typeahead setup (unchanged)...
     (function setupTypeahead(){
       const nameFieldWrapper = document.querySelector('#fName').parentElement;
       nameFieldWrapper.style.position = 'relative';
@@ -707,9 +690,7 @@
       fName.addEventListener('blur', ()=> setTimeout(()=>{ ta.classList.add('hidden'); }, 150));
     })();
 
-    /* =========================
-       HYDRATION TAB
-       ========================= */
+    /* =========== HYDRATION =========== */
     const goalLitresEl = document.getElementById('goalLitres');
     const goalMlEl = document.getElementById('goalMl');
     const editGoalBtn = document.getElementById('editGoalBtn');
@@ -738,75 +719,71 @@
       }catch{ return false; }
     }
 
+    // ---- AUTO GOAL FIX (compat + live compute) ----
+    function isAutoOn(){
+      const v = localStorage.getItem(WATER_AUTO_KEY);
+      return v === "1" || v === "true"; // accept old boolean strings
+    }
     function computeAutoTargetMl(){
-      // Baseline 35 ml/kg
-      const baseline = Math.round(USER_WEIGHT_KG * 35); // e.g., 2485 ml
-      // Creatine bump +500 ml when creatine present
+      const baseline = Math.round(USER_WEIGHT_KG * 35); // 35 ml/kg
       const bump = takingCreatine() ? 500 : 0;
-      // Round to nearest 100 ml
-      return Math.round((baseline + bump)/100)*100;
+      return Math.round((baseline + bump)/100)*100; // round to 100 ml
     }
-
     function currentTargetMl(){
-      const auto = localStorage.getItem(WATER_AUTO_KEY) === "1";
-      if (auto) return computeAutoTargetMl();
-      const saved = parseInt(localStorage.getItem(WATER_TARGET_KEY)||"0",10);
-      return saved>0 ? saved : 3000; // default 3L
+      return isAutoOn() ? computeAutoTargetMl()
+                        : (parseInt(localStorage.getItem(WATER_TARGET_KEY)||"0",10) || 3000);
     }
-
     function setTargetMl(ml){
       localStorage.setItem(WATER_TARGET_KEY, String(ml));
+      localStorage.setItem(WATER_AUTO_KEY, "0"); // manual override
       renderHydro();
     }
-
     function setAutoGoal(on){
       localStorage.setItem(WATER_AUTO_KEY, on ? "1" : "0");
-      renderHydro();
+      renderHydro(); // recompute and update immediately
     }
 
     function addWater(ml){
       const w = loadWater();
       const tgt = currentTargetMl();
-      const updated = clamp(w.total_ml + ml, 0, tgt*2); // cap at 200% for display
+      const updated = clamp(w.total_ml + ml, 0, tgt*2);
       saveWater(updated);
       animateFill(updated, tgt);
       renderHydroNumbers(updated, tgt);
-      renderHistory(); // update bar for today
+      renderHistory();
     }
-
     function resetTodayWater(){
       saveWater(0);
       renderHydro();
       showSnack("Hydration reset for today.");
     }
 
+    // Liquid animation: we slide .bottle-fill and run two waves horizontally
     function animateFill(totalMl, targetMl){
       const pct = clamp((totalMl/targetMl)*100, 0, 100);
+      // translateY from bottom: higher fill => smaller translate
       bottleFill.style.setProperty('--fill', pct + '%');
       pctStr.textContent = Math.round(pct) + '%';
     }
-
     function renderHydroNumbers(totalMl, targetMl){
       todayStr.textContent = `Today: ${toLitres(totalMl)} L / ${toLitres(targetMl)} L`;
       goalLitresEl.textContent = (targetMl/1000).toFixed(1).replace(/\.0$/,'');
       goalMlEl.textContent = targetMl;
+      autoGoalEl.checked = isAutoOn();
     }
 
     function renderHistory(){
-      // last 7 days including today
       const daysArr = [];
       const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Australia/Brisbane" }));
       for (let i=6; i>=0; i--){
-        const d = new Date(now);
-        d.setDate(d.getDate()-i);
+        const d = new Date(now); d.setDate(d.getDate()-i);
         const ds = new Date(d).toLocaleString("en-CA",{ timeZone:"Australia/Brisbane" }).slice(0,10);
         const total = loadWater(ds).total_ml || 0;
-        const tgt = currentTargetMl(); // use current target as reference bar
+        const tgt = currentTargetMl();
         const pct = clamp((total/tgt)*100, 0, 100);
-        const label = ds.slice(5); // MM-DD
-        daysArr.push({ label, pct, total });
+        daysArr.push({ label: ds.slice(5), pct });
       }
-      hydroHistory.innerHTML = daysArr.map(({label,pct,total})=>`
+      hydroHistory.innerHTML = daysArr.map(({label,pct})=>`
         <div class="hbar">
           <div class="hbar-bar"><span style="height:${pct}%;"></span></div>
           <div class="hbar-lab">${label}</div>
@@ -817,10 +794,7 @@
     function renderHydro(){
       const target = currentTargetMl();
       const { total_ml } = loadWater();
-      // UI state
-      autoGoalEl.checked = localStorage.getItem(WATER_AUTO_KEY) === "1";
       renderHydroNumbers(total_ml, target);
-      // Fill animation
       requestAnimationFrame(()=> animateFill(total_ml, target));
       renderHistory();
     }
@@ -831,40 +805,28 @@
       const val = prompt("Set daily water goal (ml). Tip: 2500–4000 ml for most active days.", String(current));
       if (val===null) return;
       const ml = clamp(parseInt(val,10)||0, 500, 10000);
-      localStorage.setItem(WATER_AUTO_KEY, "0"); // switch to manual when user edits
-      setTargetMl(ml);
-      showSnack(`Water goal set to ${ml} ml.`);
+      setTargetMl(ml); // switches to manual mode
+      showSnack(`Water goal set to ${ml} ml (manual).`);
     };
     autoGoalEl.onchange = ()=> setAutoGoal(autoGoalEl.checked);
-
-    quickBtns.forEach(b=>{
+    document.querySelectorAll('.pill-btn').forEach(b=>{
       b.addEventListener('click', ()=> addWater(parseInt(b.dataset.ml,10)));
     });
     addCustom.onclick = ()=>{
       const ml = Math.max(0, parseInt(customMl.value||"0",10));
-      if (!ml) return;
-      addWater(ml);
-      customMl.value = "";
+      if (!ml) return; addWater(ml); customMl.value = "";
     };
     resetWater.onclick = ()=> resetTodayWater();
 
-    /* =========================
-       INIT + Daily checks
-       ========================= */
+    /* ===== INIT & daily checks ===== */
     function init(){
-      if (!localStorage.getItem(LAST_DATE_KEY)) {
-        localStorage.setItem(LAST_DATE_KEY, AEST_DATE());
-      }
-      // defaults for hydration
+      if (!localStorage.getItem(LAST_DATE_KEY)) localStorage.setItem(LAST_DATE_KEY, AEST_DATE());
       if (!localStorage.getItem(WATER_TARGET_KEY)) localStorage.setItem(WATER_TARGET_KEY, "3000");
-      if (!localStorage.getItem(WATER_AUTO_KEY)) localStorage.setItem(WATER_AUTO_KEY, "0");
+      if (!localStorage.getItem(WATER_AUTO_KEY))   localStorage.setItem(WATER_AUTO_KEY, "0");
 
-      renderDiet();
-      renderSupps();
-      renderHydro();
-      setTab("diet"); // start on Diet
+      renderDiet(); renderSupps(); renderHydro();
+      setTab("diet");
 
-      // Daily re-checks across midnight / background resume
       document.addEventListener("visibilitychange", ()=>{
         if (!document.hidden) { ensureToday(); if (!hydroPage.classList.contains('hidden')) renderHydro(); if (!suppsPage.classList.contains('hidden')) renderSupps(); }
       });
