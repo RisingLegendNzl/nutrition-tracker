@@ -1,13 +1,194 @@
-/* Keep all your existing styles. Added only a small scoped block for the profile sheet. */
+/* filename: style.css */
 
-/* ---- Profile wrapper input styles (match dark matte) ---- */
-#profilePage input[type="text"],
-#profilePage input[type="number"],
-#profilePage input[type="search"],
-#profilePage input[type="email"],
-#profilePage input[type="tel"],
-#profilePage input[type="date"],
-#profilePage select {
+/* visibility helper */
+.hidden{display:none !important}
+
+:root{
+  --bg:#0f1115;--card:#171a21;--text:#e6e7ea;--muted:#aab0bd;
+  --accent:#4caf50;--border:#232632;--pill:#202533;--chev:#8b92a3;
+  --water1: rgba(76,175,80,.55);
+  --water2: rgba(76,175,80,.35);
+}
+@media(prefers-color-scheme:light){
+  :root{--bg:#f7f8fb;--card:#fff;--text:#111;--muted:#5b6577;
+    --accent:#2a7f3f;--border:#e6e9ef;--pill:#eef2f8;--chev:#7a8396;
+    --water1: rgba(42,127,63,.55);
+    --water2: rgba(42,127,63,.30);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto}
+.app-header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);padding:16px}
+.app-header h1{margin:0 0 10px;font-size:24px}
+
+/* Tabs */
+.tabs{display:flex;gap:8px;margin-bottom:8px}
+.tab{flex:1;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:16px}
+.tab.active{border-color:var(--accent)}
+
+/* Day switcher */
+.day-switcher{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.day-name{font-weight:600;padding:6px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.ghost{background:transparent;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:16px}
+.ghost.small{padding:6px 10px;font-size:14px}
+.ghost:disabled{opacity:.4}
+
+/* Layout */
+main{padding:16px;max-width:720px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px}
+.section-title{margin:0 0 12px;font-size:18px}
+
+/* Meals */
+.meal-row{border:1px solid var(--border);border-radius:12px;margin-bottom:10px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02));overflow:hidden}
+.meal-top{display:flex;align-items:center;justify-content:space-between;padding:12px}
+.meal-title{flex:1;text-align:left;background:none;border:none;color:inherit;cursor:pointer}
+.title-line{display:flex;align-items:center;gap:6px;font-weight:700;font-size:16px}
+.chev{width:10px;height:10px;border-right:2px solid var(--chev);border-bottom:2px solid var(--chev);transform:rotate(45deg);transition:transform .2s}
+.meal-row.open .chev{transform:rotate(-135deg)}
+.meal-macros{color:var(--muted);font-size:13px;margin-top:4px}
+.ingredients{display:none;padding:12px;border-top:1px solid var(--border);background:rgba(0,0,0,.04)}
+.meal-row.open .ingredients{display:block}
+.ingredients ul{margin:0;padding-left:18px}
+.ingredients li{margin:6px 0;color:var(--text)}
+
+/* Toggle switch */
+.switch{position:relative;display:inline-block;width:54px;height:30px}
+.switch.small{width:46px;height:26px}
+.switch input{display:none}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#7b8191;border-radius:30px;transition:all .25s}
+.slider:before{content:"";position:absolute;height:24px;width:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:all .25s}
+.switch.small .slider:before{height:20px;width:20px;left:3px;top:3px}
+.switch input:checked+.slider{background:var(--accent)}
+.switch input:checked+.slider:before{transform:translateX(24px)}
+.switch.small input:checked+.slider:before{transform:translateX(20px)}
+
+/* Progress bars */
+.bar-row{margin:10px 0}
+.bar-label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-bottom:6px}
+.bar-value{color:var(--text)}
+.bar-outer{width:100%;height:10px;background:#1f2432;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.bar-inner{height:100%;background:var(--accent);transition:width .25s}
+.summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.pill{background:var(--pill);border:1px solid var(--border);border-radius:12px;padding:8px 10px;display:flex;justify-content:space-between;font-size:14px}
+.pill span{color:var(--muted)}.pill strong{color:var(--text)}
+
+/* Footer */
+.app-footer{padding:16px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid var(--border)}
+
+/* Sup-Stack list */
+.supp-row{display:flex;justify-content:space-between;align-items:flex-start;border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02))}
+.supp-left{flex:1;min-width:0}
+.supp-title{font-weight:700;font-size:16px;margin-bottom:4px}
+.supp-sub{font-size:13px;color:var(--text)}
+.supp-sub.muted{color:var(--muted)}
+.supp-notes{font-size:12px;color:var(--muted);margin-top:6px}
+.supp-right{display:flex;align-items:center;gap:8px}
+.menu{position:relative}
+.menu-btn{background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:4px 8px}
+.menu-sheet{position:absolute;right:0;top:32px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-width:140px;z-index:5}
+.menu-item{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:10px 12px;font-size:14px}
+.menu-item:hover{background:rgba(255,255,255,.04)}
+.menu-item.danger{color:#f06a6a}
+.supp-actions{display:flex;justify-content:flex-end;margin-top:8px}
+
+/* Add/Edit Sheet */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}
+.sheet-card{background:var(--card);border:1px solid var(--border);border-radius:16px 16px 0 0;padding:16px;width:100%;max-width:720px}
+.field{display:flex;flex-direction:column;margin:8px 0;position:relative}
+.field span{font-size:13px;color:var(--muted);margin-bottom:6px}
+.field input,.field textarea{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px}
+.sheet-row{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.primary{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 14px}
+
+/* FAB */
+.fab{position:fixed;right:16px;bottom:84px;background:var(--accent);color:#fff;border:0;border-radius:999px;padding:12px 18px;font-size:16px}
+
+/* Snackbar */
+.snackbar{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;display:flex;align-items:center;gap:12px;z-index:20}
+.link{background:transparent;color:var(--accent);border:0}
+
+/* Empty state */
+.empty-state{border:1px dashed var(--border);border-radius:12px;padding:16px;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02))}
+.empty-title{font-weight:700;margin-bottom:6px}
+.empty-sub{color:var(--muted);font-size:13px}
+
+/* Typeahead */
+.typeahead{position:absolute;left:0;right:0;top:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;z-index:9}
+.typeahead button{width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:10px 12px;font-size:14px}
+.typeahead button:hover{background:rgba(255,255,255,.05)}
+
+/* ========== HYDRATION UI ========== */
+.hydro-goal-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;margin-bottom:10px}
+.hydro-goal{display:flex;gap:8px;align-items:center}
+.hydro-goal-label{font-weight:600}
+.hydro-goal-values{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.auto-hint{font-size:12px}
+
+.bottle-wrap{display:flex;flex-direction:column;align-items:center;margin:10px 0}
+.bottle{
+  position:relative;
+  width:160px;height:260px;
+  border:2px solid var(--border);
+  border-radius:20px 20px 24px 24px;
+  background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02));
+  overflow:hidden;
+}
+.bottle:before{
+  content:""; position:absolute; top:-18px; left:45px; right:45px; height:22px;
+  border:2px solid var(--border); border-bottom:0; border-radius:10px 10px 0 0; background:var(--card);
+}
+/* liquid container moves vertically with --fill */
+.bottle-fill{
+  position:absolute;left:0;right:0;bottom:0;top:0;
+  transform:translateY(calc(100% - var(--fill,0%)));
+  transition:transform .6s ease-out;will-change:transform;overflow:hidden;
+}
+/* SVG liquid (two waves) */
+.liq{width:100%;height:100%;display:block}
+.wave{fill:var(--water1)}
+.w2{fill:var(--water2);opacity:.95;animation-duration:10s}
+.w1{animation-duration:7s}
+.wave{animation:waveMove 7s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes waveMove{
+  from{transform:translateX(0)}
+  to{transform:translateX(-300px)}
+}
+
+.bottle-gloss{
+  position:absolute; top:0; bottom:0; left:0;
+  width:34px; background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,0));
+  mix-blend-mode:screen; pointer-events:none;
+}
+.hydro-numbers{margin-top:10px;text-align:center}
+.today-str{font-weight:600}
+.pct-str{color:var(--muted);font-size:13px;margin-top:4px}
+
+.hydro-actions{margin-top:12px}
+.quick-adds{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.pill-btn{border-radius:999px}
+.custom-add{display:flex;gap:8px}
+.custom-add input{flex:1}
+.hydro-subrow{display:flex;justify-content:flex-end;margin-top:8px}
+
+.hydro-history{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:8px}
+.hbar{display:flex;flex-direction:column;align-items:center;gap:6px}
+.hbar-bar{height:92px;width:16px;border:1px solid var(--border);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02))}
+.hbar-bar span{display:block;width:100%;background:var(--accent);transition:height .4s}
+.hbar-lab{font-size:11px;color:var(--muted)}
+
+/* ========== Dark inputs for Diet / Supps / Hydration (scoped) ========== */
+#dietPage input[type="text"],
+#dietPage input[type="number"],
+#dietPage input[type="search"],
+#dietPage input[type="email"],
+#dietPage input[type="tel"],
+#dietPage select,
+#suppsPage input[type="text"],
+#suppsPage input[type="number"],
+#suppsPage select,
+#hydroPage input[type="text"],
+#hydroPage input[type="number"],
+#hydroPage select {
   background:#0b1020;
   color:#e5e7eb;
   border:1px solid #223150;
@@ -24,31 +205,84 @@
 }
 
 /* hide iOS number spinners */
-#profilePage input[type="number"]::-webkit-outer-spin-button,
-#profilePage input[type="number"]::-webkit-inner-spin-button {
+#dietPage input[type="number"]::-webkit-outer-spin-button,
+#dietPage input[type="number"]::-webkit-inner-spin-button,
+#suppsPage input[type="number"]::-webkit-outer-spin-button,
+#suppsPage input[type="number"]::-webkit-inner-spin-button,
+#hydroPage input[type="number"]::-webkit-outer-spin-button,
+#hydroPage input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none; margin: 0;
 }
 
 /* placeholder color */
-#profilePage ::placeholder { color:#8da1b5; opacity:.9; }
+#dietPage ::placeholder,
+#suppsPage ::placeholder,
+#hydroPage ::placeholder { color:#8da1b5; opacity:.9; }
 
 /* focus ring */
-#profilePage input:focus, #profilePage select:focus {
+#dietPage input:focus, #dietPage select:focus,
+#suppsPage input:focus, #suppsPage select:focus,
+#hydroPage input:focus, #hydroPage select:focus {
   border-color:#38bdf8;
   box-shadow:0 0 0 2px rgba(56,189,248,.25);
 }
 
-/* layout helpers */
+/* editor buttons (match your dark + green theme) */
+#dietPage .ing-save, #dietPage .ing-reset,
+#suppsPage .btn, #hydroPage .btn {
+  background:#0f172a;
+  border:1px solid #223150;
+  color:#e5e7eb;
+}
+#dietPage .ing-save { border-color:#22c55e; color:#22c55e; }
+#dietPage .ing-save:hover { background:#083b2b; }
+#dietPage .ing-reset { opacity:.85; }
+#dietPage .ing-edit-btn {
+  border:1px solid #223150; background:#0f172a; color:#e5e7eb;
+}
+#dietPage .ing-edit-btn:hover { border-color:#38bdf8; color:#7dd3fc; }
+
+/* ========== Profile (scoped; matches dark inputs) ========== */
 #openProfile.profile-btn{ margin-left:auto; }
 
-#profilePage .grid{
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap:12px;
+#profilePage input[type="text"],
+#profilePage input[type="number"],
+#profilePage input[type="search"],
+#profilePage input[type="email"],
+#profilePage input[type="tel"],
+#profilePage input[type="date"],
+#profilePage select{
+  background:#0b1020;
+  color:#e5e7eb;
+  border:1px solid #223150;
+  border-radius:10px;
+  padding:8px 12px;
+  font-size:15px;
+  font-variant-numeric:tabular-nums;
+  outline:none;
+  width:auto;
+  -webkit-appearance:none;
+     -moz-appearance:textfield;
+  appearance:none;
+  caret-color:#7dd3fc;
+}
+#profilePage input[type="number"]::-webkit-outer-spin-button,
+#profilePage input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance:none;margin:0;
+}
+#profilePage ::placeholder{ color:#8da1b5; opacity:.9; }
+#profilePage input:focus, #profilePage select:focus{
+  border-color:#38bdf8;
+  box-shadow:0 0 0 2px rgba(56,189,248,.25);
 }
 
-#profilePage .sheet-card { max-width:900px; }
-
+/* Profile layout */
+#profilePage .sheet-card{ max-width:900px; }
+#profilePage .grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+  gap:12px;
+}
 #profilePage .sheet-actions{
   display:flex; gap:8px; justify-content:flex-end; margin-top:12px;
 }
