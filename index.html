@@ -52,7 +52,8 @@
             <span>Name</span>
             <input id="fName" type="text" placeholder="e.g., Zinc"/>
           </label>
-          <!-- typeahead dropdown will be injected here -->
+          <!-- typeahead dropdown injected under Name field -->
+
           <label class="field">
             <span>Dosage</span>
             <input id="fDose" type="text" placeholder="e.g., 25 mg"/>
@@ -93,16 +94,235 @@
 
   <script src="data.js"></script>
   <script>
-    /* === Global state, DOM refs, Diet + Supp logic from earlier === */
-    /* ... (unchanged code from your working version, including setTab, renderDiet, etc.) ... */
+    /* =========================
+       Helpers & Global State
+       ========================= */
+    const AEST_DATE = () =>
+      new Date().toLocaleString("en-CA", { timeZone: "Australia/Brisbane" }).slice(0,10); // YYYY-MM-DD
 
-    // === TYPEAHEAD HOOKUP ===
-    const nameFieldWrapper = document.querySelector('#fName').parentElement;
-    nameFieldWrapper.style.position = 'relative';
-    const ta = document.createElement('div');
-    ta.id = 'typeahead';
-    ta.className = 'typeahead hidden';
-    nameFieldWrapper.appendChild(ta);
+    // DIET state
+    let dayIndex = 0;
+    const days = Object.keys(mealPlan);
+    const mealEaten = {};     // { Monday: { Breakfast: true } }
+    const openMeals = {};     // expanded accordions
+
+    // SUPPS state
+    const DEFAULTS_KEY = "supps_defaults_v1";
+    const SUPPS_KEY = "supps_v1";
+    const TAKEN_PREFIX = "supps_taken_"; // + date
+    let editingIndex = null;  // index in current list when editing
+    let lastDeleted = null;   // { item, index }
+
+    // DOM refs (Diet)
+    const dayNameEl = document.getElementById("dayName");
+    const mealsEl = document.getElementById("meals");
+    const barsEl = document.getElementById("bars");
+    const macroSummaryEl = document.getElementById("macroSummary");
+    const prevBtn = document.getElementById("prevDay");
+    const nextBtn = document.getElementById("nextDay");
+    const daySwitcher = document.getElementById("daySwitcher");
+
+    // DOM refs (Supps)
+    const suppListEl = document.getElementById("suppList");
+    const addSuppBtn = document.getElementById("addSupp");
+    const restoreBtn = document.getElementById("restoreDefaults");
+    const sheet = document.getElementById("sheet");
+    const snack = document.getElementById("snackbar");
+    const snackMsg = document.getElementById("snackMsg");
+    const undoBtn = document.getElementById("undoBtn");
+
+    // Form refs
+    const form = document.getElementById("suppForm");
+    const fName = document.getElementById("fName");
+    const fDose = document.getElementById("fDose");
+    const fTiming = document.getElementById("fTiming");
+    const fPairs = document.getElementById("fPairs");
+    const fNotes = document.getElementById("fNotes");
+    const cancelSheet = document.getElementById("cancelSheet");
+    const saveSheet = document.getElementById("saveSheet");
+    const sheetTitle = document.getElementById("sheetTitle");
+
+    // Tabs
+    const tabDiet = document.getElementById("tabDiet");
+    const tabSupps = document.getElementById("tabSupps");
+    const dietPage = document.getElementById("dietPage");
+    const suppsPage = document.getElementById("suppsPage");
+
+    tabDiet.onclick = () => setTab("diet");
+    tabSupps.onclick = () => setTab("supps");
+
+    function setTab(which){
+      // Always ensure the sheet is closed when switching tabs
+      sheet.classList.add("hidden");
+      editingIndex = null;
+
+      if (which === "diet") {
+        tabDiet.classList.add("active");
+        tabSupps.classList.remove("active");
+        dietPage.classList.remove("hidden");
+        suppsPage.classList.add("hidden");
+        daySwitcher.style.display = "flex";
+      } else {
+        tabSupps.classList.add("active");
+        tabDiet.classList.remove("active");
+        suppsPage.classList.remove("hidden");
+        dietPage.classList.add("hidden");
+        daySwitcher.style.display = "none";
+        if (document.activeElement) document.activeElement.blur();
+        renderSupps(); // refresh list and enforce sheet closed
+      }
+    }
+
+    /* =========================
+       DIET TAB
+       ========================= */
+    prevBtn.addEventListener("click", () => { if (dayIndex>0){ dayIndex--; renderDiet(); } });
+    nextBtn.addEventListener("click", () => { if (dayIndex<days.length-1){ dayIndex++; renderDiet(); } });
+
+    function renderDiet(){
+      const day = days[dayIndex];
+      const meals = mealPlan[day];
+      dayNameEl.textContent = day;
+      prevBtn.disabled = dayIndex===0; nextBtn.disabled = dayIndex===days.length-1;
+
+      mealsEl.innerHTML = "";
+      Object.entries(meals).forEach(([mealName, mealData]) => {
+        const card = document.createElement("div");
+        card.className = "meal-row";
+        if (openMeals[day]?.[mealName]) card.classList.add("open");
+
+        const rowBtn = document.createElement("div");
+        rowBtn.className = "meal-title";
+        rowBtn.innerHTML = `
+          <div class="title-line">
+            <span class="chev" aria-hidden="true"></span>
+            <span class="meal-name">${mealName}</span>
+          </div>
+          <div class="meal-macros">${mealData.calories} kcal • ${mealData.protein} g protein • ${mealData.fibre} g fibre</div>
+        `;
+        rowBtn.addEventListener("click", () => {
+          openMeals[day] = openMeals[day] || {};
+          openMeals[day][mealName] = !openMeals[day][mealName];
+          renderDiet();
+        });
+
+        const toggleWrap = document.createElement("label");
+        toggleWrap.className = "switch";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = mealEaten[day]?.[mealName] || false;
+        const slider = document.createElement("span");
+        slider.className = "slider";
+        toggleWrap.addEventListener("click", (e)=> e.stopPropagation());
+        input.addEventListener("change", () => {
+          mealEaten[day] = mealEaten[day] || {};
+          mealEaten[day][mealName] = input.checked;
+          updateNutrients();
+        });
+        toggleWrap.appendChild(input);
+        toggleWrap.appendChild(slider);
+
+        const top = document.createElement("div");
+        top.className = "meal-top";
+        top.appendChild(rowBtn);
+        top.appendChild(toggleWrap);
+
+        const details = document.createElement("div");
+        details.className = "ingredients";
+        if (mealData.ingredients?.length) {
+          const ul = document.createElement("ul");
+          mealData.ingredients.forEach(it => {
+            const li = document.createElement("li");
+            li.textContent = it;
+            ul.appendChild(li);
+          });
+          details.appendChild(ul);
+        }
+
+        card.appendChild(top);
+        card.appendChild(details);
+        mealsEl.appendChild(card);
+      });
+
+      updateNutrients();
+    }
+
+    const goals = {
+      calories: 3500, protein: 200, fibre: 30,
+      iron: 8, zinc: 14, calcium: 1000,
+      vitaminC: 45, folate: 400, potassium: 3800
+    };
+
+    function updateNutrients(){
+      const day = days[dayIndex];
+      const meals = mealPlan[day];
+      const totals = Object.keys(goals).reduce((a,k)=>(a[k]=0,a),{});
+      Object.entries(meals).forEach(([mName,mData])=>{
+        if (!mealEaten[day]?.[mName]){
+          for (const k in goals) totals[k] += mData[k] || 0;
+        }
+      });
+
+      macroSummaryEl.innerHTML = `
+        <div class="pill"><span>Calories</span><strong>${Math.round(totals.calories)}</strong></div>
+        <div class="pill"><span>Protein</span><strong>${Math.round(totals.protein)} g</strong></div>
+        <div class="pill"><span>Fibre</span><strong>${Math.round(totals.fibre)} g</strong></div>
+      `;
+
+      barsEl.innerHTML = "";
+      Object.entries(goals).forEach(([k,goal])=>{
+        const v = totals[k];
+        const pct = Math.min(100, (v/goal)*100);
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        row.innerHTML = `
+          <div class="bar-label">
+            <span>${labelPretty(k)}</span>
+            <span class="bar-value">${formatValue(k,v)} / ${formatValue(k,goal)}</span>
+          </div>
+          <div class="bar-outer"><div class="bar-inner" style="width:${pct}%"></div></div>
+        `;
+        barsEl.appendChild(row);
+      });
+    }
+
+    function labelPretty(key){
+      return {
+        calories:"Calories", protein:"Protein", fibre:"Fibre", iron:"Iron", zinc:"Zinc",
+        calcium:"Calcium", vitaminC:"Vitamin C", folate:"Folate", potassium:"Potassium"
+      }[key] || key;
+    }
+    function formatValue(key,v){
+      if (key==="calories") return Math.round(v)+" kcal";
+      if (key==="protein"||key==="fibre") return Math.round(v)+" g";
+      if (key==="iron"||key==="zinc") return v.toFixed(1)+" mg";
+      if (key==="vitaminC") return Math.round(v)+" mg";
+      if (key==="folate") return Math.round(v)+" µg";
+      if (key==="calcium"||key==="potassium") return Math.round(v)+" mg";
+      return v;
+    }
+
+    /* =========================
+       SUPP SUGGESTION ENGINE
+       ========================= */
+    // SMART_SUGGESTIONS and ALIAS_TO_CANON come from data.js
+
+    // fallback suggester (used if alias doesn't hit)
+    function baseSuggest(name){
+      const key = name.trim().toLowerCase();
+      for (const canon in SMART_SUGGESTIONS){
+        const data = SMART_SUGGESTIONS[canon];
+        if (canon.toLowerCase()===key || (data.aliases||[]).some(a => key.includes(a.toLowerCase()))){
+          return { ...data };
+        }
+      }
+      return {
+        dose:"", timing:"With a meal",
+        pairs:"Food (improves tolerance/absorption)",
+        notes:"General guidance; adjust if you notice sensitivity.",
+        why:"Complements your diet by filling potential micronutrient gaps."
+      };
+    }
 
     function resolveCanonicalName(inputStr){
       const s = inputStr.trim().toLowerCase();
@@ -113,17 +333,255 @@
       return null;
     }
 
+    function suggestFor(name){
+      const canon = resolveCanonicalName(name);
+      if (canon && SMART_SUGGESTIONS[canon]) return { ...SMART_SUGGESTIONS[canon] };
+      return baseSuggest(name);
+    }
+
+    /* =========================
+       SUPPS TAB
+       ========================= */
+    function loadSupps(){
+      // Seed defaults if first time
+      if (!localStorage.getItem(DEFAULTS_KEY)) {
+        localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaultSupps));
+      }
+      if (!localStorage.getItem(SUPPS_KEY)) {
+        localStorage.setItem(SUPPS_KEY, JSON.stringify(defaultSupps));
+      }
+      return JSON.parse(localStorage.getItem(SUPPS_KEY) || "[]");
+    }
+    function saveSupps(list){ localStorage.setItem(SUPPS_KEY, JSON.stringify(list)); }
+    function loadTakenMap(){ return JSON.parse(localStorage.getItem(TAKEN_PREFIX + AEST_DATE()) || "{}"); }
+    function saveTakenMap(map){ localStorage.setItem(TAKEN_PREFIX + AEST_DATE(), JSON.stringify(map)); }
+
+    function renderSupps(){
+      // hard guard: make sure sheet is closed
+      sheet.classList.add("hidden");
+      editingIndex = null;
+
+      const list = loadSupps();
+      const taken = loadTakenMap();
+      suppListEl.innerHTML = "";
+
+      if (!Array.isArray(list) || list.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.innerHTML = `
+          <div class="empty-title">No supplements yet</div>
+          <div class="empty-sub">Tap “Add” to create your Sup-Stack. You can restore defaults anytime.</div>
+        `;
+        suppListEl.appendChild(empty);
+        return;
+      }
+
+      list.forEach((s, idx) => {
+        const row = document.createElement("div");
+        row.className = "supp-row";
+
+        const left = document.createElement("div");
+        left.className = "supp-left";
+        left.innerHTML = `
+          <div class="supp-title">${s.name}</div>
+          <div class="supp-sub">${s.dose || ""} ${s.timing ? "• "+s.timing : ""}</div>
+          <div class="supp-sub muted">
+            ${s.pairs ? "Pairs: "+s.pairs : ""} ${s.why ? "• "+s.why : ""}
+          </div>
+          ${s.notes ? `<div class="supp-notes">${s.notes}</div>`:""}
+        `;
+
+        // toggle taken
+        const toggle = document.createElement("label");
+        toggle.className = "switch";
+        const inp = document.createElement("input");
+        inp.type = "checkbox";
+        inp.checked = !!taken[s.name];
+        const slid = document.createElement("span");
+        slid.className = "slider";
+        toggle.appendChild(inp); toggle.appendChild(slid);
+
+        inp.addEventListener("change", ()=>{
+          const m = loadTakenMap();
+          if (inp.checked) m[s.name] = true; else delete m[s.name];
+          saveTakenMap(m);
+        });
+
+        // menu
+        const menu = document.createElement("div");
+        menu.className = "menu";
+        menu.innerHTML = `
+          <button class="menu-btn" aria-label="More">⋮</button>
+          <div class="menu-sheet hidden">
+            <button class="menu-item" data-act="edit">Edit</button>
+            <button class="menu-item danger" data-act="delete">Delete</button>
+            <button class="menu-item" data-act="info">Info</button>
+          </div>
+        `;
+        const btn = menu.querySelector(".menu-btn");
+        const sheetEl = menu.querySelector(".menu-sheet");
+        btn.onclick = (e)=> {
+          e.stopPropagation();
+          sheetEl.classList.toggle("hidden");
+          document.addEventListener("click", function docClose(ev){
+            if (!menu.contains(ev.target)) { sheetEl.classList.add("hidden"); document.removeEventListener("click", docClose); }
+          });
+        };
+        sheetEl.onclick = (e)=>{
+          const act = e.target.getAttribute("data-act");
+          if (!act) return;
+          sheetEl.classList.add("hidden");
+          if (act==="edit") openEditor(s, idx);
+          if (act==="delete") doDelete(idx);
+          if (act==="info") showInfo(s);
+        };
+
+        row.appendChild(left);
+        const right = document.createElement("div");
+        right.className = "supp-right";
+        right.appendChild(toggle);
+        right.appendChild(menu);
+        row.appendChild(right);
+
+        suppListEl.appendChild(row);
+      });
+    }
+
+    function openEditor(s=null, idx=null){
+      editingIndex = idx;
+      if (s){
+        sheetTitle.textContent = "Edit supplement";
+        fName.value = s.name; fDose.value = s.dose||""; fTiming.value=s.timing||"";
+        fPairs.value = s.pairs||""; fNotes.value = s.notes||"";
+      } else {
+        sheetTitle.textContent = "Add supplement";
+        fName.value = ""; fDose.value=""; fTiming.value=""; fPairs.value=""; fNotes.value="";
+      }
+      sheet.classList.remove("hidden");
+      // typeahead will be created once below
+    }
+    function closeEditor(){ sheet.classList.add("hidden"); }
+
+    addSuppBtn.onclick = ()=> openEditor(null, null);
+    cancelSheet.onclick = ()=> closeEditor();
+
+    form.onsubmit = (e)=>{
+      e.preventDefault();
+      const name = fName.value.trim();
+      if (!name){ fName.focus(); return; }
+
+      let dose = fDose.value.trim();
+      let timing = fTiming.value.trim();
+      let pairs = fPairs.value.trim();
+      let notes = fNotes.value.trim();
+      let why = "";
+
+      // If adding (not editing) and fields empty -> suggest
+      if (editingIndex===null){
+        const sug = suggestFor(name);
+        if (!dose) dose = sug.dose || "";
+        if (!timing) timing = sug.timing || "";
+        if (!pairs) pairs = sug.pairs || "";
+        if (!notes) notes = sug.notes || "";
+        why = sug.why || "";
+      }
+
+      const list = loadSupps();
+      // prevent duplicate names (case-insensitive)
+      const exists = list.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
+      if (exists !== -1 && exists !== editingIndex){
+        alert("A supplement with that name already exists.");
+        return;
+      }
+
+      const obj = { name, dose, timing, pairs, notes, why: why || (list[editingIndex]?.why || "") };
+
+      if (editingIndex===null){
+        list.unshift(obj);
+      } else {
+        list[editingIndex] = obj;
+      }
+      saveSupps(list);
+      renderSupps();
+      closeEditor();
+    };
+
+    function doDelete(idx){
+      const list = loadSupps();
+      lastDeleted = { item: list[idx], index: idx };
+      list.splice(idx,1);
+      saveSupps(list);
+      renderSupps();
+      showSnack(`Deleted ${lastDeleted.item.name}`);
+    }
+
+    function showInfo(s){
+      const parts = [
+        s.name,
+        s.dose && `Dose: ${s.dose}`,
+        s.timing && `Timing: ${s.timing}`,
+        s.pairs && `Pairs best with: ${s.pairs}`,
+        s.why && `Why: ${s.why}`,
+        s.notes && `Notes: ${s.notes}`
+      ].filter(Boolean).join("\n");
+      alert(parts || s.name);
+    }
+
+    restoreBtn.onclick = ()=>{
+      const defs = JSON.parse(localStorage.getItem(DEFAULTS_KEY) || "[]");
+      const curr = loadSupps();
+      const names = new Set(curr.map(x=>x.name.toLowerCase()));
+      defs.forEach(d => { if (!names.has(d.name.toLowerCase())) curr.push(d); });
+      saveSupps(curr);
+      renderSupps();
+      showSnack("Defaults restored");
+    };
+
+    // Snackbar + Undo
+    function showSnack(msg){
+      snackMsg.textContent = msg;
+      snack.classList.remove("hidden");
+      let to = setTimeout(()=> snack.classList.add("hidden"), 8000);
+      undoBtn.onclick = ()=>{
+        snack.classList.add("hidden");
+        clearTimeout(to);
+        if (lastDeleted){
+          const list = loadSupps();
+          const idx = Math.min(lastDeleted.index, list.length);
+          list.splice(idx, 0, lastDeleted.item);
+          saveSupps(list);
+          renderSupps();
+          lastDeleted = null;
+        }
+      };
+    }
+
+    /* =========================
+       TYPEAHEAD (Name field)
+       ========================= */
+    // Create dropdown under the Name field
+    const nameFieldWrapper = document.querySelector('#fName').parentElement;
+    nameFieldWrapper.style.position = 'relative';
+    const ta = document.createElement('div');
+    ta.id = 'typeahead';
+    ta.className = 'typeahead hidden';
+    nameFieldWrapper.appendChild(ta);
+
     function suggestionsFor(inputStr, limit=6){
       const s = inputStr.trim().toLowerCase();
       if (!s) return [];
       const uniq = new Set();
       const results = [];
+      // Priority: startsWith
       Object.keys(ALIAS_TO_CANON).forEach(key=>{
-        if (key.startsWith(s)){
+        const flat = key.replace(/[^a-z0-9]/g,'');
+        const flatS = s.replace(/[^a-z0-9]/g,'');
+        if (key.startsWith(s) || flat.startsWith(flatS)){
           const canon = ALIAS_TO_CANON[key];
           if (!uniq.has(canon)){ uniq.add(canon); results.push(canon); }
         }
       });
+      // Then includes
       Object.keys(ALIAS_TO_CANON).forEach(key=>{
         if (results.length>=limit) return;
         if (key.includes(s)){
@@ -160,15 +618,16 @@
     });
     fName.addEventListener('blur', ()=> setTimeout(()=>{ ta.classList.add('hidden'); }, 150));
 
-    // Override suggestFor
-    const OLD_suggestFor = suggestFor;
-    function suggestFor(name){
-      const canon = resolveCanonicalName(name);
-      if (canon && SMART_SUGGESTIONS[canon]) return { ...SMART_SUGGESTIONS[canon] };
-      return OLD_suggestFor(name);
+    /* =========================
+       INIT
+       ========================= */
+    function init(){
+      loadSupps();
+      renderDiet();
+      renderSupps();
+      setTab("diet"); // start on Diet
     }
-
-    // init() call remains same
+    init();
   </script>
 </body>
 </html>
