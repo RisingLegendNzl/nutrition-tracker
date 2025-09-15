@@ -245,6 +245,181 @@ window.mealPlan = {
     }
   ]
 };
+// =========================
+// Nutrition DB (per 100 g unless noted)
+// Values are reasonable AU averages; fine for daily tracking targets.
+// =========================
+window.NUTRITION_DB = {
+  "rolled oats":         { per:100, k:389, p:16.9, c:66.3, f:6.9,  fib:10.6, fe:4.3, zn:3.1, ca:54,  vC:0,   fol:56,  kplus:429 },
+  "full cream milk":     { per:100, k:64,  p:3.3,  c:4.8,  f:3.6,  fib:0,   fe:0.03,zn:0.4, ca:120, vC:0,   fol:5,   kplus:150 },
+  "banana":              { per:100, k:89,  p:1.1,  c:22.8, f:0.3,  fib:2.6, fe:0.3, zn:0.2, ca:5,   vC:8.7, fol:20,  kplus:358, unit_g:118 },
+  "peanut butter":       { per:100, k:588, p:25,   c:20,   f:50,   fib:6,   fe:1.9, zn:3.3, ca:43,  vC:0,   fol:92,  kplus:649 },
+
+  "beef mince 5★ (lean)":{ per:100, k:137, p:26,   c:0,    f:5,    fib:0,   fe:2.2, zn:4.5, ca:18,  vC:0,   fol:8,   kplus:330 },
+  "beef mince 3★ (regular)":{ per:100,k:254,p:17,  c:0,    f:20,   fib:0,   fe:2.1, zn:4.2, ca:18,  vC:0,   fol:8,   kplus:330 },
+
+  "chicken thigh fillets":{ per:100, k:177, p:26,  c:0,    f:8,    fib:0,   fe:0.9, zn:1.4, ca:14,  vC:0,   fol:6,   kplus:239 },
+  "tuna (springwater, drained)":{per:100,k:116,p:26,c:0,f:1,fib:0,fe:1.0,zn:0.6,ca:9,vC:0,fol:2,kplus:210, unit_g:200},
+
+  "lentils (canned, drained)":{ per:100,k:92, p:7.4, c:16,  f:0.4, fib:7.3, fe:2.4, zn:1.3, ca:19,  vC:1.5, fol:45,  kplus:180 },
+  "spinach":             { per:100, k:23,  p:2.9,  c:3.6,  f:0.4,  fib:2.2, fe:2.7, zn:0.5, ca:99,  vC:28,  fol:194, kplus:558 },
+  "avocado":             { per:100, k:160, p:2,    c:9,    f:15,   fib:7,   fe:0.6, zn:0.6, ca:12,  vC:10,  fol:81,  kplus:485, unit_g:200 },
+
+  "frozen mixed vegetables":{per:100,k:70,p:3, c:12, f:0.5,fib:3,  fe:0.9, zn:0.7, ca:25,  vC:20,  fol:50,  kplus:200 },
+  "potatoes":            { per:100, k:77,  p:2,    c:17,   f:0.1,  fib:2.2, fe:0.8, zn:0.3, ca:12,  vC:20,  fol:19,  kplus:425 },
+  "sweet potato":        { per:100, k:86,  p:1.6,  c:20,   f:0.1,  fib:3,   fe:0.6, zn:0.3, ca:30,  vC:2.4, fol:11,  kplus:337 },
+  "rice (cooked)":       { per:100, k:130, p:2.7,  c:28,   f:0.3,  fib:0.4, fe:0.2, zn:0.4, ca:10,  vC:0,   fol:58,  kplus:35 },
+  "carrots":             { per:100, k:41,  p:0.9,  c:10,   f:0.2,  fib:2.8, fe:0.3, zn:0.2, ca:33,  vC:5.9, fol:19,  kplus:320 },
+  "peas":                { per:100, k:81,  p:5,    c:14,   f:0.4,  fib:5.1, fe:1.5, zn:1.2, ca:25,  vC:40,  fol:65,  kplus:244 },
+
+  "greek yogurt":        { per:100, k:73,  p:10,   c:3.6,  f:3.8,  fib:0,   fe:0.1, zn:0.6, ca:110, vC:0.5, fol:12,  kplus:141 }
+};
+
+// =========================
+// 7-Day Meal Plan (ingredients only; totals are computed from DB)
+// =========================
+window.mealPlan = {
+  "Monday": [
+    { meal: "Breakfast", items: [
+      { food:"Rolled oats", qty:"100 g" },
+      { food:"Full cream milk", qty:"300 ml" },
+      { food:"Banana", qty:"1 medium" },
+      { food:"Peanut butter", qty:"20 g" }
+    ]},
+    { meal: "Lunch", items: [
+      { food:"Beef mince 5★ (lean)", qty:"250 g" },
+      { food:"Frozen mixed vegetables", qty:"200 g" },
+      { food:"Sweet potato", qty:"300 g" }
+    ]},
+    { meal: "Dinner", items: [
+      { food:"Chicken thigh fillets", qty:"400 g" },
+      { food:"Lentils (canned, drained)", qty:"150 g" },
+      { food:"Spinach", qty:"100 g" },
+      { food:"Avocado", qty:"1 whole" }
+    ]}
+  ],
+
+  "Tuesday": [
+    { meal: "Breakfast", items: [
+      { food:"Rolled oats", qty:"100 g" },
+      { food:"Full cream milk", qty:"250 ml" },
+      { food:"Banana", qty:"1 medium" },
+      { food:"Greek yogurt", qty:"150 g" }
+    ]},
+    { meal: "Lunch", items: [
+      { food:"Beef mince 3★ (regular)", qty:"250 g" },
+      { food:"Frozen mixed vegetables", qty:"200 g" },
+      { food:"Rice (cooked)", qty:"200 g" }
+    ]},
+    { meal: "Dinner", items: [
+      { food:"Chicken thigh fillets", qty:"400 g" },
+      { food:"Potatoes", qty:"300 g" },
+      { food:"Carrots", qty:"100 g" },
+      { food:"Peas", qty:"100 g" }
+    ]}
+  ],
+
+  "Wednesday": [
+    { meal: "Breakfast", items: [
+      { food:"Rolled oats", qty:"100 g" },
+      { food:"Full cream milk", qty:"300 ml" },
+      { food:"Banana", qty:"1 medium" },
+      { food:"Peanut butter", qty:"20 g" }
+    ]},
+    { meal: "Lunch", items: [
+      { food:"Tuna (springwater, drained)", qty:"200 g" },
+      { food:"Lentils (canned, drained)", qty:"150 g" },
+      { food:"Sweet potato", qty:"250 g" },
+      { food:"Spinach", qty:"100 g" }
+    ]},
+    { meal: "Dinner", items: [
+      { food:"Chicken thigh fillets", qty:"400 g" },
+      { food:"Potatoes", qty:"300 g" },
+      { food:"Carrots", qty:"100 g" },
+      { food:"Peas", qty:"100 g" }
+    ]}
+  ],
+
+  "Thursday": [
+    { meal: "Breakfast", items: [
+      { food:"Rolled oats", qty:"100 g" },
+      { food:"Full cream milk", qty:"300 ml" },
+      { food:"Banana", qty:"1 medium" },
+      { food:"Greek yogurt", qty:"150 g" }
+    ]},
+    { meal: "Lunch", items: [
+      { food:"Beef mince 5★ (lean)", qty:"250 g" },
+      { food:"Frozen mixed vegetables", qty:"200 g" },
+      { food:"Sweet potato", qty:"300 g" }
+    ]},
+    { meal: "Dinner", items: [
+      { food:"Chicken thigh fillets", qty:"400 g" },
+      { food:"Rice (cooked)", qty:"250 g" },
+      { food:"Spinach", qty:"100 g" }
+    ]}
+  ],
+
+  "Friday": [
+    { meal: "Breakfast", items: [
+      { food:"Rolled oats", qty:"100 g" },
+      { food:"Full cream milk", qty:"250 ml" },
+      { food:"Banana", qty:"1 medium" },
+      { food:"Peanut butter", qty:"20 g" }
+    ]},
+    { meal: "Lunch", items: [
+      { food:"Tuna (springwater, drained)", qty:"200 g" },
+      { food:"Lentils (canned, drained)", qty:"150 g" },
+      { food:"Potatoes", qty:"250 g" },
+      { food:"Spinach", qty:"100 g" }
+    ]},
+    { meal: "Dinner", items: [
+      { food:"Chicken thigh fillets", qty:"400 g" },
+      { food:"Sweet potato", qty:"300 g" },
+      { food:"Carrots", qty:"100 g" },
+      { food:"Peas", qty:"100 g" }
+    ]}
+  ],
+
+  "Saturday": [
+    { meal: "Breakfast", items: [
+      { food:"Rolled oats", qty:"100 g" },
+      { food:"Full cream milk", qty:"300 ml" },
+      { food:"Banana", qty:"1 medium" },
+      { food:"Greek yogurt", qty:"150 g" }
+    ]},
+    { meal: "Lunch", items: [
+      { food:"Beef mince 3★ (regular)", qty:"250 g" },
+      { food:"Frozen mixed vegetables", qty:"200 g" },
+      { food:"Rice (cooked)", qty:"200 g" }
+    ]},
+    { meal: "Dinner", items: [
+      { food:"Chicken thigh fillets", qty:"400 g" },
+      { food:"Potatoes", qty:"300 g" },
+      { food:"Spinach", qty:"100 g" }
+    ]}
+  ],
+
+  "Sunday": [
+    { meal: "Breakfast", items: [
+      { food:"Rolled oats", qty:"100 g" },
+      { food:"Full cream milk", qty:"250 ml" },
+      { food:"Banana", qty:"1 medium" },
+      { food:"Peanut butter", qty:"20 g" }
+    ]},
+    { meal: "Lunch", items: [
+      { food:"Tuna (springwater, drained)", qty:"200 g" },
+      { food:"Lentils (canned, drained)", qty:"150 g" },
+      { food:"Sweet potato", qty:"250 g" },
+      { food:"Spinach", qty:"100 g" }
+    ]},
+    { meal: "Dinner", items: [
+      { food:"Chicken thigh fillets", qty:"400 g" },
+      { food:"Potatoes", qty:"300 g" },
+      { food:"Carrots", qty:"100 g" },
+      { food:"Peas", qty:"100 g" }
+    ]}
+  ]
+};
 
 // =========================
 // Default Supplements (what appears on first load)
