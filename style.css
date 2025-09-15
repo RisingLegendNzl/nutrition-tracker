@@ -144,32 +144,22 @@ main{padding:16px;max-width:720px;margin:0 auto}
   overflow:hidden;
 }
 /* wave layers */
-.wave{
-  position:absolute; left:0; right:0; bottom:-10px; height:120px;
-  background-repeat:repeat-x;
-  background-size: 300px 120px;
-  opacity:.95;
+/* SVG liquid */
+.liq{width:100%;height:100%;display:block}
+.wave{fill:var(--water1)}
+.w2{fill:var(--water2);opacity:.95;animation-duration:10s}
+.w1{animation-duration:7s}
+.wave{animation:waveMove 7s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes waveMove{
+  from{transform:translateX(0)}
+  to{transform:translateX(-300px)}
 }
-.wave1{
-  background-image:
-    radial-gradient(60px 40px at 30px 30px, var(--water1) 60%, transparent 61%),
-    radial-gradient(60px 40px at 180px 50px, var(--water1) 60%, transparent 61%),
-    radial-gradient(60px 40px at 330px 35px, var(--water1) 60%, transparent 61%);
-  animation: waveX 7s linear infinite;
-  filter: blur(.2px);
-}
-.wave2{
-  bottom:-18px;
-  background-image:
-    radial-gradient(60px 36px at 0px 24px, var(--water2) 60%, transparent 61%),
-    radial-gradient(60px 36px at 150px 40px, var(--water2) 60%, transparent 61%),
-    radial-gradient(60px 36px at 300px 28px, var(--water2) 60%, transparent 61%);
-  animation: waveX 11s linear infinite reverse;
-  opacity:.9;
-}
-@keyframes waveX{
-  0%   { background-position:   0 0, -150px 0, -300px 0; }
-  100% { background-position: 300px 0, 150px 0,    0px 0; }
+
+/* bottle fill moves vertically with --fill (keep this rule) */
+.bottle-fill{
+  position:absolute;left:0;right:0;bottom:0;top:0;
+  transform:translateY(calc(100% - var(--fill,0%)));
+  transition:transform .6s ease-out;will-change:transform;overflow:hidden;
 }
 .bottle-gloss{
   position:absolute; top:0; bottom:0; left:0;
