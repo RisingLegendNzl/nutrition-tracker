@@ -173,3 +173,69 @@ main{padding:16px;max-width:720px;margin:0 auto}
 .hbar-bar{height:92px;width:16px;border:1px solid var(--border);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02))}
 .hbar-bar span{display:block;width:100%;background:var(--accent);transition:height .4s}
 .hbar-lab{font-size:11px;color:var(--muted)}
+
+/* ========== Dark inputs for Diet / Supps / Hydration (scoped) ========== */
+#dietPage input[type="text"],
+#dietPage input[type="number"],
+#dietPage input[type="search"],
+#dietPage input[type="email"],
+#dietPage input[type="tel"],
+#dietPage select,
+#suppsPage input[type="text"],
+#suppsPage input[type="number"],
+#suppsPage select,
+#hydroPage input[type="text"],
+#hydroPage input[type="number"],
+#hydroPage select {
+  background:#0b1020;
+  color:#e5e7eb;
+  border:1px solid #223150;
+  border-radius:10px;
+  padding:8px 12px;
+  font-size:15px;
+  font-variant-numeric:tabular-nums;
+  outline:none;
+  width:auto;
+  -webkit-appearance:none;
+     -moz-appearance:textfield;
+  appearance:none;
+  caret-color:#7dd3fc;
+}
+
+/* hide iOS number spinners */
+#dietPage input[type="number"]::-webkit-outer-spin-button,
+#dietPage input[type="number"]::-webkit-inner-spin-button,
+#suppsPage input[type="number"]::-webkit-outer-spin-button,
+#suppsPage input[type="number"]::-webkit-inner-spin-button,
+#hydroPage input[type="number"]::-webkit-outer-spin-button,
+#hydroPage input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+
+/* placeholder color */
+#dietPage ::placeholder,
+#suppsPage ::placeholder,
+#hydroPage ::placeholder { color:#8da1b5; opacity:.9; }
+
+/* focus ring */
+#dietPage input:focus, #dietPage select:focus,
+#suppsPage input:focus, #suppsPage select:focus,
+#hydroPage input:focus, #hydroPage select:focus {
+  border-color:#38bdf8;
+  box-shadow:0 0 0 2px rgba(56,189,248,.25);
+}
+
+/* editor buttons (match your dark + green theme) */
+#dietPage .ing-save, #dietPage .ing-reset,
+#suppsPage .btn, #hydroPage .btn {
+  background:#0f172a;
+  border:1px solid #223150;
+  color:#e5e7eb;
+}
+#dietPage .ing-save { border-color:#22c55e; color:#22c55e; }
+#dietPage .ing-save:hover { background:#083b2b; }
+#dietPage .ing-reset { opacity:.85; }
+#dietPage .ing-edit-btn {
+  border:1px solid #223150; background:#0f172a; color:#e5e7eb;
+}
+#dietPage .ing-edit-btn:hover { border-color:#38bdf8; color:#7dd3fc; }
