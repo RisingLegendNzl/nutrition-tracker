@@ -4,7 +4,7 @@ import {
 } from "./utils.js";
 import { renderHydro, isAutoOn } from "./hydration.js";
 
-// Simple helpers for Sup-Stack storage
+/* Storage helpers */
 function loadSupps(){
   if (!localStorage.getItem(DEFAULTS_KEY)) {
     localStorage.setItem(DEFAULTS_KEY, JSON.stringify(window.defaultSupps || []));
@@ -19,37 +19,34 @@ function dayKey(dateStr){ return TAKEN_PREFIX + dateStr; }
 function loadTakenMap(dateStr=AEST_DATE()){ return JSON.parse(localStorage.getItem(dayKey(dateStr)) || "{}"); }
 function saveTakenMap(map, dateStr=AEST_DATE()){ localStorage.setItem(dayKey(dateStr), JSON.stringify(map)); }
 
-// Suggestion engine
-function baseSuggest(name){
-  const key = name.trim().toLowerCase();
-  for (const canon in window.SMART_SUGGESTIONS || {}){
-    const data = window.SMART_SUGGESTIONS[canon];
-    if (canon.toLowerCase()===key || (data.aliases||[]).some(a => key.includes(a.toLowerCase()))){
-      return { ...data };
-    }
-  }
+/* Suggestion engine */
+function resolveCanonicalName(inputStr){
+  const s = (inputStr||"").trim().toLowerCase();
+  if (!s) return null;
+  const map = window.ALIAS_TO_CANON || {};
+  if (map[s]) return map[s];
+  // fuzzy: starts-with / contains on flattened keys
+  const keys = Object.keys(map);
+  const flat = x => x.replace(/[^a-z0-9]/g,'');
+  const sFlat = flat(s);
+  let hit = keys.find(k => flat(k).startsWith(sFlat)) || keys.find(k => flat(k).includes(sFlat));
+  return hit ? map[hit] : null;
+}
+function suggestFor(name){
+  const canon = resolveCanonicalName(name) || name.trim();
+  const dict = window.SMART_SUGGESTIONS || {};
+  const sug = dict[canon];
+  if (sug) return { ...sug, _canon: canon };
+  // sensible defaults
   return {
     dose:"", timing:"With a meal",
     pairs:"Food (improves tolerance/absorption)",
-    notes:"General guidance; adjust if you notice sensitivity.",
-    why:"Complements your diet by filling potential micronutrient gaps."
+    notes:"General guidance; adjust if sensitive.",
+    why:"Complements diet gaps."
   };
 }
-function resolveCanonicalName(inputStr){
-  const s = inputStr.trim().toLowerCase();
-  if (!s) return null;
-  if (window.ALIAS_TO_CANON?.[s]) return window.ALIAS_TO_CANON[s];
-  const hits = Object.keys(window.ALIAS_TO_CANON||{}).filter(k => k.includes(s));
-  if (hits.length) return window.ALIAS_TO_CANON[hits[0]];
-  return null;
-}
-function suggestFor(name){
-  const canon = resolveCanonicalName(name);
-  if (canon && window.SMART_SUGGESTIONS?.[canon]) return { ...window.SMART_SUGGESTIONS[canon] };
-  return baseSuggest(name);
-}
 
-// DOM
+/* DOM refs */
 const suppListEl = document.getElementById("suppList");
 const addSuppBtn = document.getElementById("addSupp");
 const restoreBtn = document.getElementById("restoreDefaults");
@@ -61,7 +58,6 @@ const fTiming = document.getElementById("fTiming");
 const fPairs = document.getElementById("fPairs");
 const fNotes = document.getElementById("fNotes");
 const cancelSheet = document.getElementById("cancelSheet");
-const sheetTitle = document.getElementById("sheetTitle");
 const undoBtn = document.getElementById("undoBtn");
 
 let editingIndex = null;
@@ -72,11 +68,10 @@ export function mountSupps(){
   cancelSheet.onclick = ()=> closeEditor();
   restoreBtn.onclick = onRestoreDefaults;
 
-  // Typeahead under Name
-  setupTypeahead();
-
+  setupTypeahead();      // expanded suggestions
   form.onsubmit = onSubmit;
-  renderSupps();
+
+  renderSupps();         // ensure list renders; sheet remains hidden by default
 }
 
 export function renderSupps(){
@@ -127,7 +122,7 @@ export function renderSupps(){
       const m = loadTakenMap();
       if (inp.checked) m[s.name] = true; else delete m[s.name];
       saveTakenMap(m);
-      // live auto-goal update if creatine changed
+      // live auto-goal update if creatine present & auto-goal on
       if ((s.name || '').toLowerCase().includes('creatine') && isAutoOn()) {
         renderHydro();
       }
@@ -161,13 +156,13 @@ export function renderSupps(){
       if (act==="info") showInfo(s);
     };
 
-    row.appendChild(left);
     const right = document.createElement("div");
     right.className = "supp-right";
     right.appendChild(toggle);
     right.appendChild(menu);
-    row.appendChild(right);
 
+    row.appendChild(left);
+    row.appendChild(right);
     suppListEl.appendChild(row);
   });
 
@@ -191,13 +186,13 @@ export function renderSupps(){
 
 function openEditor(s=null, idx=null){
   editingIndex = idx;
-  const sheetTitle = document.getElementById("sheetTitle");
+  const title = document.getElementById("sheetTitle");
   if (s){
-    sheetTitle.textContent = "Edit supplement";
+    title.textContent = "Edit supplement";
     fName.value = s.name; fDose.value = s.dose||""; fTiming.value=s.timing||"";
     fPairs.value = s.pairs||""; fNotes.value = s.notes||"";
   } else {
-    sheetTitle.textContent = "Add supplement";
+    title.textContent = "Add supplement";
     fName.value = ""; fDose.value=""; fTiming.value=""; fPairs.value=""; fNotes.value="";
   }
   sheet.classList.remove("hidden");
@@ -217,10 +212,10 @@ function onSubmit(e){
 
   if (editingIndex===null){
     const sug = suggestFor(name);
-    if (!dose) dose = sug.dose || "";
+    if (!dose)   dose   = sug.dose || "";
     if (!timing) timing = sug.timing || "";
-    if (!pairs) pairs = sug.pairs || "";
-    if (!notes) notes = sug.notes || "";
+    if (!pairs)  pairs  = sug.pairs || "";
+    if (!notes)  notes  = sug.notes || "";
     why = sug.why || "";
   }
 
@@ -273,49 +268,49 @@ function onRestoreDefaults(){
   if (isAutoOn()) renderHydro();
 }
 
-// Typeahead under Name field
+/* -------- Typeahead (expanded) -------- */
 function setupTypeahead(){
-  const nameFieldWrapper = document.querySelector('#fName')?.parentElement;
-  if (!nameFieldWrapper) return;
-  nameFieldWrapper.style.position = 'relative';
+  const wrap = document.querySelector('#fName')?.parentElement;
+  if (!wrap) return;
+  wrap.style.position = 'relative';
   const ta = document.createElement('div');
   ta.id = 'typeahead';
   ta.className = 'typeahead hidden';
-  nameFieldWrapper.appendChild(ta);
+  wrap.appendChild(ta);
 
-  function suggestionsFor(inputStr, limit=6){
-    const s = inputStr.trim().toLowerCase();
+  function suggestionsFor(inputStr, limit=8){
+    const s = (inputStr||"").trim().toLowerCase();
     if (!s) return [];
-    const uniq = new Set();
-    const results = [];
-    const keys = Object.keys(window.ALIAS_TO_CANON||{});
-    keys.forEach(key=>{
-      const flat = key.replace(/[^a-z0-9]/g,'');
-      const flatS = s.replace(/[^a-z0-9]/g,'');
-      if (key.startsWith(s) || flat.startsWith(flatS)){
-        const canon = window.ALIAS_TO_CANON[key];
-        if (!uniq.has(canon)){ uniq.add(canon); results.push(canon); }
+    const map = window.ALIAS_TO_CANON || {};
+    const keys = Object.keys(map);
+    const flat = x => x.replace(/[^a-z0-9]/g,'');
+    const sFlat = flat(s);
+    const uniq = new Set(), out = [];
+    // strong starts-with
+    keys.forEach(k=>{
+      if (flat(k).startsWith(sFlat)){
+        const canon = map[k]; if (!uniq.has(canon)){ uniq.add(canon); out.push(canon); }
       }
     });
-    keys.forEach(key=>{
-      if (results.length>=limit) return;
-      if (key.includes(s)){
-        const canon = window.ALIAS_TO_CANON[key];
-        if (!uniq.has(canon)){ uniq.add(canon); results.push(canon); }
+    // then contains
+    keys.forEach(k=>{
+      if (out.length>=limit) return;
+      if (flat(k).includes(sFlat)){
+        const canon = map[k]; if (!uniq.has(canon)){ uniq.add(canon); out.push(canon); }
       }
     });
-    return results.slice(0, limit);
+    return out.slice(0,limit);
   }
 
-  function showTypeahead(list){
+  function show(list){
     if (!list.length){ ta.classList.add('hidden'); ta.innerHTML=''; return; }
-    ta.innerHTML = list.map(canon => `<button type="button" data-canon="${canon}">${canon}</button>`).join('');
+    ta.innerHTML = list.map(c => `<button type="button" data-canon="${c}">${c}</button>`).join('');
     ta.classList.remove('hidden');
     [...ta.querySelectorAll('button')].forEach(btn=>{
       btn.onclick = ()=>{
         const canon = btn.getAttribute('data-canon');
-        fName.value = canon;
-        const sug = window.SMART_SUGGESTIONS?.[canon];
+        document.getElementById('fName').value = canon;
+        const sug = (window.SMART_SUGGESTIONS||{})[canon];
         if (sug){
           if (!fDose.value)   fDose.value   = sug.dose || '';
           if (!fTiming.value) fTiming.value = sug.timing || '';
@@ -327,9 +322,6 @@ function setupTypeahead(){
     });
   }
 
-  fName.addEventListener('input', ()=>{
-    const list = suggestionsFor(fName.value);
-    showTypeahead(list);
-  });
-  fName.addEventListener('blur', ()=> setTimeout(()=>{ ta.classList.add('hidden'); }, 150));
+  fName.addEventListener('input', ()=> show(suggestionsFor(fName.value)));
+  fName.addEventListener('blur',  ()=> setTimeout(()=> ta.classList.add('hidden'), 150));
 }
