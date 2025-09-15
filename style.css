@@ -1,3 +1,4 @@
+/* visibility helper */
 .hidden{display:none !important}
 
 :root{
@@ -18,16 +19,19 @@ html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,
 .tab{flex:1;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:16px}
 .tab.active{border-color:var(--accent)}
 
+/* Day switcher */
 .day-switcher{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .day-name{font-weight:600;padding:6px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
 .ghost{background:transparent;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:16px}
 .ghost.small{padding:6px 10px;font-size:14px}
 .ghost:disabled{opacity:.4}
 
+/* Layout */
 main{padding:16px;max-width:720px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px}
 .section-title{margin:0 0 12px;font-size:18px}
 
+/* Meals */
 .meal-row{border:1px solid var(--border);border-radius:12px;margin-bottom:10px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02));overflow:hidden}
 .meal-top{display:flex;align-items:center;justify-content:space-between;padding:12px}
 .meal-title{flex:1;text-align:left;background:none;border:none;color:inherit;cursor:pointer}
@@ -40,6 +44,7 @@ main{padding:16px;max-width:720px;margin:0 auto}
 .ingredients ul{margin:0;padding-left:18px}
 .ingredients li{margin:6px 0;color:var(--text)}
 
+/* Toggle switch */
 .switch{position:relative;display:inline-block;width:54px;height:30px}
 .switch input{display:none}
 .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#7b8191;border-radius:30px;transition:all .25s}
@@ -47,6 +52,7 @@ main{padding:16px;max-width:720px;margin:0 auto}
 .switch input:checked+.slider{background:var(--accent)}
 .switch input:checked+.slider:before{transform:translateX(24px)}
 
+/* Progress bars */
 .bar-row{margin:10px 0}
 .bar-label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-bottom:6px}
 .bar-value{color:var(--text)}
@@ -56,9 +62,10 @@ main{padding:16px;max-width:720px;margin:0 auto}
 .pill{background:var(--pill);border:1px solid var(--border);border-radius:12px;padding:8px 10px;display:flex;justify-content:space-between;font-size:14px}
 .pill span{color:var(--muted)}.pill strong{color:var(--text)}
 
+/* Footer */
 .app-footer{padding:16px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid var(--border)}
 
-/* Sup-Stack */
+/* Sup-Stack list */
 .supp-row{display:flex;justify-content:space-between;align-items:flex-start;border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02))}
 .supp-left{flex:1;min-width:0}
 .supp-title{font-weight:700;font-size:16px;margin-bottom:4px}
@@ -72,7 +79,6 @@ main{padding:16px;max-width:720px;margin:0 auto}
 .menu-item{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:10px 12px;font-size:14px}
 .menu-item:hover{background:rgba(255,255,255,.04)}
 .menu-item.danger{color:#f06a6a}
-
 .supp-actions{display:flex;justify-content:flex-end;margin-top:8px}
 
 /* Add/Edit Sheet */
@@ -91,7 +97,18 @@ main{padding:16px;max-width:720px;margin:0 auto}
 .snackbar{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;display:flex;align-items:center;gap:12px;z-index:20}
 .link{background:transparent;color:var(--accent);border:0}
 
-/* Typeahead */
+/* Empty state */
+.empty-state{
+  border:1px dashed var(--border);
+  border-radius:12px;
+  padding:16px;
+  text-align:center;
+  background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02));
+}
+.empty-title{font-weight:700;margin-bottom:6px}
+.empty-sub{color:var(--muted);font-size:13px}
+
+/* Typeahead (Name field) */
 .typeahead {
   position: absolute;
   left: 0; right: 0; top: 100%;
