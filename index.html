@@ -9,13 +9,11 @@
 <body>
   <header class="app-header">
     <h1>Nutrify</h1>
-    <!-- Tabs -->
     <nav class="tabs">
       <button id="tabDiet" class="tab active" aria-controls="dietPage">Diet</button>
       <button id="tabSupps" class="tab" aria-controls="suppsPage">Sup-Stack</button>
     </nav>
 
-    <!-- Day switcher (Diet tab only) -->
     <div id="daySwitcher" class="day-switcher">
       <button id="prevDay" class="ghost" aria-label="Previous day">Prev</button>
       <div id="dayName" class="day-name">Monday</div>
@@ -29,7 +27,6 @@
       <h2 class="section-title">Meals</h2>
       <div id="meals"></div>
     </section>
-
     <section class="card">
       <h2 class="section-title">Remaining Today</h2>
       <div id="macroSummary" class="summary-row"></div>
@@ -83,7 +80,7 @@
     <!-- Floating Add Button -->
     <button id="addSupp" class="fab" aria-label="Add supplement">Add</button>
 
-    <!-- Snackbar for undo -->
+    <!-- Snackbar -->
     <div id="snackbar" class="snackbar hidden">
       <span id="snackMsg"></span>
       <button id="undoBtn" class="link">Undo</button>
@@ -96,26 +93,23 @@
 
   <script src="data.js"></script>
   <script>
-    /* =========================
-       Helpers & Global State
-       ========================= */
     const AEST_DATE = () =>
-      new Date().toLocaleString("en-CA", { timeZone: "Australia/Brisbane" }).slice(0,10); // YYYY-MM-DD
+      new Date().toLocaleString("en-CA", { timeZone: "Australia/Brisbane" }).slice(0,10);
 
     // DIET state
     let dayIndex = 0;
     const days = Object.keys(mealPlan);
-    const mealEaten = {};     // { Monday: { Breakfast: true } }
-    const openMeals = {};     // expanded accordions
+    const mealEaten = {};
+    const openMeals = {};
 
     // SUPPS state
     const DEFAULTS_KEY = "supps_defaults_v1";
     const SUPPS_KEY = "supps_v1";
-    const TAKEN_PREFIX = "supps_taken_"; // + date
-    let editingIndex = null;  // index in current list when editing
-    let lastDeleted = null;   // { item, index }
+    const TAKEN_PREFIX = "supps_taken_";
+    let editingIndex = null;
+    let lastDeleted = null;
 
-    // DOM refs (Diet)
+    // DOM refs
     const dayNameEl = document.getElementById("dayName");
     const mealsEl = document.getElementById("meals");
     const barsEl = document.getElementById("bars");
@@ -124,7 +118,6 @@
     const nextBtn = document.getElementById("nextDay");
     const daySwitcher = document.getElementById("daySwitcher");
 
-    // DOM refs (Supps)
     const suppListEl = document.getElementById("suppList");
     const addSuppBtn = document.getElementById("addSupp");
     const restoreBtn = document.getElementById("restoreDefaults");
@@ -133,7 +126,6 @@
     const snackMsg = document.getElementById("snackMsg");
     const undoBtn = document.getElementById("undoBtn");
 
-    // Form refs
     const form = document.getElementById("suppForm");
     const fName = document.getElementById("fName");
     const fDose = document.getElementById("fDose");
@@ -144,7 +136,6 @@
     const saveSheet = document.getElementById("saveSheet");
     const sheetTitle = document.getElementById("sheetTitle");
 
-    // Tabs
     const tabDiet = document.getElementById("tabDiet");
     const tabSupps = document.getElementById("tabSupps");
     const dietPage = document.getElementById("dietPage");
@@ -153,11 +144,8 @@
     tabDiet.onclick = () => setTab("diet");
     tabSupps.onclick = () => setTab("supps");
 
-    /* =========================================
-       UPDATED: setTab — closes sheet on switch
-       ========================================= */
+    /* --- setTab: close sheet on tab change --- */
     function setTab(which){
-      // Ensure the sheet is closed when switching tabs
       sheet.classList.add("hidden");
       editingIndex = null;
 
@@ -173,14 +161,11 @@
         suppsPage.classList.remove("hidden");
         dietPage.classList.add("hidden");
         daySwitcher.style.display = "none";
-        // Explicitly blur active element to avoid mobile keyboards popping up
         if (document.activeElement) document.activeElement.blur();
       }
     }
 
-    /* =========================
-       DIET TAB (existing)
-       ========================= */
+    /* ---------- DIET ---------- */
     prevBtn.addEventListener("click", () => { if (dayIndex>0){ dayIndex--; renderDiet(); } });
     nextBtn.addEventListener("click", () => { if (dayIndex<days.length-1){ dayIndex++; renderDiet(); } });
 
@@ -307,10 +292,8 @@
       return v;
     }
 
-    /* =========================
-       SUPP SUGGESTION ENGINE
-       ========================= */
-    const KB = SMART_SUGGESTIONS; // from data.js
+    /* ---------- SUPP SUGGESTION ENGINE ---------- */
+    const KB = SMART_SUGGESTIONS;
 
     function suggestFor(name){
       const key = name.trim().toLowerCase();
@@ -329,42 +312,31 @@
       return { ...hit };
     }
 
-    /* =========================
-       SUPPS TAB
-       ========================= */
-
+    /* ---------- SUPPS ---------- */
     function loadSupps(){
-      // Seed defaults if first time
-      if (!localStorage.getItem(DEFAULTS_KEY)) {
-        localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaultSupps));
+      if (!localStorage.getItem("supps_defaults_v1")) {
+        localStorage.setItem("supps_defaults_v1", JSON.stringify(defaultSupps));
       }
-      if (!localStorage.getItem(SUPPS_KEY)) {
-        localStorage.setItem(SUPPS_KEY, JSON.stringify(defaultSupps));
+      if (!localStorage.getItem("supps_v1")) {
+        localStorage.setItem("supps_v1", JSON.stringify(defaultSupps));
       }
-      return JSON.parse(localStorage.getItem(SUPPS_KEY) || "[]");
+      return JSON.parse(localStorage.getItem("supps_v1") || "[]");
     }
-    function saveSupps(list){
-      localStorage.setItem(SUPPS_KEY, JSON.stringify(list));
-    }
-    function loadTakenMap(){
-      const k = TAKEN_PREFIX + AEST_DATE();
-      return JSON.parse(localStorage.getItem(k) || "{}");
-    }
-    function saveTakenMap(map){
-      const k = TAKEN_PREFIX + AEST_DATE();
-      localStorage.setItem(k, JSON.stringify(map));
-    }
+    function saveSupps(list){ localStorage.setItem("supps_v1", JSON.stringify(list)); }
+    function loadTakenMap(){ return JSON.parse(localStorage.getItem(TAKEN_PREFIX + AEST_DATE()) || "{}"); }
+    function saveTakenMap(map){ localStorage.setItem(TAKEN_PREFIX + AEST_DATE(), JSON.stringify(map)); }
 
-    /* ====================================================
-       UPDATED: renderSupps — no auto-open; show empty state
-       ==================================================== */
+    // *** HARD GUARD HERE ***
     function renderSupps(){
+      // Always force-close the sheet before rendering the list
+      sheet.classList.add("hidden");
+      editingIndex = null;
+
       const list = loadSupps();
       const taken = loadTakenMap();
       suppListEl.innerHTML = "";
 
       if (!Array.isArray(list) || list.length === 0) {
-        // Empty state (no auto-opening sheet)
         const empty = document.createElement("div");
         empty.className = "empty-state";
         empty.innerHTML = `
@@ -390,7 +362,6 @@
           ${s.notes ? `<div class="supp-notes">${s.notes}</div>`:""}
         `;
 
-        // toggle taken
         const toggle = document.createElement("label");
         toggle.className = "switch";
         const inp = document.createElement("input");
@@ -399,14 +370,12 @@
         const slid = document.createElement("span");
         slid.className = "slider";
         toggle.appendChild(inp); toggle.appendChild(slid);
-
         inp.addEventListener("change", ()=>{
           const m = loadTakenMap();
           if (inp.checked) m[s.name] = true; else delete m[s.name];
           saveTakenMap(m);
         });
 
-        // menu
         const menu = document.createElement("div");
         menu.className = "menu";
         menu.innerHTML = `
@@ -457,17 +426,17 @@
         fName.value = ""; fDose.value=""; fTiming.value=""; fPairs.value=""; fNotes.value="";
       }
       sheet.classList.remove("hidden");
-      fName.focus();
+      // (Removed auto-focus to avoid iOS keyboard popping unexpectedly)
     }
     function closeEditor(){ sheet.classList.add("hidden"); }
 
-    addSuppBtn.onclick = ()=> { openEditor(null, null); };
+    addSuppBtn.onclick = ()=> openEditor(null, null);
     cancelSheet.onclick = ()=> closeEditor();
 
     form.onsubmit = (e)=>{
       e.preventDefault();
       const name = fName.value.trim();
-      if (!name){ fName.focus(); return; }
+      if (!name){ return; }
 
       let dose = fDose.value.trim();
       let timing = fTiming.value.trim();
@@ -475,7 +444,6 @@
       let notes = fNotes.value.trim();
       let why = "";
 
-      // If adding (not editing) and fields empty -> suggest
       if (editingIndex===null){
         const sug = suggestFor(name);
         if (!dose) dose = sug.dose || "";
@@ -486,20 +454,11 @@
       }
 
       const list = loadSupps();
-      // prevent duplicate names (case-insensitive)
-      const exists = list.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
-      if (exists !== -1 && exists !== editingIndex){
-        alert("A supplement with that name already exists.");
-        return;
-      }
+      const exists = list.findIndex(x=>x.name.toLowerCase()===name.toLowerCase());
+      if (exists !== -1 && exists !== editingIndex){ alert("A supplement with that name already exists."); return; }
 
       const obj = { name, dose, timing, pairs, notes, why: why || (list[editingIndex]?.why || "") };
-
-      if (editingIndex===null){
-        list.unshift(obj);
-      } else {
-        list[editingIndex] = obj;
-      }
+      if (editingIndex===null){ list.unshift(obj); } else { list[editingIndex] = obj; }
       saveSupps(list);
       renderSupps();
       closeEditor();
@@ -527,7 +486,7 @@
     }
 
     restoreBtn.onclick = ()=>{
-      const defs = JSON.parse(localStorage.getItem(DEFAULTS_KEY) || "[]");
+      const defs = JSON.parse(localStorage.getItem("supps_defaults_v1") || "[]");
       const curr = loadSupps();
       const names = new Set(curr.map(x=>x.name.toLowerCase()));
       defs.forEach(d => { if (!names.has(d.name.toLowerCase())) curr.push(d); });
@@ -536,14 +495,12 @@
       showSnack("Defaults restored");
     };
 
-    // Snackbar + Undo
     function showSnack(msg){
       snackMsg.textContent = msg;
       snack.classList.remove("hidden");
       let to = setTimeout(()=> snack.classList.add("hidden"), 8000);
       undoBtn.onclick = ()=>{
-        snack.classList.add("hidden");
-        clearTimeout(to);
+        snack.classList.add("hidden"); clearTimeout(to);
         if (lastDeleted){
           const list = loadSupps();
           const idx = Math.min(lastDeleted.index, list.length);
@@ -555,14 +512,11 @@
       };
     }
 
-    /* =========================
-       INIT
-       ========================= */
     function init(){
-      // Seed defaults storage (first load handled in loadSupps)
       loadSupps();
       renderDiet();
       renderSupps();
+      setTab("diet"); // ensure starting on Diet with sheet closed
     }
     init();
   </script>
