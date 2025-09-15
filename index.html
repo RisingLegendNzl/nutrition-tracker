@@ -114,13 +114,20 @@
       <!-- Animated bottle (with liquid waves) -->
       <div class="bottle-wrap">
         <div class="bottle">
-          <!-- The liquid container slides up/down based on --fill -->
-          <div class="bottle-fill" id="bottleFill">
-            <div class="wave wave1"></div>
-            <div class="wave wave2"></div>
-          </div>
-          <div class="bottle-gloss"></div>
-        </div>
+  <!-- liquid fill (moves vertically via --fill) -->
+  <div class="bottle-fill" id="bottleFill">
+    <!-- SVG waves (continuous liquid look) -->
+    <svg class="liq" viewBox="0 0 300 300" preserveAspectRatio="none">
+      <!-- front wave -->
+      <path class="wave w1"
+        d="M0,190 C45,170 90,210 135,190 C180,170 225,210 270,190 L300,190 L300,300 L0,300 Z"/>
+      <!-- back wave (different speed/phase) -->
+      <path class="wave w2"
+        d="M0,200 C60,180 120,220 180,200 C240,180 300,220 300,200 L300,300 L0,300 Z"/>
+    </svg>
+  </div>
+  <div class="bottle-gloss"></div>
+</div>
         <div class="hydro-numbers">
           <div id="todayStr" class="today-str">Today: 0 L / 0 L</div>
           <div id="pctStr" class="pct-str">0%</div>
