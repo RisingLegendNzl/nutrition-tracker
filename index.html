@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nutrition Tracker</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="data.js"></script>
+  <script>
+    const goals = {
+      calories: 3500,
+      protein: 200,
+      fibre: 30,
+      iron: 8,
+      zinc: 14,
+      calcium: 1000,
+      vitaminC: 45,
+      folate: 400,
+      potassium: 3800
+    };
+
+    let dayIndex = 0;
+    const days = Object.keys(mealPlan);
+    const checkedMeals = {};
+
+    function render() {
+      const app = document.getElementById("app");
+      app.innerHTML = "";
+
+      const day = days[dayIndex];
+      const meals = mealPlan[day];
+
+      const title = document.createElement("h1");
+      title.textContent = day + " Plan";
+      app.appendChild(title);
+
+      // Meals list
+      for (const mealName in meals) {
+        const mealDiv = document.createElement("div");
+        const label = document.createElement("label");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = checkedMeals[day]?.[mealName] || false;
+        checkbox.addEventListener("change", () => {
+          checkedMeals[day] = checkedMeals[day] || {};
+          checkedMeals[day][mealName] = checkbox.checked;
+          render();
+        });
+        label.appendChild(checkbox);
+        label.innerHTML += `<b> ${mealName}</b> — ${meals[mealName].calories} kcal, ${meals[mealName].protein} g protein, ${meals[mealName].fibre} g fibre`;
+        mealDiv.appendChild(label);
+        app.appendChild(mealDiv);
+      }
+
+      // Totals
+      const totals = {};
+      for (const key in goals) totals[key] = 0;
+      for (const mealName in meals) {
+        if (!checkedMeals[day]?.[mealName]) {
+          for (const key in meals[mealName]) {
+            totals[key] += meals[mealName][key];
+          }
+        }
+      }
+
+      const h2 = document.createElement("h2");
+      h2.textContent = "Remaining Nutrients";
+      app.appendChild(h2);
+
+      for (const key in goals) {
+        const div = document.createElement("div");
+        div.innerHTML = `<b>${key}:</b> ${totals[key]} / ${goals[key]}`;
+        const bar = document.createElement("div");
+        bar.style.background = "#eee";
+        bar.style.height = "10px";
+        bar.style.width = "100%";
+        const inner = document.createElement("div");
+        inner.style.height = "10px";
+        inner.style.width = Math.min((totals[key]/goals[key])*100,100) + "%";
+        inner.style.background = "#4caf50";
+        bar.appendChild(inner);
+        div.appendChild(bar);
+        app.appendChild(div);
+      }
+
+      // Navigation
+      const nav = document.createElement("div");
+      nav.style.marginTop = "15px";
+      const prevBtn = document.createElement("button");
+      prevBtn.textContent = "⬅ Prev";
+      prevBtn.disabled = dayIndex === 0;
+      prevBtn.onclick = () => { dayIndex--; render(); };
+      const nextBtn = document.createElement("button");
+      nextBtn.textContent = "Next ➡";
+      nextBtn.disabled = dayIndex === days.length - 1;
+      nextBtn.onclick = () => { dayIndex++; render(); };
+      nav.appendChild(prevBtn);
+      nav.appendChild(nextBtn);
+      app.appendChild(nav);
+    }
+
+    render();
+  </script>
+</body>
+</html>
