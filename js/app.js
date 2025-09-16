@@ -1,20 +1,20 @@
 // js/app.js — hamburger dropdown, avatar upload, routing, landing state
-// IMPORTANT: this file is in /js/, so dynamic imports use "./<file>.js"
+// Robust version: reveals pages, emits events, and tries common global initializers.
 
-const qs  = sel => document.querySelector(sel);
+const $  = (s) => document.querySelector(s);
 
 // Header / menu elements
-const menuBtn   = qs('#menuBtn');
-const menuPanel = qs('#menuPanel');
-const avatarImg = qs('#avatarImg');
-const avatarIn  = qs('#avatarInput');
+const menuBtn   = $('#menuBtn');
+const menuPanel = $('#menuPanel');
+const avatarImg = $('#avatarImg');
+const avatarIn  = $('#avatarInput');
 
 // Page containers (must exist in index.html)
 const PAGES = {
-  profile: qs('#profilePage'),
-  diet:    qs('#dietPage'),
-  supps:   qs('#suppsPage'),
-  hydro:   qs('#hydroPage'),
+  profile: $('#profilePage'),
+  diet:    $('#dietPage'),
+  supps:   $('#suppsPage'),
+  hydro:   $('#hydroPage'),
 };
 
 const AVATAR_KEY = 'nutrify_avatar';
@@ -25,18 +25,42 @@ function hideAllPages(){ Object.values(PAGES).forEach(el => el && el.classList.a
 function blurOn(){  document.body.classList.add('menu-open');  menuBtn?.setAttribute('aria-expanded','true');  menuPanel.hidden = false; }
 function blurOff(){ document.body.classList.remove('menu-open'); menuBtn?.setAttribute('aria-expanded','false'); menuPanel.hidden = true;  }
 
-async function callAny(modulePromise, names){
-  try {
-    const m = await modulePromise;
-    for (const n of names) {
-      if (typeof m[n] === 'function') { m[n](); return; }
+// Try many possible initializers if they exist in the global scope
+function tryInitializers(page){
+  const candidates = {
+    profile: [
+      'mountProfile','renderProfile','initProfile',
+      () => window.Profile && (window.Profile.mount?.() || window.Profile.render?.())
+    ],
+    diet: [
+      'mountDiet','renderDiet','initDiet','renderDietPage',
+      () => window.Diet && (window.Diet.mount?.() || window.Diet.render?.())
+    ],
+    supps: [
+      'mountSupps','renderSupps','initSupps','renderSupplements',
+      () => window.Supps && (window.Supps.mount?.() || window.Supps.render?.())
+    ],
+    hydro: [
+      'mountHydration','renderHydro','initHydration','renderHydration',
+      () => window.Hydration && (window.Hydration.mount?.() || window.Hydration.render?.())
+    ]
+  }[page] || [];
+
+  for (const c of candidates) {
+    try {
+      if (typeof c === 'string' && typeof window[c] === 'function') { window[c](); return; }
+      if (typeof c === 'function') { const r = c(); if (r !== undefined) return; }
+    } catch (e) {
+      // ignore and continue
+      console.warn(`init ${page} skipped`, e);
     }
-  } catch (e) {
-    console.warn('Mount skipped:', e);
   }
+
+  // Also emit a generic event any module can listen for:
+  window.dispatchEvent(new CustomEvent('route:show', { detail: { page } }));
 }
 
-/* ---------- ROUTER (imports from same /js/ folder) ---------- */
+/* ---------- ROUTER: reveal + init ---------- */
 async function showPage(page){
   if (!PAGES[page]) return;
 
@@ -47,28 +71,16 @@ async function showPage(page){
   sessionStorage.setItem(LAST_PAGE, page);
   blurOff();
 
-  switch(page){
-    case 'profile':
-      await callAny(import('./profile.js'),   ['mountProfile','renderProfile','initProfile']);
-      break;
-    case 'diet':
-      await callAny(import('./diet.js'),      ['mountDiet','renderDiet','initDiet']);
-      break;
-    case 'supps':
-      await callAny(import('./supps.js'),     ['mountSupps','renderSupps','initSupps']);
-      break;
-    case 'hydro':
-      await callAny(import('./hydration.js'), ['mountHydration','renderHydro','initHydration']);
-      break;
-  }
+  // Call any available initializer(s) for this page
+  tryInitializers(page);
 }
-window.showPage = showPage;  // if other modules need it
+window.showPage = showPage;  // expose if other modules want to route
 
 /* ---------- first load / landing ---------- */
 (function initLanding(){
   const last = sessionStorage.getItem(LAST_PAGE);
   if (last && PAGES[last]) showPage(last);
-  else { document.body.classList.add('empty'); hideAllPages(); }  // header only
+  else { document.body.classList.add('empty'); hideAllPages(); }  // header only until a choice
 })();
 
 /* ---------- hamburger ---------- */
