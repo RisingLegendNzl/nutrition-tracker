@@ -1,21 +1,21 @@
 // filename: js/hydration.js
 import {
   AEST_DATE, clamp, toLitres,
-  WATER_TARGET_KEY, WATER_AUTO_KEY, WATER_PREFIX, SUPPS_KEY
+  WATER_TARGET_KEY, WATER_PREFIX
 } from "./utils.js";
 import { getProfile, onProfileChange } from "./profile.js";
 
 /**
- * Hydration module (human silhouette)
+ * Hydration module (human silhouette, manual goal only)
  * - Blue water rises upward inside a gendered human mask.
- * - Mask is applied via CSS `mask-image`/`-webkit-mask-image`.
+ * - Goal is user-set and CLAMPED to 1500–3000 ml.
+ * - Logged water is CAPPED at the goal (max 100% fill).
  */
 
-// ---------- DOM refs (queried lazily when needed) ----------
+// ---------- DOM ----------
 const goalLitresEl = document.getElementById('goalLitres');
 const goalMlEl     = document.getElementById('goalMl');
 const editGoalBtn  = document.getElementById('editGoalBtn');
-const autoGoalEl   = document.getElementById('autoGoal');
 
 function bottleEl(){ return document.querySelector('.bottle'); }
 const bottleFill = document.getElementById('bottleFill');
@@ -31,66 +31,55 @@ const hydroHistory= document.getElementById('hydroHistory');
 // ---------- Storage helpers ----------
 function waterKey(dateStr = AEST_DATE()) { return WATER_PREFIX + dateStr; }
 function saveWater(total_ml, target_ml, dateStr = AEST_DATE()){
-  localStorage.setItem(waterKey(dateStr), JSON.stringify({ total_ml: Math.max(0,total_ml), target_ml }));
+  localStorage.setItem(waterKey(dateStr), JSON.stringify({
+    total_ml: Math.max(0, total_ml),
+    target_ml
+  }));
 }
 function loadWater(dateStr = AEST_DATE()){
   try{ return JSON.parse(localStorage.getItem(waterKey(dateStr)) || '{"total_ml":0,"target_ml":null}'); }
   catch{ return { total_ml:0, target_ml:null }; }
 }
 
-// ---------- Flags & config ----------
-export function isAutoOn(){ const v = localStorage.getItem(WATER_AUTO_KEY); return v==="1" || v==="true"; }
-function setAutoOn(flag){ localStorage.setItem(WATER_AUTO_KEY, flag ? "1":"0"); }
+// ---------- Config ----------
+const DEFAULT_MANUAL_TARGET_ML = 3000; // 3.0 L max
+const MIN_TARGET_ML            = 1500; // sensible lower bound
+const MAX_TARGET_ML            = 3000; // hard cap (requested)
 
-const DEFAULT_MANUAL_TARGET_ML = 3000;
-const DEFAULT_WATER_ML_PER_KG  = 35;
-const CREATINE_BUMP_ML         = 500;
-
-// ---------- Profile-aware computation ----------
-function readProfile(){ return getProfile() || { weight_kg:71, ml_per_kg:DEFAULT_WATER_ML_PER_KG, gender:'male' }; }
-function takingCreatine(){
-  try{ return (JSON.parse(localStorage.getItem(SUPPS_KEY) || "[]")).some(s => (s.name||"").toLowerCase().includes("creatine")); }
-  catch{ return false; }
-}
-function computeAutoTargetMl(){
-  const p = readProfile();
-  const baseline = (Number(p.weight_kg)||71) * (Number(p.ml_per_kg)||DEFAULT_WATER_ML_PER_KG);
-  const bump = takingCreatine() ? CREATINE_BUMP_ML : 0;
-  return Math.round((baseline + bump)/100)*100;
-}
-function currentTargetMl(){
-  return isAutoOn() ? computeAutoTargetMl()
-                    : (parseInt(localStorage.getItem(WATER_TARGET_KEY)||"0",10) || DEFAULT_MANUAL_TARGET_ML);
-}
-
-// ---------- Human mask (external SVGs -> absolute URLs) ----------
+// ---------- Profile / Mask ----------
 function absUrl(rel){ return new URL(rel, document.baseURI).toString(); }
-function maleMaskURL(){   return `url('${absUrl("img/male.png")}')`; }
-function femaleMaskURL(){ return `url('${absUrl("img/female.png")}')`; }
+function maleMaskURL(){   return `url('${absUrl("img/male.png")}')`; }   // you set this file
+function femaleMaskURL(){ return `url('${absUrl("img/female.png")}')`; } // and this file
 
 function applyHumanMask(){
   const el = bottleEl();
-  if (!el) return;                 // not mounted yet
-  el.classList.add('human-mask');  // CSS adds the mask-* props
-  const g = (readProfile().gender || 'male').toLowerCase();
-  el.style.setProperty('--human-mask', g === 'female' ? femaleMaskURL() : maleMaskURL());
+  if (!el) return;
+  el.classList.add('human-mask');
+  const gender = (getProfile()?.gender || 'male').toLowerCase();
+  el.style.setProperty('--human-mask', gender === 'female' ? femaleMaskURL() : maleMaskURL());
+}
+
+// ---------- Target helpers ----------
+function currentTargetMl(){
+  // Manual-only mode: read saved goal (clamped), fallback to default (3,000 ml)
+  const raw = parseInt(localStorage.getItem(WATER_TARGET_KEY) || "0", 10);
+  const clamped = clamp((Number.isFinite(raw) ? raw : DEFAULT_MANUAL_TARGET_ML), MIN_TARGET_ML, MAX_TARGET_ML);
+  return clamped || DEFAULT_MANUAL_TARGET_ML;
 }
 
 // ---------- Rendering ----------
 function animateFill(totalMl, targetMl){
-  const pctRaw = (totalMl/targetMl)*100;
-  const pctFill = clamp(pctRaw, 0, 100);
-  bottleFill?.style.setProperty('--fill', pctFill + '%');
-  pctStr.textContent = pctRaw >= 100
-    ? `${Math.round(pctRaw)}% (Goal met +${toLitres(totalMl - targetMl)} L)`
-    : `${Math.round(pctRaw)}%`;
+  const pct = clamp((totalMl / targetMl) * 100, 0, 100);
+  bottleFill?.style.setProperty('--fill', pct + '%');
+  pctStr.textContent = `${Math.round(pct)}%`;
 }
+
 function renderHydroNumbers(totalMl, targetMl){
   todayStr.textContent = `Today: ${toLitres(totalMl)} L / ${toLitres(targetMl)} L`;
-  goalLitresEl.textContent = (targetMl/1000).toFixed(1).replace(/\.0$/,'');
+  goalLitresEl.textContent = (targetMl / 1000).toFixed(1).replace(/\.0$/, '');
   goalMlEl.textContent = targetMl;
-  autoGoalEl.checked = isAutoOn();
 }
+
 function renderHistory(){
   const daysArr = [];
   const now = new Date(new Date().toLocaleString("en-US",{ timeZone:"Australia/Brisbane" }));
@@ -98,9 +87,9 @@ function renderHistory(){
     const d = new Date(now); d.setDate(d.getDate()-i);
     const ds = new Date(d).toLocaleString("en-CA",{ timeZone:"Australia/Brisbane" }).slice(0,10);
     const rec = loadWater(ds);
-    const total = rec.total_ml || 0;
-    const tgt = rec.target_ml || currentTargetMl();
-    const pct = clamp((total/tgt)*100, 0, 100);
+    const tgt = clamp(rec.target_ml || currentTargetMl(), MIN_TARGET_ML, MAX_TARGET_ML);
+    const total = Math.min(rec.total_ml || 0, tgt); // cap history display at 100%
+    const pct = clamp((total / tgt) * 100, 0, 100);
     daysArr.push({ label: ds.slice(5), pct });
   }
   hydroHistory.innerHTML = daysArr.map(({label,pct})=>`
@@ -112,13 +101,13 @@ function renderHistory(){
 }
 
 export function renderHydro(){
-  applyHumanMask(); // ensure mask applied after DOM is ready
+  applyHumanMask();
   const target = currentTargetMl();
   const rec = loadWater();
-  const total = rec.total_ml || 0;
-  if (rec.target_ml !== target) saveWater(total, target);
-  renderHydroNumbers(total, target);
-  requestAnimationFrame(()=> animateFill(total, target));
+  const cappedTotal = Math.min(rec.total_ml || 0, target); // enforce 100% cap on render
+  if (rec.target_ml !== target || cappedTotal !== rec.total_ml) saveWater(cappedTotal, target);
+  renderHydroNumbers(cappedTotal, target);
+  requestAnimationFrame(()=> animateFill(cappedTotal, target));
   renderHistory();
 }
 
@@ -126,10 +115,10 @@ export function renderHydro(){
 function addWater(ml){
   const tgt = currentTargetMl();
   const w = loadWater();
-  const updated = clamp((w.total_ml||0) + ml, 0, tgt*2);
-  saveWater(updated, tgt);
-  animateFill(updated, tgt);
-  renderHydroNumbers(updated, tgt);
+  const next = Math.min((w.total_ml || 0) + ml, tgt); // cap at goal
+  saveWater(next, tgt);
+  animateFill(next, tgt);
+  renderHydroNumbers(next, tgt);
   renderHistory();
 }
 function resetTodayWater(){
@@ -140,14 +129,15 @@ function resetTodayWater(){
 
 // ---------- Mount ----------
 export function mountHydration(){
-  // quick adds
+  // Quick adds
   quickBtns.forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const amt = parseInt(btn.getAttribute('data-ml')||'0',10)||0;
       if (amt>0) addWater(amt);
     });
   });
-  // custom add
+
+  // Custom add
   if (addCustom && customMl){
     addCustom.addEventListener('click', ()=>{
       const amt = parseInt(customMl.value||'0',10)||0;
@@ -155,26 +145,23 @@ export function mountHydration(){
       customMl.value = '';
     });
   }
-  // reset
+
+  // Reset
   resetWater?.addEventListener('click', ()=> resetTodayWater());
-  // manual goal
+
+  // Manual goal edit (CLAMP 1500–3000 ml)
   editGoalBtn?.addEventListener('click', ()=>{
     const current = currentTargetMl();
-    const val = prompt("Set daily water goal (ml). Tip: 2500–4000 ml for most active days.", String(current));
+    const val = prompt("Set daily water goal (ml). Range: 1500–3000 ml.", String(current));
     if (val===null) return;
-    const ml = clamp(parseInt(val,10)||0, 1500, 8000);
+    const ml = clamp(parseInt(val,10)||0, MIN_TARGET_ML, MAX_TARGET_ML);
     localStorage.setItem(WATER_TARGET_KEY, String(ml));
-    setAutoOn(false);
     renderHydro();
   });
-  // auto toggle
-  autoGoalEl?.addEventListener('change', ()=>{
-    setAutoOn(!!autoGoalEl.checked);
-    renderHydro();
-  });
-  // profile changes (gender/weight/mlkg)
+
+  // Profile changes (for gender mask)
   onProfileChange(()=> renderHydro());
 
-  // initial paint
+  // Initial paint
   renderHydro();
 }
