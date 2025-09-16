@@ -6,14 +6,10 @@ import {
 import { getProfile, onProfileChange } from "./profile.js";
 
 /**
- * Hydration module
- * - Target source:
- *   - Auto-goal ON  -> weight_kg * ml_per_kg (+ creatine bump) from profile
- *   - Auto-goal OFF -> user-set goal stored in WATER_TARGET_KEY (falls back to 3000 ml)
- * - Notes:
- *   - Nearest 100 ml rounding for auto-goal
- *   - History shows last 7 days (AEST)
- *   - Live re-render on profile change when auto-goal is ON
+ * Hydration module (human silhouette)
+ * - Water is blue and rises upward inside a gendered human mask.
+ * - Mask is applied via CSS `mask-image`/`-webkit-mask-image`.
+ * - Auto-goal uses profile weight (kg) * ml_per_kg (+ creatine bump).
  */
 
 // ---------- DOM ----------
@@ -22,6 +18,7 @@ const goalMlEl     = document.getElementById('goalMl');
 const editGoalBtn  = document.getElementById('editGoalBtn');
 const autoGoalEl   = document.getElementById('autoGoal');
 
+const bottleEl   = document.querySelector('.bottle'); // we reuse the same wrapper
 const bottleFill = document.getElementById('bottleFill');
 const todayStr   = document.getElementById('todayStr');
 const pctStr     = document.getElementById('pctStr');
@@ -59,21 +56,15 @@ function setAutoOn(flag) {
   localStorage.setItem(WATER_AUTO_KEY, flag ? "1" : "0");
 }
 
-// Centralized constants (kept here to avoid extra module churn):
-// If you later want, lift these into a CONFIG export.
-const DEFAULT_MANUAL_TARGET_ML = 3000; // when auto-goal is OFF
-const DEFAULT_WATER_ML_PER_KG  = 35;   // used only if profile missing
+const DEFAULT_MANUAL_TARGET_ML = 3000;
+const DEFAULT_WATER_ML_PER_KG  = 35;
 const CREATINE_BUMP_ML         = 500;
 
 // ---------- Profile-aware computation ----------
 function readProfile() {
-  // profile.js provides getProfile(); if null (first run), use sensible defaults
   const p = getProfile();
   if (p) return p;
-  return {
-    weight_kg: 71,
-    ml_per_kg: DEFAULT_WATER_ML_PER_KG,
-  };
+  return { weight_kg: 71, ml_per_kg: DEFAULT_WATER_ML_PER_KG, gender: 'male' };
 }
 
 function takingCreatine() {
@@ -89,17 +80,60 @@ function computeAutoTargetMl() {
   const p = readProfile();
   const weight = Number(p.weight_kg) || 71;
   const mlPerKg = Number(p.ml_per_kg) || DEFAULT_WATER_ML_PER_KG;
-
-  const baseline = weight * mlPerKg;         // e.g., 71 * 35 = 2485 ml
+  const baseline = weight * mlPerKg;
   const bump     = takingCreatine() ? CREATINE_BUMP_ML : 0;
-  // Round to nearest 100 ml for a neat value in UI
-  return Math.round((baseline + bump) / 100) * 100;
+  return Math.round((baseline + bump) / 100) * 100; // nearest 100 ml
 }
 
 function currentTargetMl() {
   return isAutoOn()
     ? computeAutoTargetMl()
     : (parseInt(localStorage.getItem(WATER_TARGET_KEY) || "0", 10) || DEFAULT_MANUAL_TARGET_ML);
+}
+
+// ---------- Human mask (data URIs) ----------
+function maleMaskURL(){
+  // simple male silhouette
+  const svg = `
+  <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 500'>
+    <g fill='black'>
+      <circle cx='150' cy='60' r='40'/>
+      <rect x='120' y='100' width='60' height='110' rx='16'/>
+      <rect x='70'  y='120' width='40' height='140' rx='20'/>
+      <rect x='190' y='120' width='40' height='140' rx='20'/>
+      <rect x='115' y='210' width='30' height='190' rx='18'/>
+      <rect x='155' y='210' width='30' height='190' rx='18'/>
+    </g>
+  </svg>`;
+  return `url("data:image/svg+xml;utf8,${svg.replace(/\n|\s{2,}/g,' ')}")`;
+}
+function femaleMaskURL(){
+  // simple female silhouette with skirt
+  const svg = `
+  <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 500'>
+    <g fill='black'>
+      <circle cx='150' cy='60' r='38'/>
+      <rect x='125' y='100' width='50' height='90' rx='14'/>
+      <polygon points='150,190 90,320 210,320' />
+      <rect x='70'  y='120' width='38' height='130' rx='20'/>
+      <rect x='192' y='120' width='38' height='130' rx='20'/>
+      <rect x='120' y='320' width='28' height='170' rx='16'/>
+      <rect x='152' y='320' width='28' height='170' rx='16'/>
+    </g>
+  </svg>`;
+  return `url("data:image/svg+xml;utf8,${svg.replace(/\n|\s{2,}/g,' ')}")`;
+}
+
+function applyHumanMask(){
+  if (!bottleEl) return;
+  // ensure class & sizing for the human container
+  bottleEl.classList.add('human-mask');
+
+  const gender = (readProfile().gender || 'male').toLowerCase();
+  const maskUrl = gender === 'female' ? femaleMaskURL() : maleMaskURL();
+
+  // set CSS var consumed by style.css
+  bottleEl.style.setProperty('--human-mask', maskUrl);
 }
 
 // ---------- Rendering ----------
@@ -131,7 +165,7 @@ function renderHistory() {
     const ds = new Date(d).toLocaleString("en-CA", { timeZone: "Australia/Brisbane" }).slice(0, 10);
     const rec = loadWater(ds);
     const total = rec.total_ml || 0;
-    const tgt   = rec.target_ml || currentTargetMl(); // fallback for legacy records lacking target
+    const tgt   = rec.target_ml || currentTargetMl(); // legacy fallback
     const pct   = clamp((total / tgt) * 100, 0, 100);
     daysArr.push({ label: ds.slice(5), pct });
   }
@@ -144,10 +178,11 @@ function renderHistory() {
 }
 
 export function renderHydro() {
+  applyHumanMask(); // ensure mask & gender applied
   const target = currentTargetMl();
   const rec = loadWater();
   const total = rec.total_ml || 0;
-  if (rec.target_ml !== target) saveWater(total, target); // keep today's goal synced with mode
+  if (rec.target_ml !== target) saveWater(total, target); // keep today's goal synced
   renderHydroNumbers(total, target);
   requestAnimationFrame(() => animateFill(total, target));
   renderHistory();
@@ -194,7 +229,7 @@ export function mountHydration() {
     resetWater.addEventListener('click', () => resetTodayWater());
   }
 
-  // Manual goal edit (only used when Auto-goal is OFF)
+  // Manual goal edit
   if (editGoalBtn) {
     editGoalBtn.addEventListener('click', () => {
       const current = currentTargetMl();
@@ -202,7 +237,6 @@ export function mountHydration() {
       if (val === null) return;
       const ml = clamp(parseInt(val, 10) || 0, 1500, 8000);
       localStorage.setItem(WATER_TARGET_KEY, String(ml));
-      // Keep mode as manual if user edits manually
       setAutoOn(false);
       renderHydro();
     });
@@ -216,9 +250,9 @@ export function mountHydration() {
     });
   }
 
-  // React to profile changes (weight or ml/kg updated)
+  // React to profile changes (gender, weight, ml/kg)
   onProfileChange(() => {
-    if (isAutoOn()) renderHydro();
+    renderHydro();
   });
 
   // Initial paint
