@@ -239,3 +239,43 @@ main{padding:16px;max-width:720px;margin:0 auto}
   border:1px solid #223150; background:#0f172a; color:#e5e7eb;
 }
 #dietPage .ing-edit-btn:hover { border-color:#38bdf8; color:#7dd3fc; }
+
+/* === Human hydration mask + blue water (overrides) === */
+
+/* Reuse the same container, but we turn it into a masked silhouette */
+.bottle {
+  width: 180px;
+  height: 360px;
+  border: 0;
+  background: transparent;
+  position: relative;
+  margin: 0 auto;
+}
+
+/* Hide the old green wave SVG since we’ll use a solid blue fill */
+.bottle .liq { display: none; }
+
+/* Apply the gendered human mask; hydration.js sets --human-mask (male/female) */
+.bottle.human-mask {
+  -webkit-mask-image: var(--human-mask);
+  mask-image: var(--human-mask);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
+}
+
+/* Blue water that rises upward; driven by --fill% (set in hydration.js) */
+.bottle-fill {
+  position: absolute;
+  left: 0; right: 0; bottom: 0; top: 0;
+  transform: translateY(calc(100% - var(--fill, 0%)));
+  transition: transform .6s ease-out;
+  will-change: transform;
+  background: linear-gradient(180deg, rgba(64,142,255,.85), rgba(64,142,255,.65));
+}
+
+/* Remove the old glass gloss to avoid visual clash */
+.bottle-gloss { display: none; }
