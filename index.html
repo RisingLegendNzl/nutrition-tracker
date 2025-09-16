@@ -26,45 +26,185 @@
       <div class="menu-title">Profile</div>
     </div>
     <nav class="menu-nav">
-      <button id="menuProfile" class="menu-item" data-page="profile">Profile</button>
-      <button id="menuDiet"    class="menu-item" data-page="diet">Diet</button>
-      <button id="menuSupps"   class="menu-item" data-page="supps">Sup-Stack</button>
-      <button id="menuHydro"   class="menu-item" data-page="hydro">Hydration</button>
+      <button class="menu-item" data-page="profile">Profile</button>
+      <button class="menu-item" data-page="diet">Diet</button>
+      <button class="menu-item" data-page="supps">Sup-Stack</button>
+      <button class="menu-item" data-page="hydro">Hydration</button>
     </nav>
   </div>
 
   <!-- MAIN APP -->
   <main id="appMain">
-    <!-- Profile page -->
+
+    <!-- ========== PROFILE (IDs expected by js/profile.js) ========== -->
     <section id="profilePage" class="page hidden">
-      <!-- your existing profile markup stays here (unchanged) -->
+      <section class="card">
+        <h2 class="section-title" id="p_title">Your Profile</h2>
+
+        <div class="field">
+          <label for="p_name">Name (optional)</label>
+          <input id="p_name" type="text" placeholder="e.g., Jack"/>
+        </div>
+
+        <div class="field">
+          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+            <label for="p_gender" style="margin:0">Gender</label>
+            <select id="p_gender" style="max-width:160px">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+            <label for="p_weight_value" style="margin:0">Weight</label>
+            <select id="u_w_unit" style="max-width:120px">
+              <option value="kg">kg</option>
+              <option value="lb">lb</option>
+            </select>
+          </div>
+          <input id="p_weight_value" type="number" inputmode="decimal" placeholder="kg" min="30" max="300"/>
+        </div>
+
+        <div class="field">
+          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+            <label style="margin:0">Height <span style="color:var(--muted)">(optional)</span></label>
+            <select id="u_h_unit" style="max-width:120px">
+              <option value="cm">cm</option>
+              <option value="ftin">ft/in</option>
+            </select>
+          </div>
+          <div id="h_cm_block"><input id="p_height_cm" type="number" inputmode="decimal" placeholder="cm" min="120" max="230"/></div>
+          <div id="h_ftin_block" class="hidden">
+            <div style="display:flex;gap:8px">
+              <input id="p_height_ft" type="number" inputmode="numeric" placeholder="ft" min="4" max="7" style="flex:1"/>
+              <input id="p_height_in" type="number" inputmode="numeric" placeholder="in" min="0" max="11" style="flex:1"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="p_mlkg">Hydration baseline (ml per kg)</label>
+          <input id="p_mlkg" type="number" inputmode="numeric" min="20" max="60" step="1" placeholder="35"/>
+          <div id="p_goal_preview" class="pill" style="margin-top:8px">
+            <span>Daily hydration goal</span><strong id="p_goal_value">—</strong>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button id="p_save" class="primary">Save</button>
+          <button id="p_reset" class="ghost">Reset to defaults</button>
+          <button id="p_cancel" class="ghost hidden">Cancel</button>
+        </div>
+
+        <div id="p_error" style="color:#ff7b7b;margin-top:8px;display:none"></div>
+      </section>
     </section>
 
-    <!-- Diet page -->
+    <!-- ========== DIET (IDs expected by js/diet.js) ========== -->
     <section id="dietPage" class="page hidden">
-      <!-- your existing diet markup stays here (unchanged) -->
+      <section class="card">
+        <div class="day-switcher">
+          <button id="prevDay" class="ghost small">Prev</button>
+          <div id="dayName" class="day-name">Monday</div>
+          <button id="nextDay" class="ghost small">Next</button>
+        </div>
+
+        <div id="bars"></div>
+        <div id="macroSummary" class="summary-row"></div>
+        <div id="meals"></div>
+      </section>
     </section>
 
-    <!-- Sup-Stack page -->
+    <!-- ========== SUP-STACK (IDs expected by js/supps.js) ========== -->
     <section id="suppsPage" class="page hidden">
-      <!-- your existing supplements markup stays here (unchanged) -->
+      <section class="card">
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-bottom:10px">
+          <button id="addSupp" class="primary">Add</button>
+          <button id="restoreDefaults" class="ghost">Restore defaults</button>
+        </div>
+
+        <div id="suppList"></div>
+
+        <!-- Editor Sheet -->
+        <div id="sheet" class="sheet hidden">
+          <div class="sheet-card">
+            <h3 id="sheetTitle" class="section-title">Add supplement</h3>
+            <form id="suppForm">
+              <div class="field"><span>Name</span><input id="fName" type="text" placeholder="e.g., Creatine"/></div>
+              <div class="field"><span>Dose</span><input id="fDose" type="text" placeholder="e.g., 5 g"/></div>
+              <div class="field"><span>Timing</span><input id="fTiming" type="text" placeholder="e.g., Any time"/></div>
+              <div class="field"><span>Pairs well with</span><input id="fPairs" type="text" placeholder="e.g., Food"/></div>
+              <div class="field"><span>Notes</span><textarea id="fNotes" rows="3" placeholder="Optional notes"></textarea></div>
+              <div class="sheet-row">
+                <button type="button" id="cancelSheet" class="ghost">Cancel</button>
+                <button type="submit" class="primary">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
     </section>
 
-    <!-- Hydration page -->
+    <!-- ========== HYDRATION (IDs expected by js/hydration.js) ========== -->
     <section id="hydroPage" class="page hidden">
-      <!-- your existing hydration markup stays here (unchanged) -->
+      <section class="card">
+        <div class="hydro-goal-row">
+          <div class="hydro-goal">
+            <div class="hydro-goal-label">Goal</div>
+            <div class="hydro-goal-values">
+              <strong><span id="goalLitres">3.0</span> L</strong>
+              <span>(<span id="goalMl">3000</span> ml)</span>
+            </div>
+          </div>
+          <button id="editGoalBtn" class="ghost">Edit Goal</button>
+        </div>
+
+        <div class="bottle-wrap">
+          <div class="bottle human-mask">
+            <div id="bottleFill" class="bottle-fill"></div>
+            <div class="bottle-gloss"></div>
+          </div>
+          <div class="hydro-numbers">
+            <div id="todayStr" class="today-str">Today: 0 L / 3.0 L</div>
+            <div id="pctStr" class="pct-str">0%</div>
+          </div>
+        </div>
+
+        <div class="hydro-actions">
+          <div class="quick-adds">
+            <button class="pill pill-btn" data-ml="250">+250 ml</button>
+            <button class="pill pill-btn" data-ml="350">+350 ml</button>
+            <button class="pill pill-btn" data-ml="500">+500 ml</button>
+            <button class="pill pill-btn" data-ml="750">+750 ml</button>
+          </div>
+          <div class="custom-add">
+            <input id="customMl" type="number" inputmode="numeric" placeholder="Custom ml"/>
+            <button id="addCustom" class="ghost">Add</button>
+            <button id="resetWater" class="ghost">Reset</button>
+          </div>
+        </div>
+
+        <div class="hydro-history" id="hydroHistory"></div>
+      </section>
     </section>
+
   </main>
 
-  <!-- Your existing scripts (data/utils/modules) -->
+  <!-- Snackbar (shared by modules) -->
+  <div id="snackbar" class="snackbar hidden">
+    <span id="snackMsg"></span>
+    <button id="undoBtn" class="link">Undo</button>
+  </div>
+
+  <!-- Scripts -->
   <script type="module" src="data.js"></script>
   <script type="module" src="js/utils.js"></script>
   <script type="module" src="js/profile.js"></script>
   <script type="module" src="js/diet.js"></script>
   <script type="module" src="js/supps.js"></script>
   <script type="module" src="js/hydration.js"></script>
-
-  <!-- Router + hamburger (MUST be last so it can wire everything) -->
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
