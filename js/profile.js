@@ -340,10 +340,9 @@ export function mountProfile(){
     hide();
   });
 
-  // Gate on first run: only force-show on first run.
-// When navigating to Profile later, let the router control visibility.
-if (!existing) show(true);
-// no auto-hide here
+  // Gate on first run
+  if (!existing) show(true);
+  else hide();
 }
 
 // ---------- Visibility control ----------
@@ -387,13 +386,7 @@ function _rerenderProfile(){
 }
 
 window.addEventListener('route:show', (e)=>{
-  if (e.detail?.page !== 'profile') return;
-  // Refresh the form with the latest saved data…
-  const u = ui();
-  const p = getProfile() || defaults();
-  writeToUI(u, p);
-  // …and make sure it’s visible.
-  show(false);
+  if (e.detail?.page === 'profile') _rerenderProfile();
 });
 
 // If last page was Profile, run once on load
