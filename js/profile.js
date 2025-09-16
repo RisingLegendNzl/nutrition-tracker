@@ -1,4 +1,4 @@
-// filename: js/profile.js
+// js/profile.js
 // Profile module: manages first-run profile gate, persistent user stats, and an always-present Edit button.
 // Scoped to a dynamically inserted <main id="profilePage"> wrapper (no index.html changes).
 // This version adds per-field unit toggles (Weight: kg/lb, Height: cm/ft+in) and keeps storage canonical (kg/cm).
@@ -96,6 +96,7 @@ function ensureRoot(){
     root.id = 'profilePage';
     root.className = 'hidden';
     // Card markup uses existing classes; inputs have generic .field styling already.
+    // Unit segmented controls are wrapped in "input-like" chrome so they match text fields.
     root.innerHTML = `
       <section class="card">
         <h2 class="section-title" id="p_title">Your Profile</h2>
@@ -103,22 +104,26 @@ function ensureRoot(){
           <input id="p_name" type="text" placeholder="e.g., Jack"/></div>
 
         <div class="field">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <label for="p_weight_value">Weight</label>
-            <div class="seg" role="tablist" aria-label="Weight unit">
-              <button id="u_w_kg" class="seg-btn" data-unit="kg" aria-selected="true">kg</button>
-              <button id="u_w_lb" class="seg-btn" data-unit="lb" aria-selected="false">lb</button>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+            <label for="p_weight_value" style="margin:0">Weight</label>
+            <div class="input-like" style="display:inline-flex;align-items:center;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;padding:2px;">
+              <div class="seg" role="tablist" aria-label="Weight unit">
+                <button id="u_w_kg" class="seg-btn" data-unit="kg" aria-selected="true">kg</button>
+                <button id="u_w_lb" class="seg-btn" data-unit="lb" aria-selected="false">lb</button>
+              </div>
             </div>
           </div>
           <input id="p_weight_value" type="number" inputmode="decimal" placeholder="kg" min="30" max="300"/>
         </div>
 
         <div class="field">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <label>Height <span style="color:var(--muted)">(optional)</span></label>
-            <div class="seg" role="tablist" aria-label="Height unit">
-              <button id="u_h_cm" class="seg-btn" data-unit="cm" aria-selected="true">cm</button>
-              <button id="u_h_ftin" class="seg-btn" data-unit="ftin" aria-selected="false">ft/in</button>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+            <label style="margin:0">Height <span style="color:var(--muted)">(optional)</span></label>
+            <div class="input-like" style="display:inline-flex;align-items:center;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;padding:2px;">
+              <div class="seg" role="tablist" aria-label="Height unit">
+                <button id="u_h_cm" class="seg-btn" data-unit="cm" aria-selected="true">cm</button>
+                <button id="u_h_ftin" class="seg-btn" data-unit="ftin" aria-selected="false">ft/in</button>
+              </div>
             </div>
           </div>
           <div id="h_cm_block">
