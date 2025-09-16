@@ -8,7 +8,7 @@
 </head>
 <body class="empty">
 
-  <!-- TOP BAR -->
+  <!-- Header -->
   <header class="topbar">
     <h1 class="brand" id="homeLink">Nutrify</h1>
     <button id="menuBtn" class="hamburger" aria-expanded="false" aria-controls="menuPanel" aria-label="Open menu">
@@ -16,14 +16,14 @@
     </button>
   </header>
 
-  <!-- HAMBURGER MENU PANEL -->
+  <!-- Hamburger dropdown -->
   <div id="menuPanel" class="menu-panel" hidden>
     <div class="menu-header">
       <label class="avatar" title="Upload profile image">
         <input id="avatarInput" type="file" accept="image/*" hidden>
         <img id="avatarImg" alt="Profile image">
       </label>
-      <div class="menu-title">Profile</div>
+      <!-- (removed the “Profile” text here on purpose) -->
     </div>
     <nav class="menu-nav">
       <button class="menu-item" data-page="profile">Profile</button>
@@ -33,27 +33,27 @@
     </nav>
   </div>
 
-  <!-- MAIN APP -->
+  <!-- Main -->
   <main id="appMain">
-    <!-- ===== Home (default blank landing) ===== -->
+    <!-- Home (blank landing) -->
     <section id="homePage">
       <!-- intentionally blank for now -->
     </section>
 
-    <!-- ===== Profile ===== -->
+    <!-- Profile -->
     <section id="profilePage" class="page hidden">
       <section class="card">
-        <h2 class="section-title" id="p_title">Your Profile</h2>
+        <h2 class="section-title" id="p_title">Edit Profile</h2>
 
         <div class="field">
-          <label for="p_name">Name (optional)</label>
-          <input id="p_name" type="text" placeholder="e.g., Jack"/>
+          <label for="p_name">Name</label>
+          <input id="p_name" type="text" placeholder="e.g., Alex"/>
         </div>
 
         <div class="field">
-          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
-            <label for="p_gender" style="margin:0">Gender</label>
-            <select id="p_gender" style="max-width:160px">
+          <div class="row-between">
+            <label for="p_gender">Gender</label>
+            <select id="p_gender">
               <option value="male">Male</option>
               <option value="female">Female</option>
             </select>
@@ -61,29 +61,29 @@
         </div>
 
         <div class="field">
-          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
-            <label for="p_weight_value" style="margin:0">Weight</label>
-            <select id="u_w_unit" style="max-width:120px">
+          <div class="row-between">
+            <label for="p_weight_value">Weight</label>
+            <select id="u_w_unit">
               <option value="kg">kg</option>
               <option value="lb">lb</option>
             </select>
           </div>
-          <input id="p_weight_value" type="number" inputmode="decimal" placeholder="kg" min="30" max="300"/>
+          <input id="p_weight_value" type="number" inputmode="decimal" min="30" max="300"/>
         </div>
 
         <div class="field">
-          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
-            <label style="margin:0">Height <span style="color:var(--muted)">(optional)</span></label>
-            <select id="u_h_unit" style="max-width:120px">
+          <div class="row-between">
+            <label>Height</label>
+            <select id="u_h_unit">
               <option value="cm">cm</option>
               <option value="ftin">ft/in</option>
             </select>
           </div>
-          <div id="h_cm_block"><input id="p_height_cm" type="number" inputmode="decimal" placeholder="cm" min="120" max="230"/></div>
+          <div id="h_cm_block"><input id="p_height_cm" type="number" inputmode="decimal" min="120" max="230"/></div>
           <div id="h_ftin_block" class="hidden">
-            <div style="display:flex;gap:8px">
-              <input id="p_height_ft" type="number" inputmode="numeric" placeholder="ft" min="4" max="7" style="flex:1"/>
-              <input id="p_height_in" type="number" inputmode="numeric" placeholder="in" min="0" max="11" style="flex:1"/>
+            <div class="row-gap">
+              <input id="p_height_ft" type="number" inputmode="numeric" min="4" max="7"/>
+              <input id="p_height_in" type="number" inputmode="numeric" min="0" max="11"/>
             </div>
           </div>
         </div>
@@ -96,17 +96,17 @@
           </div>
         </div>
 
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <div class="actions">
           <button id="p_save" class="primary">Save</button>
           <button id="p_reset" class="ghost">Reset to defaults</button>
           <button id="p_cancel" class="ghost hidden">Cancel</button>
         </div>
 
-        <div id="p_error" style="color:#ff7b7b;margin-top:8px;display:none"></div>
+        <div id="p_error" class="error hidden"></div>
       </section>
     </section>
 
-    <!-- ===== Diet ===== -->
+    <!-- Diet -->
     <section id="dietPage" class="page hidden">
       <section class="card">
         <div class="day-switcher">
@@ -121,16 +121,17 @@
       </section>
     </section>
 
-    <!-- ===== Sup-Stack ===== -->
+    <!-- Sup-Stack -->
     <section id="suppsPage" class="page hidden">
       <section class="card">
-        <div style="display:flex; gap:8px; justify-content:flex-end; margin-bottom:10px">
+        <div class="row-end">
           <button id="addSupp" class="primary">Add</button>
           <button id="restoreDefaults" class="ghost">Restore defaults</button>
         </div>
 
         <div id="suppList"></div>
 
+        <!-- Bottom sheet -->
         <div id="sheet" class="sheet hidden">
           <div class="sheet-card">
             <h3 id="sheetTitle" class="section-title">Add supplement</h3>
@@ -150,7 +151,7 @@
       </section>
     </section>
 
-    <!-- ===== Hydration ===== -->
+    <!-- Hydration -->
     <section id="hydroPage" class="page hidden">
       <section class="card">
         <div class="hydro-goal-row">
@@ -177,10 +178,10 @@
 
         <div class="hydro-actions">
           <div class="quick-adds">
-            <button class="pill pill-btn" data-ml="250">+250 ml</button>
-            <button class="pill pill-btn" data-ml="350">+350 ml</button>
-            <button class="pill pill-btn" data-ml="500">+500 ml</button>
-            <button class="pill pill-btn" data-ml="750">+750 ml</button>
+            <button class="pill-btn" data-ml="250">+250 ml</button>
+            <button class="pill-btn" data-ml="350">+350 ml</button>
+            <button class="pill-btn" data-ml="500">+500 ml</button>
+            <button class="pill-btn" data-ml="750">+750 ml</button>
           </div>
           <div class="custom-add">
             <input id="customMl" type="number" inputmode="numeric" placeholder="Custom ml"/>
@@ -192,16 +193,15 @@
         <div class="hydro-history" id="hydroHistory"></div>
       </section>
     </section>
-
   </main>
 
-  <!-- Snackbar (shared by modules) -->
+  <!-- Snackbar -->
   <div id="snackbar" class="snackbar hidden">
     <span id="snackMsg"></span>
     <button id="undoBtn" class="link">Undo</button>
   </div>
 
-  <!-- Scripts -->
+  <!-- Scripts (data in root; modules in /js) -->
   <script type="module" src="data.js"></script>
   <script type="module" src="js/utils.js"></script>
   <script type="module" src="js/profile.js"></script>
