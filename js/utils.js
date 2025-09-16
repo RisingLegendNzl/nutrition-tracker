@@ -24,17 +24,25 @@ export function loadState(key){ try { return JSON.parse(localStorage.getItem(key
 export function saveState(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
 
 // Snackbar
-export function showSnack(msg){
+export function showSnack(msg, onUndo){
   const snack = document.getElementById('snackbar');
   const msgEl = document.getElementById('snackMsg');
+  const undoBtn = document.getElementById('undoBtn');
   if (!snack || !msgEl) return;
   msgEl.textContent = msg;
   snack.classList.remove('hidden');
-  const undoBtn = document.getElementById('undoBtn');
   let to = setTimeout(() => snack.classList.add('hidden'), 6000);
-  if (undoBtn) undoBtn.onclick = () => {
-    snack.classList.add('hidden'); clearTimeout(to);
-  };
+  if (undoBtn){
+    if (typeof onUndo === 'function'){
+      undoBtn.style.display = '';
+      undoBtn.onclick = () => {
+        try{ onUndo(); } finally { snack.classList.add('hidden'); clearTimeout(to); }
+      };
+    } else {
+      undoBtn.style.display = 'none';
+      undoBtn.onclick = null;
+    }
+  }
 }
 
 // Daily reset notifier (Sup-Stack & Hydration share it)
