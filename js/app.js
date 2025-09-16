@@ -101,7 +101,26 @@ menuPanel?.addEventListener('click', (e)=>{
 // ---------- avatar upload ----------
 avatarImg?.addEventListener('click', ()=>{
   showPage('profile');
-  avatarIn?.click();
+ 
+avatarIn?.addEventListener('change', () => {
+  const f = avatarIn.files?.[0]; 
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { console.warn('Not an image'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      localStorage.setItem(AVATAR_KEY, reader.result);
+      if (avatarImg) avatarImg.src = reader.result;
+      // Reset the input so selecting the same file again re-triggers change
+      avatarIn.value = "";
+    } catch (e) {
+      console.warn('Avatar save error:', e);
+    }
+  };
+  reader.onerror = (e) => console.warn('Avatar read error:', e);
+  reader.readAsDataURL(f);
+});
+ avatarIn?.click();
 });
 
 avatarIn?.addEventListener('change', () => {
@@ -116,6 +135,7 @@ avatarIn?.addEventListener('change', () => {
 
 // ---------- init avatar ----------
 (function initAvatar(){
+  if (!avatarImg) return;
   const saved = localStorage.getItem(AVATAR_KEY);
   avatarImg.src = saved || 'data:image/svg+xml;utf8,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
