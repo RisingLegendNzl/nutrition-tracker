@@ -19,6 +19,26 @@ html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,
 .app-header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);padding:16px}
 .app-header h1{margin:0 0 10px;font-size:24px}
 
+/* Base button style */
+button, input[type="submit"], input[type="button"] {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.25s, border-color 0.25s, transform 0.15s;
+}
+button:hover, input[type="submit"]:hover, input[type="button"]:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+button:active, input[type="submit"]:active, input[type="button"]:active {
+  transform: translateY(0);
+}
+
 /* Tabs */
 .tabs{display:flex;gap:8px;margin-bottom:8px}
 .tab{flex:1;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:16px}
