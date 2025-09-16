@@ -303,11 +303,6 @@ function updateCancelVisibility(u){
   else u.cancel.classList.add('hidden');
 }
 
-function showError(u, msg){
-  u.error.textContent = msg || '';
-  u.error.style.display = msg ? 'block' : 'none';
-}
-
 // ---------- Public: init/mount ----------
 export function mountProfile(){
   const u = ui();
@@ -351,17 +346,23 @@ export function show(firstRun=false){
   ensureRoot();
   ensureEditButton();
   root.classList.remove('hidden');
-  ['dietPage','suppsPage','hydroPage'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.add('hidden'); });
+  // While editing profile, keep other pages hidden + tabs disabled
+  ['dietPage','suppsPage','hydroPage'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.add('hidden');
+  });
   const tabs = document.querySelectorAll('.tabs .tab');
   tabs.forEach(btn => btn.setAttribute('disabled', 'disabled'));
   if (editBtn) editBtn.classList.add('hidden');
   const t = document.getElementById('p_title');
   if (t) t.textContent = firstRun ? "Let's set up your profile" : 'Edit Profile';
 }
+
 export function hide(){
   if (!root) return;
   root.classList.add('hidden');
-  ['dietPage','suppsPage','hydroPage'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+  // IMPORTANT: Do NOT unhide every page here (that caused multiple pages to stack).
+  // Re-enable tabs and the "Edit Profile" button; app.js decides which page to show.
   const tabs = document.querySelectorAll('.tabs .tab');
   tabs.forEach(btn => btn.removeAttribute('disabled'));
   if (editBtn) editBtn.classList.remove('hidden');
