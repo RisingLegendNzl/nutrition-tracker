@@ -6,19 +6,17 @@ import {
 import { getProfile, onProfileChange } from "./profile.js";
 
 /**
- * Hydration module (human silhouette, manual goal only)
+ * Hydration
  * - Fill = (total_ml / target_ml) clamped to 0–100%.
  * - Totals are capped at the goal; never exceed 100%.
  * - No snackbars/popups.
  */
 
-// ---- Compatibility export (for supps.js, always false here) ----
 export function isAutoOn() { return false; }
 
 // ---------- DOM ----------
 const goalLitresEl = document.getElementById('goalLitres');
 const goalMlEl     = document.getElementById('goalMl');
-const editGoalBtn  = document.getElementById('editGoalBtn'); // (hook reserved)
 
 function bottleEl(){ return document.querySelector('.bottle'); }
 const bottleFill = document.getElementById('bottleFill');
@@ -30,6 +28,9 @@ const customMl     = document.getElementById('customMl');
 const addCustom    = document.getElementById('addCustom');
 const resetWater   = document.getElementById('resetWater');
 const hydroHistory = document.getElementById('hydroHistory');
+
+// ensure we only wire listeners once
+let wired = false;
 
 // ---------- Storage helpers ----------
 function waterKey(dateStr = AEST_DATE()) { return WATER_PREFIX + dateStr; }
@@ -45,7 +46,7 @@ function loadWater(dateStr = AEST_DATE()){
 }
 
 // ---------- Config ----------
-const DEFAULT_MANUAL_TARGET_ML = 3000; // 3.0 L default
+const DEFAULT_MANUAL_TARGET_ML = 3000;
 const MIN_TARGET_ML            = 1500;
 const MAX_TARGET_ML            = 3000;
 
@@ -110,7 +111,6 @@ export function renderHydro(){
   const rec = loadWater();
   const cappedTotal = Math.min(rec.total_ml || 0, target);
 
-  // Keep persisted record consistent with clamps/caps.
   if (rec.target_ml !== target || cappedTotal !== rec.total_ml) {
     saveWater(cappedTotal, target);
   }
@@ -141,17 +141,15 @@ function resetTodayWater(){
   renderHydro();
 }
 
-// ---------- Mount ----------
-export function mountHydration(){
-  renderHydro();
-
+// ---------- Wire once ----------
+function wireUIOnce(){
+  if (wired) return;
   quickBtns.forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const amt = parseInt(btn.getAttribute('data-ml')||'0',10)||0;
       if (amt>0) addWater(amt);
     });
   });
-
   if (addCustom && customMl){
     addCustom.addEventListener('click', ()=>{
       const amt = parseInt(customMl.value||'0',10)||0;
@@ -159,25 +157,16 @@ export function mountHydration(){
       customMl.value = '';
     });
   }
-
   resetWater?.addEventListener('click', resetTodayWater);
-
-  // If profile gender changes, re-apply mask
   onProfileChange(()=> applyHumanMask());
+  wired = true;
 }
 
-// --- Router hookup: Hydration ---
-function _rerenderHydro(){
-  if (typeof mountHydration === 'function') return mountHydration();
-  if (typeof renderHydro === 'function')    return renderHydro();
-  if (typeof initHydration === 'function')  return initHydration();
-  if (typeof Hydration?.render === 'function') return Hydration.render();
-  if (typeof Hydration?.mount  === 'function') return Hydration.mount();
+// ---------- Mount ----------
+export function mountHydration(){
+  wireUIOnce();
+  renderHydro();
 }
 
-window.addEventListener('route:show', (e)=>{
-  if (e.detail?.page === 'hydro') _rerenderHydro();
-});
-
-// If last page was Hydration, run once on load
-if (sessionStorage.getItem('nutrify_last_page') === 'hydro') _rerenderHydro();
+// NOTE: Routing is handled by app.js which calls mountHydration on the Hydration route.
+// We intentionally DO NOT add any route listeners here to avoid double-mounting.
