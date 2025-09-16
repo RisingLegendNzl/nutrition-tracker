@@ -423,3 +423,20 @@ body.menu-open::before{ /* scrim */
 /* Keep your day switcher behavior: only show on Diet */
 .day-switcher{ display:none; }
 body.is-diet .day-switcher{ display:grid; }
+
+/* Topbar always visible */
+.topbar{ position: sticky; top:0; z-index: 100; }
+
+/* Make sure the dropdown sits above everything */
+.menu-panel{ z-index: 110; }
+
+/* Blur + scrim when menu is open */
+body.menu-open main,
+body.menu-open #dietPage,
+body.menu-open #suppsPage,
+body.menu-open #hydroPage,
+body.menu-open #profilePage { filter: blur(6px); pointer-events:none; user-select:none; }
+body.menu-open::before { content:""; position:fixed; inset:0; z-index:105; background:rgba(0,0,0,.35); }
+
+/* FRONT PAGE: show only header until user chooses from menu */
+body.empty main { display: none; }
