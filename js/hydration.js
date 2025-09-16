@@ -1,7 +1,9 @@
 import {
   AEST_DATE, clamp, toLitres,
-  WATER_TARGET_KEY, WATER_AUTO_KEY, WATER_PREFIX, getWeightKg
+  WATER_TARGET_KEY, WATER_AUTO_KEY, WATER_PREFIX
 } from "./utils.js";
+
+const USER_WEIGHT_KG = 71; // adjust if needed
 
 // DOM
 const goalLitresEl = document.getElementById('goalLitres');
@@ -15,29 +17,32 @@ const quickBtns = document.querySelectorAll('.pill-btn');
 const customMl = document.getElementById('customMl');
 const addCustom = document.getElementById('addCustom');
 const resetWater = document.getElementById('resetWater');
-const historyEl = document.getElementById('hydroHistory');
+const hydroHistory = document.getElementById('hydroHistory');
 
-// State
-function isAutoOn(){ return localStorage.getItem(WATER_AUTO_KEY) === '1'; }
-function setAuto(v){ localStorage.setItem(WATER_AUTO_KEY, v ? '1' : '0'); }
-
-function loadWater(){
-  const key = WATER_PREFIX + AEST_DATE();
-  try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch { return {}; }
+// storage helpers
+function waterKey(dateStr=AEST_DATE()){ return WATER_PREFIX + dateStr; }
+function saveWater(total_ml, target_ml, dateStr=AEST_DATE()){
+  localStorage.setItem(
+    waterKey(dateStr),
+    JSON.stringify({ total_ml: Math.max(0,total_ml), target_ml })
+  );
 }
-function saveWater(total_ml, target_ml){
-  const key = WATER_PREFIX + AEST_DATE();
-  localStorage.setItem(key, JSON.stringify({ total_ml, target_ml }));
+function loadWater(dateStr=AEST_DATE()){
+  return JSON.parse(localStorage.getItem(waterKey(dateStr)) || '{"total_ml":0,"target_ml":null}');
 }
 
+export function isAutoOn(){
+  const v = localStorage.getItem(WATER_AUTO_KEY);
+  return v === "1" || v === "true";
+}
 function takingCreatine(){
-  try {
+  try{
     const list = JSON.parse(localStorage.getItem("supps_v1") || "[]");
     return list.some(s => (s.name || "").toLowerCase().includes("creatine"));
   }catch{ return false; }
 }
 function computeAutoTargetMl(){
-  const baseline = Math.round(getWeightKg() * 35); // 35 ml/kg
+  const baseline = Math.round(USER_WEIGHT_KG * 35); // 35 ml/kg
   const bump = takingCreatine() ? 500 : 0;
   return Math.round((baseline + bump)/100)*100; // nearest 100 ml
 }
@@ -65,19 +70,23 @@ function renderHydroNumbers(totalMl, targetMl){
 }
 
 function renderHistory(){
-  const days = [...Array(7)].map((_,i)=>{
-    const d = new Date(new Date().toLocaleString('en-US',{ timeZone:'Australia/Brisbane' }));
-    d.setDate(d.getDate()-i);
-    const key = WATER_PREFIX + d.toLocaleDateString('en-CA',{ timeZone:'Australia/Brisbane' });
-    let rec = {};
-    try { rec = JSON.parse(localStorage.getItem(key) || "{}"); } catch {}
-    return { date:d, total_ml: rec.total_ml||0, target_ml: rec.target_ml||currentTargetMl() };
-  }).reverse();
-
-  historyEl.innerHTML = days.map(d=>{
-    const pct = Math.round((d.total_ml/(d.target_ml||1))*100);
-    return `<div class="history-day"><div>${d.date.toLocaleDateString('en-AU',{ weekday:'short'})}</div><div>${pct}%</div></div>`;
-  }).join('');
+  const daysArr = [];
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Australia/Brisbane" }));
+  for (let i=6; i>=0; i--){
+    const d = new Date(now); d.setDate(d.getDate()-i);
+    const ds = new Date(d).toLocaleString("en-CA",{ timeZone:"Australia/Brisbane" }).slice(0,10);
+    const rec = loadWater(ds);
+    const total = rec.total_ml || 0;
+    const tgt = rec.target_ml || currentTargetMl(); // fallback for legacy
+    const pct = clamp((total/tgt)*100, 0, 100);
+    daysArr.push({ label: ds.slice(5), pct });
+  }
+  hydroHistory.innerHTML = daysArr.map(({label,pct})=>`
+    <div class="hbar">
+      <div class="hbar-bar"><span style="height:${pct}%;"></span></div>
+      <div class="hbar-lab">${label}</div>
+    </div>
+  `).join('');
 }
 
 export function renderHydro(){
@@ -112,17 +121,15 @@ export function mountHydration(){
     const current = currentTargetMl();
     const val = prompt("Set daily water goal (ml). Tip: 2500–4000 ml for most active days.", String(current));
     if (val===null) return;
-    const n = parseInt(val,10);
-    if (!isNaN(n) && n>=1000 && n<=8000){
-      localStorage.setItem(WATER_TARGET_KEY, String(n));
-      setAuto(false);
-      renderHydro();
-    }
-  };
-  autoGoalEl.addEventListener('change', (ev)=>{
-    setAuto(ev.target.checked);
+    const ml = clamp(parseInt(val,10)||0, 500, 10000);
+    localStorage.setItem(WATER_TARGET_KEY, String(ml));
+    localStorage.setItem(WATER_AUTO_KEY, "0"); // manual override
     renderHydro();
-  });
+  };
+  autoGoalEl.onchange = ()=> {
+    localStorage.setItem(WATER_AUTO_KEY, autoGoalEl.checked ? "1" : "0");
+    renderHydro(); // recompute immediately
+  };
 
   document.querySelectorAll('.pill-btn').forEach(b=>{
     b.addEventListener('click', ()=> addWater(parseInt(b.dataset.ml,10)));
