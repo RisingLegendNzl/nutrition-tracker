@@ -325,3 +325,19 @@ function setupTypeahead(){
   fName.addEventListener('input', ()=> show(suggestionsFor(fName.value)));
   fName.addEventListener('blur',  ()=> setTimeout(()=> ta.classList.add('hidden'), 150));
 }
+
+// --- Router hookup: Sup-Stack ---
+function _rerenderSupps(){
+  if (typeof mountSupps === 'function') return mountSupps();
+  if (typeof renderSupps === 'function') return renderSupps();
+  if (typeof initSupps === 'function')   return initSupps();
+  if (typeof Supps?.render === 'function') return Supps.render();
+  if (typeof Supps?.mount  === 'function') return Supps.mount();
+}
+
+window.addEventListener('route:show', (e)=>{
+  if (e.detail?.page === 'supps') _rerenderSupps();
+});
+
+// If last page was Sup-Stack, run once on load
+if (sessionStorage.getItem('nutrify_last_page') === 'supps') _rerenderSupps();
