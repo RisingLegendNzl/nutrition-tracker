@@ -1,21 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 500">
-  <!-- Solid black silhouette, feet aligned to bottom of viewBox -->
   <g fill="#000">
-    <!-- head -->
-    <circle cx="150" cy="62" r="44"/>
-    <!-- torso -->
-    <rect x="112" y="104" width="76" height="118" rx="18"/>
-    <!-- arms -->
-    <rect x="62"  y="128" width="46" height="156" rx="24"/>
-    <rect x="192" y="128" width="46" height="156" rx="24"/>
-    <!-- pelvis -->
-    <rect x="120" y="210" width="60" height="36" rx="12"/>
-    <!-- legs -->
-    <rect x="118" y="246" width="30" height="226" rx="18"/>
-    <rect x="152" y="246" width="30" height="226" rx="18"/>
-    <!-- feet (touch bottom) -->
-    <rect x="110" y="472" width="46" height="18" rx="6"/>
-    <rect x="144" y="472" width="46" height="18" rx="6"/>
+    <!-- Head -->
+    <circle cx="150" cy="60" r="40"/>
+    <!-- Torso -->
+    <rect x="115" y="100" width="70" height="120" rx="20"/>
+    <!-- Arms -->
+    <rect x="65"  y="120" width="40" height="160" rx="20"/>
+    <rect x="195" y="120" width="40" height="160" rx="20"/>
+    <!-- Pelvis -->
+    <rect x="120" y="220" width="60" height="40" rx="12"/>
+    <!-- Legs -->
+    <rect x="120" y="260" width="28" height="220" rx="14"/>
+    <rect x="152" y="260" width="28" height="220" rx="14"/>
+    <!-- Feet (touch bottom of viewBox) -->
+    <rect x="110" y="480" width="40" height="20" rx="6"/>
+    <rect x="150" y="480" width="40" height="20" rx="6"/>
   </g>
 </svg>
