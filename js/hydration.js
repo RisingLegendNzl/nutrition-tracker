@@ -1,4 +1,3 @@
-// filename: js/hydration.js
 import {
   AEST_DATE, clamp, toLitres,
   WATER_TARGET_KEY, WATER_AUTO_KEY, WATER_PREFIX
@@ -20,20 +19,6 @@ const addCustom = document.getElementById('addCustom');
 const resetWater = document.getElementById('resetWater');
 const hydroHistory = document.getElementById('hydroHistory');
 
-// Ensure seamless wave animation by duplicating SVG paths offset by +300px
-(function ensureSeamlessWaves(){
-  try{
-    const svg = bottleFill && bottleFill.querySelector('svg.liq');
-    if (!svg) return;
-    const paths = Array.from(svg.querySelectorAll('path.wave'));
-    paths.forEach(p=>{
-      const clone = p.cloneNode(true);
-      clone.style.transform = 'translateX(300px)';
-      svg.appendChild(clone);
-    });
-  }catch(e){}
-})();
-
 // storage helpers
 function waterKey(dateStr=AEST_DATE()){ return WATER_PREFIX + dateStr; }
 function saveWater(total_ml, target_ml, dateStr=AEST_DATE()){
@@ -43,8 +28,7 @@ function saveWater(total_ml, target_ml, dateStr=AEST_DATE()){
   );
 }
 function loadWater(dateStr=AEST_DATE()){
-  return JSON.parse(localStorage.getItem(
-waterKey(dateStr)) || '{"total_ml":0,"target_ml":null}');
+  return JSON.parse(localStorage.getItem(waterKey(dateStr)) || '{"total_ml":0,"target_ml":null}');
 }
 
 export function isAutoOn(){
@@ -60,27 +44,11 @@ function takingCreatine(){
 function computeAutoTargetMl(){
   const baseline = Math.round(USER_WEIGHT_KG * 35); // 35 ml/kg
   const bump = takingCreatine() ? 500 : 0;
-  return baseline + bump;
+  return Math.round((baseline + bump)/100)*100; // nearest 100 ml
 }
 function currentTargetMl(){
-  const stored = parseInt(localStorage.getItem(WATER_TARGET_KEY)||"0",10);
-  if (stored) return clamp(stored, 1000, 6000);
-  if (isAutoOn()) return computeAutoTargetMl();
-  return 3000;
-}
-
-// history helpers
-function getTotalTodayMl(){
-  const rec = loadWater();
-  return rec.total_ml || 0;
-}
-function setTotalTodayMl(v){
-  const rec = loadWater();
-  saveWater(v, rec.target_ml ?? currentTargetMl());
-}
-function setTargetTodayMl(tgtMl){
-  const rec = loadWater();
-  saveWater(rec.total_ml || 0, tgtMl);
+  return isAutoOn() ? computeAutoTargetMl()
+                    : (parseInt(localStorage.getItem(WATER_TARGET_KEY)||"0",10) || 3000);
 }
 
 function animateFill(totalMl, targetMl){
@@ -113,87 +81,55 @@ function renderHistory(){
     const pct = clamp((total/tgt)*100, 0, 100);
     daysArr.push({ label: ds.slice(5), pct });
   }
-
-  // render
-  hydroHistory.innerHTML = '';
-  const wrap = document.createElement('div');
-  wrap.style.display = 'grid';
-  wrap.style.gridTemplateColumns = 'repeat(7, 1fr)';
-  wrap.style.gap = '8px';
-
-  daysArr.forEach(day=>{
-    const col = document.createElement('div');
-    col.style.display = 'flex';
-    col.style.flexDirection = 'column';
-    col.style.alignItems = 'center';
-    const bar = document.createElement('div');
-    bar.style.width = '20px';
-    bar.style.height = '100px';
-    bar.style.border = '1px solid var(--border)';
-    bar.style.borderRadius = '6px';
-    bar.style.overflow = 'hidden';
-    const fill = document.createElement('div');
-    fill.style.height = day.pct + '%';
-    fill.style.width = '100%';
-    fill.style.background = 'var(--accent)';
-    fill.style.marginTop = (100-day.pct) + '%';
-    bar.appendChild(fill);
-    const lab = document.createElement('div');
-    lab.style.fontSize = '12px';
-    lab.style.marginTop = '4px';
-    lab.style.color = 'var(--muted)';
-    lab.textContent = day.label.replace(/^0/,'');
-    col.appendChild(bar); col.appendChild(lab);
-    wrap.appendChild(col);
-  });
-  hydroHistory.appendChild(wrap);
+  hydroHistory.innerHTML = daysArr.map(({label,pct})=>`
+    <div class="hbar">
+      <div class="hbar-bar"><span style="height:${pct}%;"></span></div>
+      <div class="hbar-lab">${label}</div>
+    </div>
+  `).join('');
 }
 
-// Actions
+export function renderHydro(){
+  const target = currentTargetMl();
+  const rec = loadWater();
+  const total = rec.total_ml || 0;
+  if (rec.target_ml !== target) saveWater(total, target); // persist today's goal
+  renderHydroNumbers(total, target);
+  requestAnimationFrame(()=> animateFill(total, target));
+  renderHistory();
+}
+
 function addWater(ml){
-  const rec = loadWater();
-  const total = (rec.total_ml || 0) + ml;
-  saveWater(total, rec.target_ml ?? currentTargetMl());
-  renderHydro();
+  const tgt = currentTargetMl();
+  const w = loadWater();
+  const updated = clamp((w.total_ml||0) + ml, 0, tgt*2); // cap 200% visual
+  saveWater(updated, tgt);
+  animateFill(updated, tgt);
+  renderHydroNumbers(updated, tgt);
+  renderHistory();
 }
+
 function resetTodayWater(){
-  const rec = loadWater();
-  saveWater(0, rec.target_ml ?? currentTargetMl());
+  const tgt = currentTargetMl();
+  saveWater(0, tgt);
   renderHydro();
-}
-
-function renderHydro(){
-  const rec = loadWater();
-  const totalMl = rec.total_ml || 0;
-  const targetMl = rec.target_ml ?? currentTargetMl();
-
-  renderHydroNumbers(totalMl, targetMl);
-  animateFill(totalMl, targetMl);
 }
 
 export function mountHydration(){
-  // initial ensure record exists for today
-  const rec = loadWater();
-  if (rec.target_ml == null) setTargetTodayMl(currentTargetMl());
-
-  editGoalBtn.addEventListener('click', ()=>{
-    const val = prompt('Enter daily goal (ml):', String(currentTargetMl()));
-    if (!val) return;
-    const ml = clamp(parseInt(val,10)||0, 1000, 6000);
+  // events
+  editGoalBtn.onclick = ()=>{
+    const current = currentTargetMl();
+    const val = prompt("Set daily water goal (ml). Tip: 2500–4000 ml for most active days.", String(current));
+    if (val===null) return;
+    const ml = clamp(parseInt(val,10)||0, 500, 10000);
     localStorage.setItem(WATER_TARGET_KEY, String(ml));
-    setTargetTodayMl(ml);
+    localStorage.setItem(WATER_AUTO_KEY, "0"); // manual override
     renderHydro();
-  });
-
-  autoGoalEl.addEventListener('change', ()=>{
+  };
+  autoGoalEl.onchange = ()=> {
     localStorage.setItem(WATER_AUTO_KEY, autoGoalEl.checked ? "1" : "0");
-    if (autoGoalEl.checked){
-      const ml = currentTargetMl();
-      localStorage.setItem(WATER_TARGET_KEY, String(ml));
-      setTargetTodayMl(ml);
-    }
-    renderHydro();
-  });
+    renderHydro(); // recompute immediately
+  };
 
   document.querySelectorAll('.pill-btn').forEach(b=>{
     b.addEventListener('click', ()=> addWater(parseInt(b.dataset.ml,10)));
