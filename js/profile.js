@@ -1,4 +1,4 @@
-// filename: js/profile.js
+// js/profile.js
 // Profile module: manages first-run profile gate and persistent user stats
 // Scoped to a dynamically inserted <main id="profilePage"> wrapper (no index.html changes).
 
@@ -91,17 +91,9 @@ function ensureRoot(){
           <input id="p_name" type="text" placeholder="e.g., Jack"/></div>
         <div class="field">
           <label>Units</label>
-          <div style="display:flex;gap:8px">
-            <label class="switch small">
-              <input id="p_units_metric" type="radio" name="units" value="metric" checked>
-              <span class="slider"></span>
-            </label>
-            <span style="align-self:center">Metric</span>
-            <label class="switch small" style="margin-left:12px">
-              <input id="p_units_imperial" type="radio" name="units" value="imperial">
-              <span class="slider"></span>
-            </label>
-            <span style="align-self:center">Imperial</span>
+          <div style="display:flex;gap:12px;align-items:center">
+            <label><input id="p_units_metric" type="radio" name="units" value="metric" checked> Metric</label>
+            <label><input id="p_units_imperial" type="radio" name="units" value="imperial"> Imperial</label>
           </div>
         </div>
         <div id="metricBlock">
@@ -287,13 +279,15 @@ export function mountProfile(){
 export function show(){
   ensureRoot();
   root.classList.remove('hidden');
-  // dim footer tip if present
+  // hide other pages to make it clear this is a first-run gate
+  ['dietPage','suppsPage','hydroPage'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.add('hidden'); });
   const tabs = document.querySelectorAll('.tabs .tab');
   tabs.forEach(btn => btn.setAttribute('disabled', 'disabled'));
 }
 export function hide(){
   if (!root) return;
   root.classList.add('hidden');
+  ['dietPage','suppsPage','hydroPage'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
   const tabs = document.querySelectorAll('.tabs .tab');
   tabs.forEach(btn => btn.removeAttribute('disabled'));
 }
