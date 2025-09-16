@@ -63,6 +63,16 @@ const undoBtn = document.getElementById("undoBtn");
 let editingIndex = null;
 let lastDeleted = null;
 
+function undoDelete(){
+  if (!lastDeleted) return;
+  const list = loadSupps();
+  const idx = Math.max(0, Math.min(lastDeleted.index, list.length));
+  list.splice(idx, 0, lastDeleted.item);
+  saveSupps(list);
+  renderSupps();
+  lastDeleted = null;
+}
+
 export function mountSupps(){
   addSuppBtn.onclick = ()=> openEditor(null, null);
   cancelSheet.onclick = ()=> closeEditor();
@@ -241,7 +251,7 @@ function doDelete(idx){
   list.splice(idx,1);
   saveSupps(list);
   renderSupps();
-  showSnack(`Deleted ${lastDeleted.item.name}`);
+  showSnack(`Deleted ${lastDeleted.item.name}`, () => undoDelete());
   if (isAutoOn()) renderHydro();
 }
 
