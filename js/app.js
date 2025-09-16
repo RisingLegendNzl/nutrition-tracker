@@ -1,7 +1,9 @@
 // js/app.js — hamburger dropdown, avatar upload, routing, landing state
-// Robust version: reveals pages, emits events, and tries common global initializers.
+// This version dynamically imports each page module (from the same /js/ folder),
+// calls common init names, and also emits a 'route:show' event.
 
-const $  = (s) => document.querySelector(s);
+// Shorthand
+const $ = (s) => document.querySelector(s);
 
 // Header / menu elements
 const menuBtn   = $('#menuBtn');
@@ -20,50 +22,28 @@ const PAGES = {
 const AVATAR_KEY = 'nutrify_avatar';
 const LAST_PAGE  = 'nutrify_last_page';
 
-/* ---------- helpers ---------- */
+// ---------- helpers ----------
 function hideAllPages(){ Object.values(PAGES).forEach(el => el && el.classList.add('hidden')); }
 function blurOn(){  document.body.classList.add('menu-open');  menuBtn?.setAttribute('aria-expanded','true');  menuPanel.hidden = false; }
 function blurOff(){ document.body.classList.remove('menu-open'); menuBtn?.setAttribute('aria-expanded','false'); menuPanel.hidden = true;  }
 
-// Try many possible initializers if they exist in the global scope
-function tryInitializers(page){
-  const candidates = {
-    profile: [
-      'mountProfile','renderProfile','initProfile',
-      () => window.Profile && (window.Profile.mount?.() || window.Profile.render?.())
-    ],
-    diet: [
-      'mountDiet','renderDiet','initDiet','renderDietPage',
-      () => window.Diet && (window.Diet.mount?.() || window.Diet.render?.())
-    ],
-    supps: [
-      'mountSupps','renderSupps','initSupps','renderSupplements',
-      () => window.Supps && (window.Supps.mount?.() || window.Supps.render?.())
-    ],
-    hydro: [
-      'mountHydration','renderHydro','initHydration','renderHydration',
-      () => window.Hydration && (window.Hydration.mount?.() || window.Hydration.render?.())
-    ]
-  }[page] || [];
-
-  for (const c of candidates) {
-    try {
-      if (typeof c === 'string' && typeof window[c] === 'function') { window[c](); return; }
-      if (typeof c === 'function') { const r = c(); if (r !== undefined) return; }
-    } catch (e) {
-      // ignore and continue
-      console.warn(`init ${page} skipped`, e);
+// Try a list of possible initializer names from an imported module
+async function callAny(modulePromise, names){
+  try {
+    const m = await modulePromise;
+    for (const n of names) {
+      if (typeof m[n] === 'function') { m[n](); return; }
     }
+  } catch(e) {
+    console.warn('Mount skipped:', e);
   }
-
-  // Also emit a generic event any module can listen for:
-  window.dispatchEvent(new CustomEvent('route:show', { detail: { page } }));
 }
 
-/* ---------- ROUTER: reveal + init ---------- */
+// ---------- ROUTER (app.js is in /js/, so imports are "./<file>.js") ----------
 async function showPage(page){
   if (!PAGES[page]) return;
 
+  // Reveal selected page
   hideAllPages();
   PAGES[page].classList.remove('hidden');
   document.body.classList.remove('empty');                // leave landing
@@ -71,19 +51,35 @@ async function showPage(page){
   sessionStorage.setItem(LAST_PAGE, page);
   blurOff();
 
-  // Call any available initializer(s) for this page
-  tryInitializers(page);
-}
-window.showPage = showPage;  // expose if other modules want to route
+  // Import the module and call its init/render
+  switch(page){
+    case 'profile':
+      await callAny(import('./profile.js'),   ['mountProfile','renderProfile','initProfile']);
+      break;
+    case 'diet':
+      await callAny(import('./diet.js'),      ['mountDiet','renderDiet','initDiet']);
+      break;
+    case 'supps':
+      await callAny(import('./supps.js'),     ['mountSupps','renderSupps','initSupps']);
+      break;
+    case 'hydro':
+      await callAny(import('./hydration.js'), ['mountHydration','renderHydro','initHydration']);
+      break;
+  }
 
-/* ---------- first load / landing ---------- */
+  // Also notify any listeners
+  window.dispatchEvent(new CustomEvent('route:show', { detail: { page } }));
+}
+window.showPage = showPage;  // if other modules want to route
+
+// ---------- first load / landing ----------
 (function initLanding(){
   const last = sessionStorage.getItem(LAST_PAGE);
   if (last && PAGES[last]) showPage(last);
-  else { document.body.classList.add('empty'); hideAllPages(); }  // header only until a choice
+  else { document.body.classList.add('empty'); hideAllPages(); }  // header only
 })();
 
-/* ---------- hamburger ---------- */
+// ---------- hamburger ----------
 menuBtn?.addEventListener('click', () => {
   document.body.classList.contains('menu-open') ? blurOff() : blurOn();
 });
@@ -94,7 +90,7 @@ document.addEventListener('click', (e)=>{
   if (!within) blurOff();
 });
 
-/* ---------- menu clicks ---------- */
+// ---------- menu clicks ----------
 menuPanel?.addEventListener('click', (e)=>{
   const btn = e.target.closest('.menu-item');
   if (!btn) return;
@@ -102,11 +98,12 @@ menuPanel?.addEventListener('click', (e)=>{
   if (page) showPage(page);
 });
 
-/* ---------- avatar upload ---------- */
+// ---------- avatar upload ----------
 avatarImg?.addEventListener('click', ()=>{
   showPage('profile');
   avatarIn?.click();
 });
+
 avatarIn?.addEventListener('change', () => {
   const f = avatarIn.files?.[0]; if (!f) return;
   const reader = new FileReader();
@@ -117,7 +114,7 @@ avatarIn?.addEventListener('change', () => {
   reader.readAsDataURL(f);
 });
 
-/* ---------- init avatar ---------- */
+// ---------- init avatar ----------
 (function initAvatar(){
   const saved = localStorage.getItem(AVATAR_KEY);
   avatarImg.src = saved || 'data:image/svg+xml;utf8,' + encodeURIComponent(
