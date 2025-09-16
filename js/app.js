@@ -1,8 +1,10 @@
 // filename: js/app.js
+// js/app.js
 import { mountDiet, renderDiet } from './diet.js';
 import { mountSupps } from './supps.js';
 import { mountHydration } from './hydration.js';
 
+// IDs that exist in index.html
 const tabButtons = {
   diet:  document.getElementById('tabDiet'),
   supps: document.getElementById('tabSupps'),
@@ -20,7 +22,10 @@ function show(tab) {
     views[k].classList.toggle('hidden', k !== tab);
     tabButtons[k].classList.toggle('active', k === tab);
   });
-  if (tab === 'diet') safeMountDiet();
+  if (tab === 'diet') {
+    // Fully re-mount Diet whenever user switches to it
+    safeMountDiet();
+  }
 }
 
 function wireTabs() {
@@ -29,17 +34,18 @@ function wireTabs() {
   tabButtons.hydro.addEventListener('click', () => show('hydro'));
 }
 
-/* -------- Robust Diet init (handles slow data.js) -------- */
+/* ---------------- Robust Diet init (handles slow data.js) ---------------- */
 let dietTimer = null;
 let tries = 0;
-const MAX_TRIES = 40;   // ~6s total (40 * 150ms)
-const INTERVAL  = 150;
+const MAX_TRIES = 40;      // ~6s total
+const INTERVAL  = 150;     // ms
 
 function dataReady() {
   const planOK = !!(window.mealPlan && Object.keys(window.mealPlan).length);
   const dbOK   = !!(window.NUTRITION_DB && typeof window.NUTRITION_DB === 'object');
   return planOK && dbOK;
 }
+
 function safeMountDiet() {
   try {
     if (dataReady()) {
@@ -58,29 +64,31 @@ function safeMountDiet() {
           renderDiet();
         } else if (tries >= MAX_TRIES) {
           clearInterval(dietTimer); dietTimer = null;
-          // Fallback: attempt anyway (diet.js shows empty state if plan missing)
+          // Fallback: try anyway (diet.js shows an empty state if plan missing)
           mountDiet();
           renderDiet();
         }
       }, INTERVAL);
     }
-  } catch (e) {
-    console.error('Diet init failed', e);
+  } catch (err) {
+    console.error('Diet init failed:', err);
   }
 }
 
 /* ---------------- Mount & start ---------------- */
 document.addEventListener('DOMContentLoaded', () => {
   wireTabs();
-  // Mount non-dependent modules immediately
+
+  // Mount non-dependent modules
   mountSupps();
   mountHydration();
-  // Default to Diet and ensure it renders even if data.js lags
+
+  // Default to Diet view and ensure it renders even if data.js lags
   show('diet');
   safeMountDiet();
 });
 
-// Extra safety: once everything is loaded, render Diet again
+// Extra safety: after all assets load, try again once.
 window.addEventListener('load', () => {
   safeMountDiet();
 });
