@@ -20,6 +20,44 @@ const PAGES = {
 };
 
 const AVATAR_KEY = 'nutrify_avatar';
+
+// Compress & normalize image (handles HEIC/large files). Returns a DataURL.
+async function processAvatarFile(file, maxSize=512, quality=0.82){
+  // Use createImageBitmap when available for speed
+  const dataUrl = await new Promise((resolve, reject) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(file);
+    } catch(e){ reject(e); }
+  });
+
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = dataUrl;
+  });
+
+  // Compute target size
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  let tw = w, th = h;
+  if (w > h && w > maxSize){ th = Math.round(h * (maxSize / w)); tw = maxSize; }
+  else if (h >= w && h > maxSize){ tw = Math.round(w * (maxSize / h)); th = maxSize; }
+
+  // Draw to canvas
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, tw);
+  c.height = Math.max(1, th);
+  const g = c.getContext('2d', { alpha: false });
+  g.drawImage(img, 0, 0, tw, th);
+
+  // Export JPEG (works for HEIC too)
+  const outUrl = c.toDataURL('image/jpeg', quality);
+  return outUrl;
+}
 const LAST_PAGE  = 'nutrify_last_page';
 
 // ---------- helpers ----------
@@ -101,27 +139,32 @@ menuPanel?.addEventListener('click', (e)=>{
 // ---------- avatar upload ----------
 // Let the <label for="avatarInput"> open the picker on tap.
 // Just handle the file once it's selected.
-avatarIn?.addEventListener('change', () => {
+avatarIn?.addEventListener('change', async () => {
   const f = avatarIn?.files?.[0];
   if (!f) return;
-  if (!/^image\//.test(f.type)) { console.warn('Selected file is not an image'); return; }
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      localStorage.setItem(AVATAR_KEY, reader.result);
-      if (avatarImg) avatarImg.src = reader.result;
-      // Reset the input so picking the same file again fires 'change'
-      avatarIn.value = "";
-    } catch (e) {
-      console.warn('Failed to save avatar:', e);
-    }
-  };
-  reader.onerror = (e) => console.warn('FileReader error:', e);
-  reader.readAsDataURL(f);
+  if (!/^image\//.test(f.type)) { alert('Please select an image.'); avatarIn.value = ""; return; }
+
+  // Instant preview via object URL (freed after full save)
+  const tmpUrl = URL.createObjectURL(f);
+  if (avatarImg) avatarImg.src = tmpUrl;
+
+  try {
+    const compressed = await processAvatarFile(f, 512, 0.82);
+    localStorage.setItem(AVATAR_KEY, compressed);
+    if (avatarImg) avatarImg.src = compressed;
+  } catch (e) {
+    console.warn('Avatar processing/save failed:', e);
+    alert('Could not save photo. Try a smaller image.');
+  } finally {
+    URL.revokeObjectURL(tmpUrl);
+    avatarIn.value = "";
+  }
 });
 // ---------- init avatar ----------
 (function initAvatar(){
-  if (!avatarImg) return;
-  const saved = localStorage.getItem(AVATAR_KEY);
-  if (saved) avatarImg.src = saved;
+  try{
+    if (!avatarImg) return;
+    const saved = localStorage.getItem(AVATAR_KEY);
+    if (saved) avatarImg.src = saved;
+  }catch(e){ console.warn('initAvatar failed', e); }
 })();
