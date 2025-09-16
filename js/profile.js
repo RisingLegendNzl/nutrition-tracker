@@ -375,3 +375,19 @@ function showError(u, msg){
   u.error.textContent = msg || '';
   u.error.style.display = msg ? 'block' : 'none';
 }
+
+// --- Router hookup: Profile ---
+function _rerenderProfile(){
+  if (typeof mountProfile === 'function') return mountProfile();
+  if (typeof renderProfile === 'function') return renderProfile();
+  if (typeof initProfile === 'function')   return initProfile();
+  if (typeof Profile?.render === 'function') return Profile.render();
+  if (typeof Profile?.mount  === 'function') return Profile.mount();
+}
+
+window.addEventListener('route:show', (e)=>{
+  if (e.detail?.page === 'profile') _rerenderProfile();
+});
+
+// If last page was Profile, run once on load
+if (sessionStorage.getItem('nutrify_last_page') === 'profile') _rerenderProfile();
