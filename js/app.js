@@ -99,53 +99,29 @@ menuPanel?.addEventListener('click', (e)=>{
 });
 
 // ---------- avatar upload ----------
-avatarImg?.addEventListener('click', ()=>{
-  showPage('profile');
- 
+// Let the <label for="avatarInput"> open the picker on tap.
+// Just handle the file once it's selected.
 avatarIn?.addEventListener('change', () => {
-  const f = avatarIn.files?.[0]; 
+  const f = avatarIn?.files?.[0];
   if (!f) return;
-  if (!/^image\//.test(f.type)) { console.warn('Not an image'); return; }
+  if (!/^image\//.test(f.type)) { console.warn('Selected file is not an image'); return; }
   const reader = new FileReader();
   reader.onload = () => {
     try {
       localStorage.setItem(AVATAR_KEY, reader.result);
       if (avatarImg) avatarImg.src = reader.result;
-      // Reset the input so selecting the same file again re-triggers change
+      // Reset the input so picking the same file again fires 'change'
       avatarIn.value = "";
     } catch (e) {
-      console.warn('Avatar save error:', e);
+      console.warn('Failed to save avatar:', e);
     }
   };
-  reader.onerror = (e) => console.warn('Avatar read error:', e);
+  reader.onerror = (e) => console.warn('FileReader error:', e);
   reader.readAsDataURL(f);
 });
- avatarIn?.click();
-});
-
-avatarIn?.addEventListener('change', () => {
-  const f = avatarIn.files?.[0]; if (!f) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    localStorage.setItem(AVATAR_KEY, reader.result);
-    avatarImg.src = reader.result;
-  };
-  reader.readAsDataURL(f);
-});
-
 // ---------- init avatar ----------
 (function initAvatar(){
   if (!avatarImg) return;
   const saved = localStorage.getItem(AVATAR_KEY);
-  avatarImg.src = saved || 'data:image/svg+xml;utf8,' + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-       <defs>
-         <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-           <stop offset="0" stop-color="#2a2a2a"/>
-           <stop offset="1" stop-color="#1b1b1b"/>
-         </linearGradient>
-       </defs>
-       <circle cx="50" cy="50" r="50" fill="url(#g)"/>
-     </svg>`
-  );
+  if (saved) avatarImg.src = saved;
 })();
