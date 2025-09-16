@@ -1,21 +1,16 @@
 // filename: js/profile.js
-// Profile module: manages first-run profile gate, persistent user stats, and an always-present Edit button.
-// Scoped to a dynamically inserted <main id="profilePage"> wrapper (no index.html changes).
-// This version uses clean <select> fields for per-field unit choices (Weight: kg/lb, Height: cm/ft+in),
-// and keeps storage canonical (kg/cm).
+// Profile with Gender field; saves gender used by hydration mask.
 
 import { clamp, showSnack } from './utils.js';
 
 const KEY = 'profile_v1';
 const listeners = new Set();
 
-let root;    // #profilePage element
-let editBtn; // header "Edit Profile" button
-let state = null; // cached profile or null
+let root;
+let editBtn;
+let state = null;
 
-function nowDate(){
-  return new Date().toISOString().slice(0,10);
-}
+function nowDate(){ return new Date().toISOString().slice(0,10); }
 
 // ---------- Storage ----------
 export function getProfile(){
@@ -29,7 +24,6 @@ export function getProfile(){
     return null;
   }catch{ return null; }
 }
-
 function saveProfile(p){
   const toSave = { ...p, updated_at: nowDate() };
   localStorage.setItem(KEY, JSON.stringify(toSave));
@@ -37,22 +31,15 @@ function saveProfile(p){
   listeners.forEach(cb => { try{ cb(toSave); }catch{} });
   showSnack('Profile saved.');
 }
-
 function migrate(p){
   if (!p) return p;
   if (!('weight_unit' in p)) p.weight_unit = 'kg';
   if (!('height_unit' in p)) p.height_unit = 'cm';
+  if (!('gender' in p))      p.gender = 'male';
   return p;
 }
-
-export function onProfileChange(cb){
-  listeners.add(cb);
-  return () => listeners.delete(cb);
-}
-
-export function requireComplete(){
-  return !!getProfile();
-}
+export function onProfileChange(cb){ listeners.add(cb); return ()=>listeners.delete(cb); }
+export function requireComplete(){ return !!getProfile(); }
 
 // ---------- Validation ----------
 function isValid(p){
@@ -100,6 +87,16 @@ function ensureRoot(){
         <div class="field">
           <label for="p_name">Name (optional)</label>
           <input id="p_name" type="text" placeholder="e.g., Jack"/>
+        </div>
+
+        <div class="field">
+          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+            <label for="p_gender" style="margin:0">Gender</label>
+            <select id="p_gender" style="max-width:160px">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
         </div>
 
         <div class="field">
@@ -183,6 +180,7 @@ function ui(){
     page: root,
     title: document.getElementById('p_title'),
     name: document.getElementById('p_name'),
+    gender: document.getElementById('p_gender'),
     // weight
     weightVal: document.getElementById('p_weight_value'),
     weightUnit: document.getElementById('u_w_unit'),
@@ -208,8 +206,9 @@ function ui(){
 function defaults(){
   return {
     name: '',
-    weight_unit: 'kg',  // 'kg' | 'lb'
-    height_unit: 'cm',  // 'cm' | 'ftin'
+    gender: 'male',       // 'male' | 'female'
+    weight_unit: 'kg',    // 'kg' | 'lb'
+    height_unit: 'cm',    // 'cm' | 'ftin'
     weight_kg: 71,
     height_cm: '',
     ml_per_kg: 35,
@@ -222,6 +221,7 @@ function readFromUI(u){
   const prefs = {
     weight_unit: u.weightUnit.value === 'lb' ? 'lb' : 'kg',
     height_unit: u.heightUnit.value === 'ftin' ? 'ftin' : 'cm',
+    gender: (u.gender.value || 'male') === 'female' ? 'female' : 'male',
   };
   // weight
   let weight_kg;
@@ -254,6 +254,9 @@ function writeToUI(u, p){
   const profile = migrate({ ...defaults(), ...p });
 
   u.title.textContent = getProfile() ? 'Edit Profile' : "Let's set up your profile";
+
+  // gender
+  u.gender.value = (profile.gender === 'female' ? 'female' : 'male');
 
   // weight display + unit
   u.weightUnit.value = profile.weight_unit === 'lb' ? 'lb' : 'kg';
@@ -313,6 +316,7 @@ export function mountProfile(){
   writeToUI(u, initial);
 
   // Events
+  u.gender.addEventListener('change', () => writeToUI(u, { ...readFromUI(u), gender: u.gender.value }));
   u.weightUnit.addEventListener('change', () => writeToUI(u, { ...readFromUI(u), weight_unit: u.weightUnit.value }));
   u.heightUnit.addEventListener('change', () => writeToUI(u, { ...readFromUI(u), height_unit: u.heightUnit.value }));
   [u.weightVal, u.hcm, u.hft, u.hin, u.mlkg, u.name].forEach(el => {
@@ -346,7 +350,7 @@ export function show(firstRun=false){
   ensureRoot();
   ensureEditButton();
   root.classList.remove('hidden');
-  // While editing profile, keep other pages hidden + tabs disabled
+  // keep other pages hidden + tabs disabled while editing
   ['dietPage','suppsPage','hydroPage'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.classList.add('hidden');
@@ -357,13 +361,17 @@ export function show(firstRun=false){
   const t = document.getElementById('p_title');
   if (t) t.textContent = firstRun ? "Let's set up your profile" : 'Edit Profile';
 }
-
 export function hide(){
   if (!root) return;
   root.classList.add('hidden');
-  // IMPORTANT: Do NOT unhide every page here (that caused multiple pages to stack).
-  // Re-enable tabs and the "Edit Profile" button; app.js decides which page to show.
+  // re-enable tabs, app.js decides which page to show
   const tabs = document.querySelectorAll('.tabs .tab');
   tabs.forEach(btn => btn.removeAttribute('disabled'));
   if (editBtn) editBtn.classList.remove('hidden');
+}
+
+// ---------- Errors ----------
+function showError(u, msg){
+  u.error.textContent = msg || '';
+  u.error.style.display = msg ? 'block' : 'none';
 }
