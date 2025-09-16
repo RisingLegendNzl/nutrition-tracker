@@ -1,14 +1,15 @@
-// js/profile.js
+// filename: js/profile.js
 // Profile module: manages first-run profile gate, persistent user stats, and an always-present Edit button.
 // Scoped to a dynamically inserted <main id="profilePage"> wrapper (no index.html changes).
-// This version adds per-field unit toggles (Weight: kg/lb, Height: cm/ft+in) and keeps storage canonical (kg/cm).
+// This version uses clean <select> fields for per-field unit choices (Weight: kg/lb, Height: cm/ft+in),
+// and keeps storage canonical (kg/cm).
 
 import { clamp, showSnack } from './utils.js';
 
 const KEY = 'profile_v1';
 const listeners = new Set();
 
-let root; // #profilePage element
+let root;    // #profilePage element
 let editBtn; // header "Edit Profile" button
 let state = null; // cached profile or null
 
@@ -39,7 +40,6 @@ function saveProfile(p){
 
 function migrate(p){
   if (!p) return p;
-  // Add display prefs if missing
   if (!('weight_unit' in p)) p.weight_unit = 'kg';
   if (!('height_unit' in p)) p.height_unit = 'cm';
   return p;
@@ -61,7 +61,6 @@ function isValid(p){
   const mlkg = Number(p.ml_per_kg);
   if (!Number.isFinite(w) || w < 30 || w > 300) return false;
   if (!Number.isFinite(mlkg) || mlkg < 20 || mlkg > 60) return false;
-  // height is optional if empty or within range
   if (p.height_cm === '' || p.height_cm === null || typeof p.height_cm === 'undefined') return true;
   const h = Number(p.height_cm);
   return Number.isFinite(h) && h >= 120 && h <= 230;
@@ -72,7 +71,6 @@ function computeHydroLitres(weight_kg, ml_per_kg){
   const ml = weight_kg * ml_per_kg;
   return Math.round(ml) / 1000;
 }
-
 function kgFromLbs(lbs){ return Math.round((Number(lbs)||0) * 0.45359237 * 10) / 10; }
 function cmFromFeetIn(feet, inches){
   const f = Number(feet)||0, i = Number(inches)||0;
@@ -95,37 +93,35 @@ function ensureRoot(){
     root = document.createElement('main');
     root.id = 'profilePage';
     root.className = 'hidden';
-    // Card markup uses existing classes; inputs have generic .field styling already.
-    // Unit segmented controls are wrapped in "input-like" chrome so they match text fields.
     root.innerHTML = `
       <section class="card">
         <h2 class="section-title" id="p_title">Your Profile</h2>
-        <div class="field"><label for="p_name">Name (optional)</label>
-          <input id="p_name" type="text" placeholder="e.g., Jack"/></div>
 
         <div class="field">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <label for="p_name">Name (optional)</label>
+          <input id="p_name" type="text" placeholder="e.g., Jack"/>
+        </div>
+
+        <div class="field">
+          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
             <label for="p_weight_value" style="margin:0">Weight</label>
-            <div class="input-like" style="display:inline-flex;align-items:center;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;padding:2px;">
-              <div class="seg" role="tablist" aria-label="Weight unit">
-                <button id="u_w_kg" class="seg-btn" data-unit="kg" aria-selected="true">kg</button>
-                <button id="u_w_lb" class="seg-btn" data-unit="lb" aria-selected="false">lb</button>
-              </div>
-            </div>
+            <select id="u_w_unit" style="max-width:120px">
+              <option value="kg">kg</option>
+              <option value="lb">lb</option>
+            </select>
           </div>
           <input id="p_weight_value" type="number" inputmode="decimal" placeholder="kg" min="30" max="300"/>
         </div>
 
         <div class="field">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
             <label style="margin:0">Height <span style="color:var(--muted)">(optional)</span></label>
-            <div class="input-like" style="display:inline-flex;align-items:center;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;padding:2px;">
-              <div class="seg" role="tablist" aria-label="Height unit">
-                <button id="u_h_cm" class="seg-btn" data-unit="cm" aria-selected="true">cm</button>
-                <button id="u_h_ftin" class="seg-btn" data-unit="ftin" aria-selected="false">ft/in</button>
-              </div>
-            </div>
+            <select id="u_h_unit" style="max-width:120px">
+              <option value="cm">cm</option>
+              <option value="ftin">ft/in</option>
+            </select>
           </div>
+
           <div id="h_cm_block">
             <input id="p_height_cm" type="number" inputmode="decimal" placeholder="cm" min="120" max="230"/>
           </div>
@@ -144,15 +140,16 @@ function ensureRoot(){
             <span>Daily hydration goal</span><strong id="p_goal_value">—</strong>
           </div>
         </div>
+
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
           <button id="p_save" class="primary">Save</button>
           <button id="p_reset" class="ghost">Reset to defaults</button>
           <button id="p_cancel" class="ghost hidden">Cancel</button>
         </div>
+
         <div id="p_error" style="color:#ff7b7b;margin-top:8px;display:none"></div>
       </section>
     `;
-    // insert after header to mimic other pages
     const hdr = document.querySelector('.app-header');
     (hdr && hdr.nextSibling) ? hdr.parentNode.insertBefore(root, hdr.nextSibling) : document.body.appendChild(root);
   }
@@ -188,11 +185,9 @@ function ui(){
     name: document.getElementById('p_name'),
     // weight
     weightVal: document.getElementById('p_weight_value'),
-    wKgBtn: document.getElementById('u_w_kg'),
-    wLbBtn: document.getElementById('u_w_lb'),
+    weightUnit: document.getElementById('u_w_unit'),
     // height
-    hModeCmBtn: document.getElementById('u_h_cm'),
-    hModeFtInBtn: document.getElementById('u_h_ftin'),
+    heightUnit: document.getElementById('u_h_unit'),
     hcmBlock: document.getElementById('h_cm_block'),
     hftinBlock: document.getElementById('h_ftin_block'),
     hcm: document.getElementById('p_height_cm'),
@@ -213,10 +208,8 @@ function ui(){
 function defaults(){
   return {
     name: '',
-    // prefs
     weight_unit: 'kg',  // 'kg' | 'lb'
     height_unit: 'cm',  // 'cm' | 'ftin'
-    // canonical
     weight_kg: 71,
     height_cm: '',
     ml_per_kg: 35,
@@ -227,8 +220,8 @@ function defaults(){
 
 function readFromUI(u){
   const prefs = {
-    weight_unit: u.wLbBtn.getAttribute('aria-selected') === 'true' ? 'lb' : 'kg',
-    height_unit: u.hModeFtInBtn.getAttribute('aria-selected') === 'true' ? 'ftin' : 'cm',
+    weight_unit: u.weightUnit.value === 'lb' ? 'lb' : 'kg',
+    height_unit: u.heightUnit.value === 'ftin' ? 'ftin' : 'cm',
   };
   // weight
   let weight_kg;
@@ -259,14 +252,11 @@ function readFromUI(u){
 
 function writeToUI(u, p){
   const profile = migrate({ ...defaults(), ...p });
-  // Title tweak if first run
+
   u.title.textContent = getProfile() ? 'Edit Profile' : "Let's set up your profile";
 
-  // prefs → buttons
-  selectSeg(u.wKgBtn, u.wLbBtn, profile.weight_unit === 'kg' ? 'kg' : 'lb');
-  selectSeg(u.hModeCmBtn, u.hModeFtInBtn, profile.height_unit === 'cm' ? 'cm' : 'ftin');
-
-  // weight display
+  // weight display + unit
+  u.weightUnit.value = profile.weight_unit === 'lb' ? 'lb' : 'kg';
   if (profile.weight_unit === 'kg'){
     u.weightVal.placeholder = 'kg';
     u.weightVal.min = '30'; u.weightVal.max = '300';
@@ -277,7 +267,8 @@ function writeToUI(u, p){
     u.weightVal.value = lbsFromKg(profile.weight_kg) || '';
   }
 
-  // height display
+  // height display + unit
+  u.heightUnit.value = profile.height_unit === 'ftin' ? 'ftin' : 'cm';
   if (profile.height_unit === 'cm'){
     u.hcmBlock.classList.remove('hidden');
     u.hftinBlock.classList.add('hidden');
@@ -297,16 +288,6 @@ function writeToUI(u, p){
 
   refreshPreview(u);
   updateCancelVisibility(u);
-}
-
-function selectSeg(onBtn, offBtn, which){
-  if (which === onBtn.dataset.unit){
-    onBtn.setAttribute('aria-selected','true');
-    offBtn.setAttribute('aria-selected','false');
-  }else{
-    onBtn.setAttribute('aria-selected','false');
-    offBtn.setAttribute('aria-selected','true');
-  }
 }
 
 function refreshPreview(u){
@@ -336,13 +317,9 @@ export function mountProfile(){
   const initial = existing || defaults();
   writeToUI(u, initial);
 
-  // Events: seg toggles
-  u.wKgBtn.addEventListener('click', () => { selectSeg(u.wKgBtn,u.wLbBtn,'kg'); writeToUI(u, { ...readFromUI(u), weight_unit:'kg' }); });
-  u.wLbBtn.addEventListener('click', () => { selectSeg(u.wKgBtn,u.wLbBtn,'lb'); writeToUI(u, { ...readFromUI(u), weight_unit:'lb' }); });
-  u.hModeCmBtn.addEventListener('click', () => { selectSeg(u.hModeCmBtn,u.hModeFtInBtn,'cm'); writeToUI(u, { ...readFromUI(u), height_unit:'cm' }); });
-  u.hModeFtInBtn.addEventListener('click', () => { selectSeg(u.hModeCmBtn,u.hModeFtInBtn,'ftin'); writeToUI(u, { ...readFromUI(u), height_unit:'ftin' }); });
-
-  // Inputs live preview
+  // Events
+  u.weightUnit.addEventListener('change', () => writeToUI(u, { ...readFromUI(u), weight_unit: u.weightUnit.value }));
+  u.heightUnit.addEventListener('change', () => writeToUI(u, { ...readFromUI(u), height_unit: u.heightUnit.value }));
   [u.weightVal, u.hcm, u.hft, u.hin, u.mlkg, u.name].forEach(el => {
     el && el.addEventListener('input', () => { showError(u, ''); refreshPreview(u); });
   });
@@ -374,12 +351,10 @@ export function show(firstRun=false){
   ensureRoot();
   ensureEditButton();
   root.classList.remove('hidden');
-  // hide other pages to make it clear this is a first-run gate
   ['dietPage','suppsPage','hydroPage'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.add('hidden'); });
   const tabs = document.querySelectorAll('.tabs .tab');
   tabs.forEach(btn => btn.setAttribute('disabled', 'disabled'));
   if (editBtn) editBtn.classList.add('hidden');
-  // title tweak
   const t = document.getElementById('p_title');
   if (t) t.textContent = firstRun ? "Let's set up your profile" : 'Edit Profile';
 }
