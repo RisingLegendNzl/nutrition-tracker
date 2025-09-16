@@ -279,3 +279,9 @@ main{padding:16px;max-width:720px;margin:0 auto}
 
 /* Remove the old glass gloss to avoid visual clash */
 .bottle-gloss { display: none; }
+
+/* Ensure PNG alpha channel is used as mask */
+.bottle.human-mask {
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+}
