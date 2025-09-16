@@ -10,13 +10,13 @@
 
   <!-- TOP BAR -->
   <header class="topbar">
-    <div class="brand">Nutrify</div>
+    <h1 class="brand" id="homeLink">Nutrify</h1>
     <button id="menuBtn" class="hamburger" aria-expanded="false" aria-controls="menuPanel" aria-label="Open menu">
       <span></span><span></span><span></span>
     </button>
   </header>
 
-  <!-- DROPDOWN PANEL -->
+  <!-- HAMBURGER MENU PANEL -->
   <div id="menuPanel" class="menu-panel" hidden>
     <div class="menu-header">
       <label class="avatar" title="Upload profile image">
@@ -35,8 +35,12 @@
 
   <!-- MAIN APP -->
   <main id="appMain">
+    <!-- ===== Home (default blank landing) ===== -->
+    <section id="homePage">
+      <!-- intentionally blank for now -->
+    </section>
 
-    <!-- ========== PROFILE (IDs expected by js/profile.js) ========== -->
+    <!-- ===== Profile ===== -->
     <section id="profilePage" class="page hidden">
       <section class="card">
         <h2 class="section-title" id="p_title">Your Profile</h2>
@@ -102,7 +106,7 @@
       </section>
     </section>
 
-    <!-- ========== DIET (IDs expected by js/diet.js) ========== -->
+    <!-- ===== Diet ===== -->
     <section id="dietPage" class="page hidden">
       <section class="card">
         <div class="day-switcher">
@@ -117,7 +121,7 @@
       </section>
     </section>
 
-    <!-- ========== SUP-STACK (IDs expected by js/supps.js) ========== -->
+    <!-- ===== Sup-Stack ===== -->
     <section id="suppsPage" class="page hidden">
       <section class="card">
         <div style="display:flex; gap:8px; justify-content:flex-end; margin-bottom:10px">
@@ -127,7 +131,6 @@
 
         <div id="suppList"></div>
 
-        <!-- Editor Sheet -->
         <div id="sheet" class="sheet hidden">
           <div class="sheet-card">
             <h3 id="sheetTitle" class="section-title">Add supplement</h3>
@@ -147,7 +150,7 @@
       </section>
     </section>
 
-    <!-- ========== HYDRATION (IDs expected by js/hydration.js) ========== -->
+    <!-- ===== Hydration ===== -->
     <section id="hydroPage" class="page hidden">
       <section class="card">
         <div class="hydro-goal-row">
