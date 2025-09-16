@@ -297,3 +297,20 @@ function changeDay(delta){
   saveState(DAY_KEY, next);
   renderDiet();
 }
+
+// --- Router hookup: Diet ---
+function _rerenderDiet(){
+  if (typeof mountDiet === 'function') return mountDiet();
+  if (typeof renderDiet === 'function') return renderDiet();
+  if (typeof initDiet === 'function')   return initDiet();
+  // If you use a namespaced API, expose it here:
+  if (typeof Diet?.render === 'function') return Diet.render();
+  if (typeof Diet?.mount  === 'function') return Diet.mount();
+}
+
+window.addEventListener('route:show', (e)=>{
+  if (e.detail?.page === 'diet') _rerenderDiet();
+});
+
+// Optional: render immediately if user lands on Diet first
+if (document.body.classList.contains('is-diet')) _rerenderDiet();
