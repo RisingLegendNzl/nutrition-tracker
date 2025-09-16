@@ -1,4 +1,4 @@
-// filename: js/app.js
+// js/app.js
 import { mountDiet } from './diet.js';
 import { mountSupps } from './supps.js';
 import { mountHydration } from './hydration.js';
