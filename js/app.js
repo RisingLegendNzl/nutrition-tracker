@@ -1,8 +1,7 @@
 // js/app.js — hamburger dropdown, avatar upload, routing, landing state
-// This version dynamically imports each page module (from the same /js/ folder),
-// calls common init names, and also emits a 'route:show' event.
+// Imports page modules (from the same /js/ folder), calls initializers,
+// and explicitly opens Profile with show(false).
 
-// Shorthand
 const $ = (s) => document.querySelector(s);
 
 // Header / menu elements
@@ -53,9 +52,20 @@ async function showPage(page){
 
   // Import the module and call its init/render
   switch(page){
-    case 'profile':
-      await callAny(import('./profile.js'),   ['mountProfile','renderProfile','initProfile']);
+    case 'profile': {
+      const m = await import('./profile.js');
+      if (typeof m.show === 'function') {
+        // Force the editor to be visible even if a profile already exists.
+        m.show(false);
+      } else if (typeof m.mountProfile === 'function') {
+        m.mountProfile();
+      } else if (typeof m.renderProfile === 'function') {
+        m.renderProfile();
+      } else if (typeof m.initProfile === 'function') {
+        m.initProfile();
+      }
       break;
+    }
     case 'diet':
       await callAny(import('./diet.js'),      ['mountDiet','renderDiet','initDiet']);
       break;
@@ -67,7 +77,7 @@ async function showPage(page){
       break;
   }
 
-  // Also notify any listeners
+  // Notify any listeners
   window.dispatchEvent(new CustomEvent('route:show', { detail: { page } }));
 }
 window.showPage = showPage;  // if other modules want to route
