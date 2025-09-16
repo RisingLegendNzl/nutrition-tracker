@@ -292,3 +292,81 @@ main{padding:16px;max-width:720px;margin:0 auto}
 .hydro-goal-values label.switch.small {
   display: none !important;
 }
+
+/* ===== Header polish: centered, aligned, consistent buttons ===== */
+
+/* Center header content to the same width as <main> */
+.app-header > * {
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+/* --- Tabs row (Diet / Sup-Stack / Hydration) --- */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 12px;                  /* even spacing between tabs */
+  margin: 6px 0 10px;
+  flex-wrap: wrap;            /* wraps nicely on small screens */
+}
+.tab {
+  min-width: 112px;           /* consistent visual width */
+  height: 42px;               /* consistent height */
+  padding: 0 16px;            /* text breathing room */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: .2px;
+  transition: transform .06s ease, background .15s ease, border-color .15s ease;
+}
+.tab:hover { background: rgba(255,255,255,0.05); }
+.tab:active { transform: translateY(1px); }
+.tab.active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: rgba(76, 175, 80, 0.08); /* subtle active tint */
+}
+
+/* --- Day navigation row (Prev / Day / Next) --- */
+.day-switcher {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* buttons take equal space, day centered */
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.day-switcher .ghost {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.day-switcher .ghost:hover { background: rgba(255,255,255,0.05); }
+.day-switcher .ghost:active { transform: translateY(1px); }
+
+.day-name {
+  min-width: 120px;           /* keeps center width stable */
+  text-align: center;
+  font-weight: 700;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+/* Small screens: keep it clean */
+@media (max-width: 420px) {
+  .tab { min-width: 98px; height: 40px; }
+  .day-switcher .ghost { height: 40px; }
+  .day-name { min-width: 108px; padding: 7px 12px; }
+}
