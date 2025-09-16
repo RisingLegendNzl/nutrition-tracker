@@ -7,6 +7,37 @@
   --water1: rgba(76,175,80,.55);
   --water2: rgba(76,175,80,.35);
 }
+
+.bottle-wrap{display:flex;flex-direction:column;align-items:center;margin:10px 0}
+.bottle{
+  position:relative;
+  width:160px;height:260px;
+  border:2px solid var(--border);
+  border-radius:20px 20px 24px 24px;
+  background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02));
+  overflow:hidden;
+}
+.bottle:before{
+  content:""; position:absolute; top:-18px; left:45px; right:45px; height:22px;
+  border:2px solid var(--border); border-bottom:0; border-radius:10px 10px 0 0; background:var(--card);
+}
+/* liquid container moves vertically with --fill */
+.bottle-fill{
+  position:absolute;left:0;right:0;bottom:0;top:0;
+  transform:translateY(calc(100% - var(--fill,0%)));
+  transition:transform .6s ease-out;will-change:transform;overflow:hidden;
+}
+/* SVG liquid (two waves) */
+.liq{width:100%;height:100%;display:block}
+.wave{fill:var(--water1)}
+.w2{fill:var(--water2);opacity:.95;animation-duration:10s}
+.w1{animation-duration:7s}
+.wave{animation:waveMove 7s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes waveMove{
+  from{transform:translateX(0)}
+  to{transform:translateX(-300px)}
+}
+
 @media(prefers-color-scheme:light){
   :root{--bg:#f7f8fb;--card:#fff;--text:#111;--muted:#5b6577;
     --accent:#2a7f3f;--border:#e6e9ef;--pill:#eef2f8;--chev:#7a8396;
