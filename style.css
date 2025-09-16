@@ -285,5 +285,10 @@ main{padding:16px;max-width:720px;margin:0 auto}
   border-radius: 16px;
 }
 
-/* Hide old Auto-goal UI if still present */
-#autoGoal, label[for="autoGoal"], .auto-goal, .auto-goal-wrap { display: none !important; }
+/* Remove Auto-goal (Creatine) toggle + hint inside Hydration header */
+.hydro-goal-values #autoGoal,
+.hydro-goal-values #autoGoal + .slider,
+.hydro-goal-values .auto-hint,
+.hydro-goal-values label.switch.small {
+  display: none !important;
+}
