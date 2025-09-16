@@ -1,7 +1,7 @@
 // filename: js/hydration.js
 import {
   AEST_DATE, clamp, toLitres,
-  WATER_TARGET_KEY, WATER_PREFIX
+  WATER_TARGET_KEY, WATER_PREFIX, showSnack, ensureToday
 } from "./utils.js";
 import { getProfile, onProfileChange } from "./profile.js";
 
@@ -77,7 +77,8 @@ function animateFill(totalMl, targetMl){
 }
 
 function renderHydroNumbers(totalMl, targetMl){
-  todayStr.textContent = `Today: ${toLitres(totalMl)} L / ${toLitres(targetMl)} L`;
+  // Show exact ml as well as litres for clarity
+  todayStr.textContent = `Today: ${toLitres(totalMl)} L (${totalMl} ml) / ${toLitres(targetMl)} L`;
   goalLitresEl.textContent = (targetMl / 1000).toFixed(1).replace(/\.0$/, '');
   goalMlEl.textContent = targetMl;
 }
@@ -119,6 +120,8 @@ function addWater(ml){
   const w = loadWater();
   const next = Math.min((w.total_ml || 0) + ml, tgt);
   saveWater(next, tgt);
+  // Clear, explicit feedback so increments are unambiguous
+  showSnack(`+${ml} ml added — total ${next} ml`);
   animateFill(next, tgt);
   renderHydroNumbers(next, tgt);
   renderHistory();
@@ -131,6 +134,10 @@ function resetTodayWater(){
 
 // ---------- Mount ----------
 export function mountHydration(){
+  // Reset daily state if we crossed midnight (AEST)
+  try { ensureToday(); } catch {}
+  renderHydro();
+
   quickBtns.forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const amt = parseInt(btn.getAttribute('data-ml')||'0',10)||0;
@@ -146,19 +153,12 @@ export function mountHydration(){
     });
   }
 
-  resetWater?.addEventListener('click', ()=> resetTodayWater());
+  resetWater?.addEventListener('click', resetTodayWater);
 
-  editGoalBtn?.addEventListener('click', ()=>{
-    const current = currentTargetMl();
-    const val = prompt("Set daily water goal (ml). Range: 1500–3000 ml.", String(current));
-    if (val===null) return;
-    const ml = clamp(parseInt(val,10)||0, MIN_TARGET_ML, MAX_TARGET_ML);
-    localStorage.setItem(WATER_TARGET_KEY, String(ml));
-    renderHydro();
-  });
+  // If profile gender changes, re-apply mask
+  onProfileChange(()=> applyHumanMask());
 
-  onProfileChange(()=> renderHydro());
-  renderHydro();
+  // Initial render happens above; nothing else here.
 }
 
 // --- Router hookup: Hydration ---
