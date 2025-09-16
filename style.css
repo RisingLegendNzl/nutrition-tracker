@@ -285,3 +285,9 @@ main{padding:16px;max-width:720px;margin:0 auto}
   -webkit-mask-mode: alpha;
   mask-mode: alpha;
 }
+
+/* Remove obsolete Auto-goal (Creatine) toggle from UI */
+#autoGoal,
+label[for="autoGoal"],
+.auto-goal,
+.auto-goal-wrap { display: none !important; }
