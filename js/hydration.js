@@ -65,8 +65,8 @@ function currentTargetMl(){
 
 // ---------- Human mask (external SVGs -> absolute URLs) ----------
 function absUrl(rel){ return new URL(rel, document.baseURI).toString(); }
-function maleMaskURL(){   return `url('${absUrl("img/male.svg")}')`; }
-function femaleMaskURL(){ return `url('${absUrl("img/female.svg")}')`; }
+function maleMaskURL(){   return `url('${absUrl("img/male.png")}')`; }
+function femaleMaskURL(){ return `url('${absUrl("img/female.png")}')`; }
 
 function applyHumanMask(){
   const el = bottleEl();
