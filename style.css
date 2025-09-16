@@ -39,6 +39,33 @@ button:active, input[type="submit"]:active, input[type="button"]:active {
   transform: translateY(0);
 }
 
+/* Global dark select styling (iOS-friendly) */
+select, input[type="date"], input[type="time"], input[type="datetime-local"] {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 36px 8px 12px;
+  font-size: 15px;
+  outline: none;
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23aab0bd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+  transition: border-color .25s, box-shadow .25s, background-color .25s;
+}
+select:focus, input[type="date"]:focus, input[type="time"]:focus, input[type="datetime-local"]:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56,189,248,.25);
+}
+/* Hide default arrow on IE */
+select::-ms-expand { display: none; }
+/* Options color (for dark theme) */
+option { color: #111; }  /* options dropdown uses light bg on many UAs */
+
 /* Tabs */
 .tabs{display:flex;gap:8px;margin-bottom:8px}
 .tab{flex:1;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:16px}
