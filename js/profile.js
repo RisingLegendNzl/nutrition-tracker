@@ -85,7 +85,7 @@ function ensureRoot(){
         <h2 class="section-title" id="p_title">Your Profile</h2>
 
         <div class="field">
-          <label for="p_name">Name (optional)</label>
+          <label for="p_name">Name</label>
           <input id="p_name" type="text" placeholder="e.g., Jack"/>
         </div>
 
@@ -112,7 +112,7 @@ function ensureRoot(){
 
         <div class="field">
           <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
-            <label style="margin:0">Height <span style="color:var(--muted)">(optional)</span></label>
+            <label style="margin:0">Height</label>
             <select id="u_h_unit" style="max-width:120px">
               <option value="cm">cm</option>
               <option value="ftin">ft/in</option>
@@ -238,155 +238,107 @@ function readFromUI(u){
     if (u.hft.value === '' && u.hin.value === '') height_cm = '';
     else height_cm = cmFromFeetIn(u.hft.value, u.hin.value);
   }
-  const ml_per_kg = Number(u.mlkg.value || 35);
+
+  const ml_per_kg = Number(u.mlkg.value);
+  const weightIsOk = Number.isFinite(weight_kg) && weight_kg >= 30 && weight_kg <= 300;
+  const mlkgIsOk = Number.isFinite(ml_per_kg) && ml_per_kg >= 20 && ml_per_kg <= 60;
+  const heightOk = (u.hcm.value === '' && prefs.height_unit==='cm')
+                || (u.hft.value === '' && u.hin.value === '' && prefs.height_unit==='ftin')
+                || (Number.isFinite(height_cm) && height_cm >= 120 && height_cm <= 230);
+
   return {
-    name: u.name.value.trim(),
-    ...prefs,
-    weight_kg,
-    height_cm,
-    ml_per_kg,
-    created_at: getProfile()?.created_at || nowDate(),
-    updated_at: nowDate(),
+    prefs,
+    data: {
+      name: u.name.value.trim(),
+      gender: prefs.gender,
+      weight_unit: prefs.weight_unit,
+      height_unit: prefs.height_unit,
+      weight_kg,
+      height_cm: height_cm === '' ? '' : Number(height_cm),
+      ml_per_kg
+    },
+    ok: weightIsOk && mlkgIsOk && heightOk
   };
 }
 
 function writeToUI(u, p){
-  const profile = migrate({ ...defaults(), ...p });
+  u.title.textContent = 'Your Profile';
+  u.name.value = p.name || '';
+  u.gender.value = p.gender || 'male';
 
-  u.title.textContent = getProfile() ? 'Edit Profile' : "Let's set up your profile";
+  // units
+  u.weightUnit.value = p.weight_unit || 'kg';
+  u.heightUnit.value = p.height_unit || 'cm';
 
-  // gender
-  u.gender.value = (profile.gender === 'female' ? 'female' : 'male');
+  // weight value
+  if ((p.weight_unit || 'kg') === 'kg') u.weightVal.value = p.weight_kg ?? '';
+  else u.weightVal.value = lbsFromKg(p.weight_kg ?? 0);
 
-  // weight display + unit
-  u.weightUnit.value = profile.weight_unit === 'lb' ? 'lb' : 'kg';
-  if (profile.weight_unit === 'kg'){
-    u.weightVal.placeholder = 'kg';
-    u.weightVal.min = '30'; u.weightVal.max = '300';
-    u.weightVal.value = profile.weight_kg || '';
-  }else{
-    u.weightVal.placeholder = 'lb';
-    u.weightVal.min = '66'; u.weightVal.max = '661';
-    u.weightVal.value = lbsFromKg(profile.weight_kg) || '';
-  }
-
-  // height display + unit
-  u.heightUnit.value = profile.height_unit === 'ftin' ? 'ftin' : 'cm';
-  if (profile.height_unit === 'cm'){
+  // height blocks
+  if ((p.height_unit || 'cm') === 'cm'){
     u.hcmBlock.classList.remove('hidden');
     u.hftinBlock.classList.add('hidden');
-    u.hcm.value = (profile.height_cm === '' ? '' : profile.height_cm);
-    u.hft.value = ''; u.hin.value = '';
-  }else{
+    u.hcm.value = p.height_cm ?? '';
+  } else {
     u.hcmBlock.classList.add('hidden');
     u.hftinBlock.classList.remove('hidden');
-    const [ft, inch] = profile.height_cm ? feetFromCm(profile.height_cm) : ['', ''];
+    const [ft, inch] = feetFromCm(p.height_cm ?? '');
     u.hft.value = ft || '';
     u.hin.value = inch || '';
-    u.hcm.value = '';
   }
 
-  u.name.value = profile.name || '';
-  u.mlkg.value = profile.ml_per_kg || 35;
-
-  refreshPreview(u);
-  updateCancelVisibility(u);
+  // ml/kg + preview
+  u.mlkg.value = p.ml_per_kg ?? 35;
+  const litres = computeHydroLitres(p.weight_kg, p.ml_per_kg);
+  u.goalPrev.querySelector('strong').textContent = litres ? `${litres.toFixed(1).replace(/\.0$/, '')} L` : '—';
 }
 
-function refreshPreview(u){
-  const temp = readFromUI(u);
-  if (!Number.isFinite(temp.weight_kg)) { u.goalVal.textContent = '—'; return; }
-  const L = computeHydroLitres(temp.weight_kg, clamp(temp.ml_per_kg,20,60));
-  u.goalVal.textContent = `${L.toFixed(1)} L`;
+function show(readonly=true){
+  const u = ui();
+  if (readonly){
+    const p = getProfile() || defaults();
+    writeToUI(u, p);
+  }
+  u.page.classList.remove('hidden');
 }
 
-function updateCancelVisibility(u){
-  const has = !!getProfile();
-  if (has) u.cancel.classList.remove('hidden');
-  else u.cancel.classList.add('hidden');
-}
-
-// ---------- Public: init/mount ----------
 export function mountProfile(){
   const u = ui();
-  ensureEditButton();
 
-  const existing = getProfile();
-  const initial = existing || defaults();
-  writeToUI(u, initial);
-
-  // Events
-  u.gender.addEventListener('change', () => writeToUI(u, { ...readFromUI(u), gender: u.gender.value }));
-  u.weightUnit.addEventListener('change', () => writeToUI(u, { ...readFromUI(u), weight_unit: u.weightUnit.value }));
-  u.heightUnit.addEventListener('change', () => writeToUI(u, { ...readFromUI(u), height_unit: u.heightUnit.value }));
-  [u.weightVal, u.hcm, u.hft, u.hin, u.mlkg, u.name].forEach(el => {
-    el && el.addEventListener('input', () => { showError(u, ''); refreshPreview(u); });
+  // Unit switchers
+  u.heightUnit.addEventListener('change', ()=>{
+    if (u.heightUnit.value === 'cm'){
+      u.hcmBlock.classList.remove('hidden');
+      u.hftinBlock.classList.add('hidden');
+      u.hft.value = ''; u.hin.value = '';
+    } else {
+      u.hcmBlock.classList.add('hidden');
+      u.hftinBlock.classList.remove('hidden');
+      u.hcm.value = '';
+    }
   });
 
-  u.save.addEventListener('click', () => {
-    const draft = readFromUI(u);
-    if (!isValid(draft)){
-      showError(u, 'Please enter a valid weight (30–300 kg) and ml/kg (20–60). Height is optional.');
+  // Save
+  u.save.addEventListener('click', ()=>{
+    const r = readFromUI(u);
+    if (!r.ok){
+      u.error.style.display = 'block';
+      u.error.textContent = 'Please check your entries.';
       return;
     }
-    saveProfile(draft);
-    hide();
-  });
-  u.reset.addEventListener('click', () => {
-    writeToUI(u, defaults());
-    showError(u, '');
-  });
-  u.cancel.addEventListener('click', () => {
-    hide();
+    u.error.style.display = 'none';
+    saveProfile(r.data);
   });
 
-  // Always show on navigation; first run just tweaks the title
-show(!existing);
-}
-
-// ---------- Visibility control ----------
-export function show(firstRun=false){
-  ensureRoot();
-  ensureEditButton();
-  root.classList.remove('hidden');
-  // keep other pages hidden + tabs disabled while editing
-  ['dietPage','suppsPage','hydroPage'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.classList.add('hidden');
+  // Reset
+  u.reset.addEventListener('click', ()=>{
+    const d = defaults();
+    writeToUI(u, d);
   });
-  const tabs = document.querySelectorAll('.tabs .tab');
-  tabs.forEach(btn => btn.setAttribute('disabled', 'disabled'));
-  if (editBtn) editBtn.classList.add('hidden');
-  const t = document.getElementById('p_title');
-  if (t) t.textContent = firstRun ? "Let's set up your profile" : 'Edit Profile';
-}
-export function hide(){
-  if (!root) return;
-  root.classList.add('hidden');
-  // re-enable tabs, app.js decides which page to show
-  const tabs = document.querySelectorAll('.tabs .tab');
-  tabs.forEach(btn => btn.removeAttribute('disabled'));
-  if (editBtn) editBtn.classList.remove('hidden');
-}
 
-// ---------- Errors ----------
-function showError(u, msg){
-  u.error.textContent = msg || '';
-  u.error.style.display = msg ? 'block' : 'none';
+  // Cancel (hide)
+  u.cancel.addEventListener('click', ()=>{
+    u.page.classList.add('hidden');
+  });
 }
-
-// --- Router hookup: Profile ---
-function _rerenderProfile(){
-  if (typeof mountProfile === 'function') return mountProfile();
-  if (typeof renderProfile === 'function') return renderProfile();
-  if (typeof initProfile === 'function')   return initProfile();
-  if (typeof Profile?.render === 'function') return Profile.render();
-  if (typeof Profile?.mount  === 'function') return Profile.mount();
-}
-
-window.addEventListener('route:show', (e)=>{
-  if (e.detail?.page === 'profile') _rerenderProfile();
-});
-
-// If last page was Profile, run once on load
-if (sessionStorage.getItem('nutrify_last_page') === 'profile') _rerenderProfile();
+export { ensureRoot as renderProfile, ensureRoot as initProfile };
