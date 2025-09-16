@@ -340,9 +340,8 @@ export function mountProfile(){
     hide();
   });
 
-  // Gate on first run
-  if (!existing) show(true);
-  else hide();
+  // Always show on navigation; first run just tweaks the title
+show(!existing);
 }
 
 // ---------- Visibility control ----------
