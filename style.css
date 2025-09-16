@@ -239,3 +239,51 @@ main{padding:16px;max-width:720px;margin:0 auto}
   border:1px solid #223150; background:#0f172a; color:#e5e7eb;
 }
 #dietPage .ing-edit-btn:hover { border-color:#38bdf8; color:#7dd3fc; }
+
+/* Ensure PNG alpha channel is used as mask */
+.bottle.human-mask {
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+}
+
+/* === Hydration: human silhouettes + blue water (overrides) ================= */
+/* Turn the bottle into a masked human figure and make water blue. */
+.bottle {
+  position: relative;
+  width: min(220px, 70vw);
+  height: 400px;
+  margin: 0 auto;
+  background: transparent;
+  border: 0;
+  border-radius: 0; /* mask will define shape */
+}
+.bottle:before { display: none !important; } /* hide bottle neck */
+.bottle .liq, .bottle-gloss { display: none !important; }
+
+/* Apply the mask set by hydration.js via --human-mask */
+.bottle.human-mask {
+  -webkit-mask-image: var(--human-mask);
+  mask-image: var(--human-mask);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+}
+
+/* Blue water block that rises with --fill (0%..100%) */
+.bottle-fill {
+  position: absolute;
+  inset: 0;
+  transform: translateY(calc(100% - var(--fill, 0%)));
+  transition: transform .6s ease-out;
+  will-change: transform;
+  background: linear-gradient(180deg, rgba(64,142,255,.90), rgba(64,142,255,.65));
+  border-radius: 16px;
+}
+
+/* Hide old Auto-goal UI if still present */
+#autoGoal, label[for="autoGoal"], .auto-goal, .auto-goal-wrap { display: none !important; }
