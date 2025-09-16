@@ -1,42 +1,42 @@
 // filename: js/hydration.js
 import {
   AEST_DATE, clamp, toLitres,
-  WATER_TARGET_KEY, WATER_PREFIX, showSnack, ensureToday
+  WATER_TARGET_KEY, WATER_PREFIX
 } from "./utils.js";
 import { getProfile, onProfileChange } from "./profile.js";
 
 /**
  * Hydration module (human silhouette, manual goal only)
- * - Blue water rises upward inside a gendered human mask.
- * - Goal is user-set and CLAMPED to 1500–3000 ml.
- * - Logged water is CAPPED at the goal (max 100% fill).
+ * - Fill = (total_ml / target_ml) clamped to 0–100%.
+ * - Totals are capped at the goal; never exceed 100%.
+ * - No snackbars/popups.
  */
 
-// ---- Compatibility export (for supps.js, now always false) ----
+// ---- Compatibility export (for supps.js, always false here) ----
 export function isAutoOn() { return false; }
 
 // ---------- DOM ----------
 const goalLitresEl = document.getElementById('goalLitres');
 const goalMlEl     = document.getElementById('goalMl');
-const editGoalBtn  = document.getElementById('editGoalBtn');
+const editGoalBtn  = document.getElementById('editGoalBtn'); // (hook reserved)
 
 function bottleEl(){ return document.querySelector('.bottle'); }
 const bottleFill = document.getElementById('bottleFill');
 const todayStr   = document.getElementById('todayStr');
 const pctStr     = document.getElementById('pctStr');
 
-const quickBtns   = document.querySelectorAll('.pill-btn');
-const customMl    = document.getElementById('customMl');
-const addCustom   = document.getElementById('addCustom');
-const resetWater  = document.getElementById('resetWater');
-const hydroHistory= document.getElementById('hydroHistory');
+const quickBtns    = document.querySelectorAll('.pill-btn');
+const customMl     = document.getElementById('customMl');
+const addCustom    = document.getElementById('addCustom');
+const resetWater   = document.getElementById('resetWater');
+const hydroHistory = document.getElementById('hydroHistory');
 
 // ---------- Storage helpers ----------
 function waterKey(dateStr = AEST_DATE()) { return WATER_PREFIX + dateStr; }
 function saveWater(total_ml, target_ml, dateStr = AEST_DATE()){
   localStorage.setItem(waterKey(dateStr), JSON.stringify({
-    total_ml: Math.max(0, total_ml),
-    target_ml
+    total_ml: Math.max(0, Math.round(total_ml)),
+    target_ml: Math.round(target_ml)
   }));
 }
 function loadWater(dateStr = AEST_DATE()){
@@ -45,9 +45,9 @@ function loadWater(dateStr = AEST_DATE()){
 }
 
 // ---------- Config ----------
-const DEFAULT_MANUAL_TARGET_ML = 3000; // 3.0 L max
-const MIN_TARGET_ML            = 1500; // sensible lower bound
-const MAX_TARGET_ML            = 3000; // hard cap (requested)
+const DEFAULT_MANUAL_TARGET_ML = 3000; // 3.0 L default
+const MIN_TARGET_ML            = 1500;
+const MAX_TARGET_ML            = 3000;
 
 // ---------- Profile / Mask ----------
 function absUrl(rel){ return new URL(rel, document.baseURI).toString(); }
@@ -65,25 +65,26 @@ function applyHumanMask(){
 // ---------- Target helpers ----------
 function currentTargetMl(){
   const raw = parseInt(localStorage.getItem(WATER_TARGET_KEY) || "0", 10);
-  const clamped = clamp((Number.isFinite(raw) ? raw : DEFAULT_MANUAL_TARGET_ML), MIN_TARGET_ML, MAX_TARGET_ML);
-  return clamped || DEFAULT_MANUAL_TARGET_ML;
+  const base = Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MANUAL_TARGET_ML;
+  return clamp(base, MIN_TARGET_ML, MAX_TARGET_ML);
 }
 
 // ---------- Rendering ----------
 function animateFill(totalMl, targetMl){
   const pct = clamp((totalMl / targetMl) * 100, 0, 100);
-  bottleFill?.style.setProperty('--fill', pct + '%');
-  pctStr.textContent = `${Math.round(pct)}%`;
+  if (bottleFill) bottleFill.style.setProperty('--fill', pct + '%');
+  if (pctStr) pctStr.textContent = `${Math.round(pct)}%`;
 }
 
 function renderHydroNumbers(totalMl, targetMl){
-  // Show exact ml as well as litres for clarity
-  todayStr.textContent = `Today: ${toLitres(totalMl)} L (${totalMl} ml) / ${toLitres(targetMl)} L`;
-  goalLitresEl.textContent = (targetMl / 1000).toFixed(1).replace(/\.0$/, '');
-  goalMlEl.textContent = targetMl;
+  if (todayStr) todayStr.textContent =
+    `Today: ${toLitres(totalMl)} L (${totalMl} ml) / ${toLitres(targetMl)} L`;
+  if (goalLitresEl) goalLitresEl.textContent = (targetMl / 1000).toFixed(1).replace(/\.0$/, '');
+  if (goalMlEl) goalMlEl.textContent = targetMl;
 }
 
 function renderHistory(){
+  if (!hydroHistory) return;
   const daysArr = [];
   const now = new Date(new Date().toLocaleString("en-US",{ timeZone:"Australia/Brisbane" }));
   for (let i=6;i>=0;i--){
@@ -108,7 +109,12 @@ export function renderHydro(){
   const target = currentTargetMl();
   const rec = loadWater();
   const cappedTotal = Math.min(rec.total_ml || 0, target);
-  if (rec.target_ml !== target || cappedTotal !== rec.total_ml) saveWater(cappedTotal, target);
+
+  // Keep persisted record consistent with clamps/caps.
+  if (rec.target_ml !== target || cappedTotal !== rec.total_ml) {
+    saveWater(cappedTotal, target);
+  }
+
   renderHydroNumbers(cappedTotal, target);
   requestAnimationFrame(()=> animateFill(cappedTotal, target));
   renderHistory();
@@ -116,16 +122,19 @@ export function renderHydro(){
 
 // ---------- Mutations ----------
 function addWater(ml){
+  const amt = Math.max(0, Math.round(ml) || 0);
+  if (!amt) return;
+
   const tgt = currentTargetMl();
   const w = loadWater();
-  const next = Math.min((w.total_ml || 0) + ml, tgt);
+  const next = Math.min((w.total_ml || 0) + amt, tgt);
+
   saveWater(next, tgt);
-  // Clear, explicit feedback so increments are unambiguous
-  showSnack(`+${ml} ml added — total ${next} ml`);
   animateFill(next, tgt);
   renderHydroNumbers(next, tgt);
   renderHistory();
 }
+
 function resetTodayWater(){
   const tgt = currentTargetMl();
   saveWater(0, tgt);
@@ -134,8 +143,6 @@ function resetTodayWater(){
 
 // ---------- Mount ----------
 export function mountHydration(){
-  // Reset daily state if we crossed midnight (AEST)
-  try { ensureToday(); } catch {}
   renderHydro();
 
   quickBtns.forEach(btn=>{
@@ -157,8 +164,6 @@ export function mountHydration(){
 
   // If profile gender changes, re-apply mask
   onProfileChange(()=> applyHumanMask());
-
-  // Initial render happens above; nothing else here.
 }
 
 // --- Router hookup: Hydration ---
