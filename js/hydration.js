@@ -12,6 +12,9 @@ import { getProfile, onProfileChange } from "./profile.js";
  * - Logged water is CAPPED at the goal (max 100% fill).
  */
 
+// ---- Compatibility export (for supps.js, now always false) ----
+export function isAutoOn() { return false; }
+
 // ---------- DOM ----------
 const goalLitresEl = document.getElementById('goalLitres');
 const goalMlEl     = document.getElementById('goalMl');
@@ -48,8 +51,8 @@ const MAX_TARGET_ML            = 3000; // hard cap (requested)
 
 // ---------- Profile / Mask ----------
 function absUrl(rel){ return new URL(rel, document.baseURI).toString(); }
-function maleMaskURL(){   return `url('${absUrl("img/male.png")}')`; }   // you set this file
-function femaleMaskURL(){ return `url('${absUrl("img/female.png")}')`; } // and this file
+function maleMaskURL(){   return `url('${absUrl("img/male.png")}')`; }
+function femaleMaskURL(){ return `url('${absUrl("img/female.png")}')`; }
 
 function applyHumanMask(){
   const el = bottleEl();
@@ -61,7 +64,6 @@ function applyHumanMask(){
 
 // ---------- Target helpers ----------
 function currentTargetMl(){
-  // Manual-only mode: read saved goal (clamped), fallback to default (3,000 ml)
   const raw = parseInt(localStorage.getItem(WATER_TARGET_KEY) || "0", 10);
   const clamped = clamp((Number.isFinite(raw) ? raw : DEFAULT_MANUAL_TARGET_ML), MIN_TARGET_ML, MAX_TARGET_ML);
   return clamped || DEFAULT_MANUAL_TARGET_ML;
@@ -88,7 +90,7 @@ function renderHistory(){
     const ds = new Date(d).toLocaleString("en-CA",{ timeZone:"Australia/Brisbane" }).slice(0,10);
     const rec = loadWater(ds);
     const tgt = clamp(rec.target_ml || currentTargetMl(), MIN_TARGET_ML, MAX_TARGET_ML);
-    const total = Math.min(rec.total_ml || 0, tgt); // cap history display at 100%
+    const total = Math.min(rec.total_ml || 0, tgt);
     const pct = clamp((total / tgt) * 100, 0, 100);
     daysArr.push({ label: ds.slice(5), pct });
   }
@@ -104,7 +106,7 @@ export function renderHydro(){
   applyHumanMask();
   const target = currentTargetMl();
   const rec = loadWater();
-  const cappedTotal = Math.min(rec.total_ml || 0, target); // enforce 100% cap on render
+  const cappedTotal = Math.min(rec.total_ml || 0, target);
   if (rec.target_ml !== target || cappedTotal !== rec.total_ml) saveWater(cappedTotal, target);
   renderHydroNumbers(cappedTotal, target);
   requestAnimationFrame(()=> animateFill(cappedTotal, target));
@@ -115,7 +117,7 @@ export function renderHydro(){
 function addWater(ml){
   const tgt = currentTargetMl();
   const w = loadWater();
-  const next = Math.min((w.total_ml || 0) + ml, tgt); // cap at goal
+  const next = Math.min((w.total_ml || 0) + ml, tgt);
   saveWater(next, tgt);
   animateFill(next, tgt);
   renderHydroNumbers(next, tgt);
@@ -129,7 +131,6 @@ function resetTodayWater(){
 
 // ---------- Mount ----------
 export function mountHydration(){
-  // Quick adds
   quickBtns.forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const amt = parseInt(btn.getAttribute('data-ml')||'0',10)||0;
@@ -137,7 +138,6 @@ export function mountHydration(){
     });
   });
 
-  // Custom add
   if (addCustom && customMl){
     addCustom.addEventListener('click', ()=>{
       const amt = parseInt(customMl.value||'0',10)||0;
@@ -146,10 +146,8 @@ export function mountHydration(){
     });
   }
 
-  // Reset
   resetWater?.addEventListener('click', ()=> resetTodayWater());
 
-  // Manual goal edit (CLAMP 1500–3000 ml)
   editGoalBtn?.addEventListener('click', ()=>{
     const current = currentTargetMl();
     const val = prompt("Set daily water goal (ml). Range: 1500–3000 ml.", String(current));
@@ -159,9 +157,6 @@ export function mountHydration(){
     renderHydro();
   });
 
-  // Profile changes (for gender mask)
   onProfileChange(()=> renderHydro());
-
-  // Initial paint
   renderHydro();
 }
