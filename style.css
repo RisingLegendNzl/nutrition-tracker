@@ -370,3 +370,56 @@ main{padding:16px;max-width:720px;margin:0 auto}
   .day-switcher .ghost { height: 40px; }
   .day-name { min-width: 108px; padding: 7px 12px; }
 }
+
+/* ─── Top bar ─────────────────────────────────────────────── */
+.topbar{
+  position: sticky; top: 0; z-index: 30;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 12px 16px; background: var(--bg); border-bottom:1px solid var(--border);
+}
+.brand{ font-weight:800; font-size:1.25rem; letter-spacing:.2px; }
+
+/* Hamburger */
+.hamburger{ width:42px; height:42px; border-radius:12px; border:1px solid var(--border);
+  background:rgba(255,255,255,.02); display:inline-flex; align-items:center; justify-content:center;
+}
+.hamburger span{ display:block; width:18px; height:2px; background:var(--text); margin:2.5px 0; border-radius:2px; }
+.hamburger:hover{ background:rgba(255,255,255,.05); }
+
+/* Hide old row tabs if present (you asked for burger-only header) */
+.tabs{ display:none !important; }
+
+/* ─── Dropdown sheet + blur ───────────────────────────────── */
+.menu-panel{
+  position: fixed; top: 56px; right: 12px; z-index: 40;
+  width: min(320px, 86vw);
+  background: var(--card); border:1px solid var(--border); border-radius:16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.4);
+  padding: 14px;
+}
+.menu-header{ display:flex; align-items:center; gap:12px; margin-bottom: 10px; }
+.avatar{ display:inline-flex; width:56px; height:56px; border-radius:50%;
+  border:2px solid var(--accent); overflow:hidden; cursor:pointer;
+}
+.avatar img{ width:100%; height:100%; object-fit:cover; background: radial-gradient( circle at 30% 30%, #2a2a2a, #1b1b1b);}
+.menu-title{ font-weight:700; }
+
+/* Nav list inside sheet */
+.menu-nav{ display:flex; flex-direction:column; gap:10px; margin-top:6px; }
+.menu-item{
+  height:42px; border-radius:12px; border:1px solid var(--border);
+  background:rgba(255,255,255,.02); color:var(--text); font-weight:600;
+}
+.menu-item:hover{ background:rgba(255,255,255,.05); }
+
+/* Blur the app behind when menu is open */
+body.menu-open main, body.menu-open #dietPage, body.menu-open #suppsPage, body.menu-open #hydroPage, body.menu-open #profilePage{
+  filter: blur(6px); pointer-events:none; user-select:none;
+}
+body.menu-open::before{ /* scrim */
+  content:""; position:fixed; inset:0; z-index:35; background:rgba(0,0,0,.35);
+}
+
+/* Keep your day switcher behavior: only show on Diet */
+.day-switcher{ display:none; }
+body.is-diet .day-switcher{ display:grid; }
