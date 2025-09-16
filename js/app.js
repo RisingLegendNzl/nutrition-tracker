@@ -4,25 +4,33 @@ import { mountSupps } from './supps.js';
 import { mountHydration } from './hydration.js';
 import { mountProfile, requireComplete as profileComplete, onProfileChange } from './profile.js';
 
-// Tab buttons
+// Tab buttons (static in index.html)
 const tabButtons = {
   diet:  document.getElementById('tabDiet'),
   supps: document.getElementById('tabSupps'),
   hydro: document.getElementById('tabHydro'),
 };
 
-// Views (as defined in index.html)
-const views = {
-  diet:  document.getElementById('dietPage'),
-  supps: document.getElementById('suppsPage'),
-  hydro: document.getElementById('hydroPage'),
-  // profilePage is created dynamically by profile.js
-};
-
+/**
+ * Resolve current views on demand so dynamically inserted pages (e.g., #profilePage)
+ * are correctly considered. Then hide all <main> elements except the requested one.
+ */
 function show(name){
-  Object.keys(views).forEach(k => {
-    if (views[k]) views[k].classList.toggle('hidden', k !== name);
+  // Resolve commonly-used pages by id (if present)
+  const map = {
+    diet:   document.getElementById('dietPage'),
+    supps:  document.getElementById('suppsPage'),
+    hydro:  document.getElementById('hydroPage'),
+    profile:document.getElementById('profilePage'),
+  };
+  const target = map[name] || null;
+
+  // Hide every <main>, show only the target (if any)
+  document.querySelectorAll('main').forEach(m => {
+    m.classList.toggle('hidden', m !== target);
   });
+
+  // Update tab active state
   Object.keys(tabButtons).forEach(k => {
     if (tabButtons[k]) tabButtons[k].classList.toggle('active', k === name);
   });
@@ -37,7 +45,7 @@ function wireTabs(){
 document.addEventListener('DOMContentLoaded', () => {
   wireTabs();
 
-  // Mount Profile first; it will show a first-run gate if no profile is saved.
+  // Mount Profile first; it will add #profilePage dynamically and handle first-run gating.
   mountProfile();
 
   // Mount feature modules
@@ -45,10 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
   mountSupps();
   mountHydration();
 
-  // If profile exists, go to Diet by default; otherwise profile module keeps tabs disabled.
+  // If profile exists, go to Diet by default; otherwise the profile module will show its gate.
   if (profileComplete()) show('diet');
 
-  // If the user completes profile later, keep UX smooth by returning to Diet.
+  // After saving/updating profile, snap back to Diet cleanly (and ensure only one page is visible).
   onProfileChange(() => {
     show('diet');
   });
