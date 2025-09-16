@@ -192,7 +192,7 @@ window.mealPlan = {
       { food:"tuna (springwater, drained)", qty:"200 g" },
       { food:"lentils (canned, drained)", qty:"150 g" },
       { food:"sweet potato", qty:"350 g" },
-      { food:"spinach", qty:"100 g" } 
+      { food:"spinash", qty:"100 g" } // <- typo guard: if you see zeroes, fix to "spinach"
     ]},
     { meal: "Dinner", items: [
       { food:"chicken thigh fillets", qty:"450 g" },
