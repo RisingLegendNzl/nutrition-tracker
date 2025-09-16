@@ -1,7 +1,8 @@
-// js/app.js — routing + hamburger + avatar + home link
-// Default route is #home → #homePage. Clicking "Nutrify" returns to Home.
-// Dynamic-import page modules from the SAME /js/ folder.
+// js/app.js — hamburger dropdown, avatar upload, routing, landing state
+// This version dynamically imports each page module (from the same /js/ folder),
+// calls common init names, and also emits a 'route:show' event.
 
+// Shorthand
 const $ = (s) => document.querySelector(s);
 
 // Header / menu elements
@@ -9,11 +10,9 @@ const menuBtn   = $('#menuBtn');
 const menuPanel = $('#menuPanel');
 const avatarImg = $('#avatarImg');
 const avatarIn  = $('#avatarInput');
-const homeLink  = $('#homeLink');
 
 // Page containers (must exist in index.html)
 const PAGES = {
-  home:   $('#homePage'),
   profile: $('#profilePage'),
   diet:    $('#dietPage'),
   supps:   $('#suppsPage'),
@@ -23,15 +22,10 @@ const PAGES = {
 const AVATAR_KEY = 'nutrify_avatar';
 const LAST_PAGE  = 'nutrify_last_page';
 
-/* ---------- helpers ---------- */
+// ---------- helpers ----------
 function hideAllPages(){ Object.values(PAGES).forEach(el => el && el.classList.add('hidden')); }
 function blurOn(){  document.body.classList.add('menu-open');  menuBtn?.setAttribute('aria-expanded','true');  menuPanel.hidden = false; }
 function blurOff(){ document.body.classList.remove('menu-open'); menuBtn?.setAttribute('aria-expanded','false'); menuPanel.hidden = true;  }
-function pageIdFromHash(){
-  const hash = (location.hash || '').replace('#','').trim();
-  if (!hash) return 'home';
-  return ['home','profile','diet','supps','hydro'].includes(hash) ? hash : 'home';
-}
 
 // Try a list of possible initializer names from an imported module
 async function callAny(modulePromise, names){
@@ -45,28 +39,23 @@ async function callAny(modulePromise, names){
   }
 }
 
-/* ---------- ROUTER (imports from ./<file>.js) ---------- */
+// ---------- ROUTER (app.js is in /js/, so imports are "./<file>.js") ----------
 async function showPage(page){
   if (!PAGES[page]) return;
 
   // Reveal selected page
   hideAllPages();
   PAGES[page].classList.remove('hidden');
-  document.body.classList.remove('empty');
+  document.body.classList.remove('empty');                // leave landing
   document.body.classList.toggle('is-diet', page === 'diet');
   sessionStorage.setItem(LAST_PAGE, page);
   blurOff();
 
-  // Import & init module for non-home pages
+  // Import the module and call its init/render
   switch(page){
-    case 'profile': {
-      const m = await import('./profile.js');
-      if (typeof m.show === 'function') m.show(false);
-      else if (typeof m.mountProfile === 'function') m.mountProfile();
-      else if (typeof m.renderProfile === 'function') m.renderProfile();
-      else if (typeof m.initProfile === 'function') m.initProfile();
+    case 'profile':
+      await callAny(import('./profile.js'),   ['mountProfile','renderProfile','initProfile']);
       break;
-    }
     case 'diet':
       await callAny(import('./diet.js'),      ['mountDiet','renderDiet','initDiet']);
       break;
@@ -76,37 +65,21 @@ async function showPage(page){
     case 'hydro':
       await callAny(import('./hydration.js'), ['mountHydration','renderHydro','initHydration']);
       break;
-    case 'home':
-    default:
-      // nothing to mount for the blank home
-      break;
   }
 
-  // Notify any listeners
+  // Also notify any listeners
   window.dispatchEvent(new CustomEvent('route:show', { detail: { page } }));
 }
-window.showPage = showPage;
+window.showPage = showPage;  // if other modules want to route
 
-/* ---------- initial route ---------- */
-function routeFromHash(){
-  const page = pageIdFromHash();
-  showPage(page);
-}
-window.addEventListener('hashchange', routeFromHash);
-
-// On first load: go to last visited if hash is empty, otherwise respect hash;
-// but if neither, land on home.
+// ---------- first load / landing ----------
 (function initLanding(){
-  const hashPage = pageIdFromHash();
-  if (hashPage === 'home') {
-    const last = sessionStorage.getItem(LAST_PAGE);
-    showPage(last && PAGES[last] ? last : 'home');
-  } else {
-    showPage(hashPage);
-  }
+  const last = sessionStorage.getItem(LAST_PAGE);
+  if (last && PAGES[last]) showPage(last);
+  else { document.body.classList.add('empty'); hideAllPages(); }  // header only
 })();
 
-/* ---------- hamburger ---------- */
+// ---------- hamburger ----------
 menuBtn?.addEventListener('click', () => {
   document.body.classList.contains('menu-open') ? blurOff() : blurOn();
 });
@@ -117,25 +90,20 @@ document.addEventListener('click', (e)=>{
   if (!within) blurOff();
 });
 
-/* ---------- menu clicks (set hash for deep-linking) ---------- */
+// ---------- menu clicks ----------
 menuPanel?.addEventListener('click', (e)=>{
   const btn = e.target.closest('.menu-item');
   if (!btn) return;
   const page = btn.getAttribute('data-page');
-  if (!page) return;
-  location.hash = `#${page}`;   // triggers hashchange → routeFromHash
+  if (page) showPage(page);
 });
 
-/* ---------- "Nutrify" → Home ---------- */
-homeLink?.addEventListener('click', () => {
-  location.hash = '';           // clears to home
-  showPage('home');
-});
-
-/* ---------- avatar upload ---------- */
+// ---------- avatar upload ----------
 avatarImg?.addEventListener('click', ()=>{
-  location.hash = '#profile';
+  showPage('profile');
+  avatarIn?.click();
 });
+
 avatarIn?.addEventListener('change', () => {
   const f = avatarIn.files?.[0]; if (!f) return;
   const reader = new FileReader();
@@ -145,6 +113,8 @@ avatarIn?.addEventListener('change', () => {
   };
   reader.readAsDataURL(f);
 });
+
+// ---------- init avatar ----------
 (function initAvatar(){
   const saved = localStorage.getItem(AVATAR_KEY);
   avatarImg.src = saved || 'data:image/svg+xml;utf8,' + encodeURIComponent(
