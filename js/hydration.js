@@ -160,3 +160,19 @@ export function mountHydration(){
   onProfileChange(()=> renderHydro());
   renderHydro();
 }
+
+// --- Router hookup: Hydration ---
+function _rerenderHydro(){
+  if (typeof mountHydration === 'function') return mountHydration();
+  if (typeof renderHydro === 'function')    return renderHydro();
+  if (typeof initHydration === 'function')  return initHydration();
+  if (typeof Hydration?.render === 'function') return Hydration.render();
+  if (typeof Hydration?.mount  === 'function') return Hydration.mount();
+}
+
+window.addEventListener('route:show', (e)=>{
+  if (e.detail?.page === 'hydro') _rerenderHydro();
+});
+
+// If last page was Hydration, run once on load
+if (sessionStorage.getItem('nutrify_last_page') === 'hydro') _rerenderHydro();
