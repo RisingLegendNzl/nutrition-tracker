@@ -3,14 +3,15 @@ import {
   showSnack
 } from "./utils.js";
 import { renderHydro, isAutoOn } from "./hydration.js";
+import { defaultSupps, SMART_SUGGESTIONS, ALIAS_TO_CANON } from '../brain/supps.data.js';
 
 /* Storage helpers */
 function loadSupps(){
   if (!localStorage.getItem(DEFAULTS_KEY)) {
-    localStorage.setItem(DEFAULTS_KEY, JSON.stringify(window.defaultSupps || []));
+    localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaultSupps || window.defaultSupps || []));
   }
   if (!localStorage.getItem(SUPPS_KEY)) {
-    localStorage.setItem(SUPPS_KEY, JSON.stringify(window.defaultSupps || []));
+    localStorage.setItem(SUPPS_KEY, JSON.stringify(defaultSupps || window.defaultSupps || []));
   }
   return JSON.parse(localStorage.getItem(SUPPS_KEY) || "[]");
 }
@@ -23,7 +24,7 @@ function saveTakenMap(map, dateStr=AEST_DATE()){ localStorage.setItem(dayKey(dat
 function resolveCanonicalName(inputStr){
   const s = (inputStr||"").trim().toLowerCase();
   if (!s) return null;
-  const map = window.ALIAS_TO_CANON || {};
+  const map = (ALIAS_TO_CANON || window.ALIAS_TO_CANON) || {};
   if (map[s]) return map[s];
   // fuzzy: starts-with / contains on flattened keys
   const keys = Object.keys(map);
@@ -34,7 +35,7 @@ function resolveCanonicalName(inputStr){
 }
 function suggestFor(name){
   const canon = resolveCanonicalName(name) || name.trim();
-  const dict = window.SMART_SUGGESTIONS || {};
+  const dict = (SMART_SUGGESTIONS || window.SMART_SUGGESTIONS) || {};
   const sug = dict[canon];
   if (sug) return { ...sug, _canon: canon };
   // sensible defaults
@@ -291,7 +292,7 @@ function setupTypeahead(){
   function suggestionsFor(inputStr, limit=8){
     const s = (inputStr||"").trim().toLowerCase();
     if (!s) return [];
-    const map = window.ALIAS_TO_CANON || {};
+    const map = (ALIAS_TO_CANON || window.ALIAS_TO_CANON) || {};
     const keys = Object.keys(map);
     const flat = x => x.replace(/[^a-z0-9]/g,'');
     const sFlat = flat(s);
@@ -320,7 +321,7 @@ function setupTypeahead(){
       btn.onclick = ()=>{
         const canon = btn.getAttribute('data-canon');
         document.getElementById('fName').value = canon;
-        const sug = (window.SMART_SUGGESTIONS||{})[canon];
+        const sug = ((SMART_SUGGESTIONS || window.SMART_SUGGESTIONS)||{})[canon];
         if (sug){
           if (!fDose.value)   fDose.value   = sug.dose || '';
           if (!fTiming.value) fTiming.value = sug.timing || '';
