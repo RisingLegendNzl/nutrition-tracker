@@ -3,7 +3,35 @@ import { loadState, saveState, GOAL_KEY } from './utils.js';
 import { foodsBundle, mealPlan } from '../brain/diet.data.js';
 
 /* -------------------- Nutrition helpers -------------------- */
-const DB = ((foodsBundle && foodsBundle.foods) || []) || {};
+
+// Build a legacy per-100g map { k,p,c,f,fib,fe,zn,ca,vC,fol,kplus, unit_g? } keyed by lowercase food name
+const _foods = (foodsBundle && foodsBundle.foods) || [];
+const _pms   = (foodsBundle && foodsBundle.portion_maps) || [];
+const _pmIndex = new Map(_pms.map(pm => [pm.food_id, (pm.portions && pm.portions[0] && pm.portions[0].qty_g) || null]));
+
+function _toLegacy(f){
+  const n = (f && f.nutrients_per_100g) || {};
+  const rec = {
+    per: 100,
+    k: n.kcal || 0,
+    p: n.protein_g || 0,
+    c: n.carbs_g || 0,
+    f: n.fat_g || 0,
+    fib: n.fiber_g || 0,
+    fe: n.iron_mg || 0,
+    zn: 0,
+    ca: n.calcium_mg || 0,
+    vC: 0,
+    fol: 0,
+    kplus: n.potassium_mg || 0
+  };
+  const unit = _pmIndex.get(f.id);
+  if (unit != null) rec.unit_g = unit;
+  return rec;
+}
+
+const DB = Object.fromEntries(_foods.map(f => [String(f.name || '').toLowerCase(), _toLegacy(f)]));
+
 
 function todayWeekdayAEST(){
   const d = new Date(new Date().toLocaleString('en-US',{ timeZone:'Australia/Brisbane' }));
