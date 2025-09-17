@@ -4,6 +4,8 @@
 const LIB_KEY = 'nutrify_plan_library_v1';   // localStorage key
 const FILE_EXT = '.nutrify.json';
 
+/* ================== Public API ================== */
+
 export function captureCurrentPlan() {
   const plan = window.mealPlan || fromLocal();
   const meta = {
@@ -16,14 +18,32 @@ export function captureCurrentPlan() {
 }
 
 export function applyPlanToDiet(planObject) {
-  if (!planObject || !planObject.plan) return false;
+  if (!planObject || !planObject.plan || typeof planObject.plan !== 'object') {
+    toast('Invalid plan object'); 
+    return false;
+  }
+
+  // Install/replace global plan
   window.mealPlan = planObject.plan;
+
+  // Persist for reloads
   try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan)); } catch {}
-  if (typeof window.renderDiet === 'function') window.renderDiet();
-  else {
+
+  // Trigger re-render (diet.js exposes renderDiet)
+  if (typeof window.renderDiet === 'function') {
+    try { window.renderDiet(); } catch {}
+  } else {
+    // Fallback: nudge the app to Diet tab
     location.hash = '#diet';
     setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), 0);
   }
+
+  // NEW: broadcast plan-updated event for any listeners
+  try {
+    window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: planObject }));
+  } catch {}
+
+  toast('Plan applied');
   return true;
 }
 
@@ -51,15 +71,17 @@ export function uploadPlanFile(file) {
   });
 }
 
-/* ---------- Local Library (quick saves) ---------- */
+/* -------- Local Library (quick saves) -------- */
 
 export function saveToLibrary(name) {
   const lib = getLib();
   const obj = captureCurrentPlan();
-  obj.meta.name = name || obj.meta.name;
+  obj.meta.name = (name || obj.meta.name).trim();
+  if (!obj.meta.name) obj.meta.name = suggestName();
   lib.unshift(obj);                 // newest first
   while (lib.length > 20) lib.pop();// cap
   setLib(lib);
+  toast('Saved to Library');
   return obj.meta.name;
 }
 
@@ -70,12 +92,13 @@ export function listLibrary() {
 export function loadFromLibrary(index) {
   const lib = getLib();
   const entry = lib[index];
-  if (!entry) return false;
+  if (!entry) { toast('Not found'); return false; }
   return applyPlanToDiet(entry);
 }
 
 export function deleteFromLibrary(index) {
   const lib = getLib();
+  if (index < 0 || index >= lib.length) return;
   lib.splice(index, 1);
   setLib(lib);
 }
@@ -116,7 +139,7 @@ export function attachPlanMenu(container) {
 
   saveBtn.onclick = () => {
     const name = prompt('Name this plan:', suggestName());
-    if (name) { saveToLibrary(name); toast('Saved'); }
+    if (name != null) saveToLibrary(name);
   };
   exportBtn.onclick = () => downloadCurrentPlan();
   importBtn.onclick = () => {
@@ -127,8 +150,7 @@ export function attachPlanMenu(container) {
       if (!file) return;
       try {
         const data = await uploadPlanFile(file);
-        if (applyPlanToDiet(data)) toast('Imported');
-        else toast('Invalid plan file');
+        if (!applyPlanToDiet(data)) toast('Invalid plan file');
       } catch { toast('Import failed'); }
     };
     input.click();
@@ -141,7 +163,7 @@ export function attachPlanMenu(container) {
 function toast(msg) {
   const s = document.getElementById('snackbar');
   const m = document.getElementById('snackMsg');
-  if (!s || !m) return alert(msg);
+  if (!s || !m) return; // stay silent if snackbar not present
   m.textContent = msg; s.classList.remove('hidden');
   setTimeout(()=>s.classList.add('hidden'), 1600);
 }
