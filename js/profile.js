@@ -613,6 +613,30 @@ function onGenerateFromProfile(u){
     return;
   }
 
+
+  // ---- Phase 1: Save engine targets for Diet bars (future-proof) ----
+  try {
+    const goalStore = {
+      engine_version: result.engine_version,
+      data_version: result.data_version,
+      targets: result.targets
+    };
+    localStorage.setItem('nutrify_targets', JSON.stringify(goalStore));
+  } catch {}
+
+  // Back-compat for legacy Diet bars that read GOAL_KEY ('diet_goal')
+  try {
+    const g = result.targets || {};
+    const legacy = {
+      kcal: g.kcal,
+      protein: g.protein_g,
+      fibre: g.fiber_g,
+      iron: 8,
+      zinc: 14
+    };
+    localStorage.setItem('diet_goal', JSON.stringify(legacy));
+  } catch {}
+  // -------------------------------------------------------------------
   // Convert engine JSON → legacy weekly plan and APPLY DIRECTLY
   const weeklyPlan = planFromEngine(result);
 
@@ -634,6 +658,7 @@ function planFromEngine(engineRes){
   const legacyMeals = (engineRes.meals || []).map(m => ({
     meal: (m.slot || 'meal').replace(/^\w/, c => c.toUpperCase()),
     items: (m.items || []).map(it => ({
+      food_id: it.food_id,
       food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
       qty: `${Math.round(Number(it.qty_g||0))} g`
     }))
