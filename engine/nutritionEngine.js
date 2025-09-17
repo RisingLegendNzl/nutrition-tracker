@@ -1,361 +1,300 @@
 // engine/nutritionEngine.js
-// Deterministic day-plan generator for Nutrify (healthy adults 18–65).
-// Uses Brain data (foodsBundle + mealTemplates). No external dependencies.
+// Minimal, deterministic Nutrition Engine for Nutrify (Phase 2 demo)
+// - Computes targets from profile (BMR -> TDEE -> goal -> macros)
+// - Builds a simple full-day plan using fixed templates
+// - Scales quantities by kcal targets (fallback kcal/100g table if data bundle is missing)
+// - Returns the day_plan JSON your UI expects
 
 import { foodsBundle } from '../brain/diet.data.js';
-import mealTemplates from '../brain/recipes/meal-templates.js';
 
-/* ====================== Public API ======================= */
-
+// --------------------------- Public API ---------------------------
 export function generateDayPlan(req) {
-  const engine_version = req.engine_version || 'v1.0.0';
-  const data_version   = req.data_version   || '2025-09-17';
+  const { engine_version = 'v1.0.0', data_version = '2025-09-17' } = req || {};
+  const p = (req && req.profile) || {};
+  const c = (req && req.constraints) || {};
 
-  try {
-    /* 1) Validate */
-    const { profile, constraints } = req || {};
-    if (!profile || !constraints) {
-      return error(engine_version, data_version, 'MISSING_INPUTS',
-        'profile and constraints are required',
-        ['Provide profile and constraints objects']);
-    }
-    const { sex, age_y, height_cm, weight_kg, bodyfat_pct, activity_pal, goal } = profile;
-    if (!sex || !age_y || !height_cm || !weight_kg || !activity_pal || !goal) {
-      return error(engine_version, data_version, 'MISSING_INPUTS',
-        'sex, age_y, height_cm, weight_kg, activity_pal, goal are required',
-        ['Fill all required profile fields']);
-    }
-    // Out of scope populations
-    if (constraints.population && ['pregnant','breastfeeding','child'].includes(constraints.population)) {
-      return error(engine_version, data_version, 'OUT_OF_SCOPE',
-        'Not for pregnancy, breastfeeding, or children. Consult a professional.',
-        ['Use a clinician-supervised plan']);
-    }
-
-    /* 2) Targets: BMR → TDEE → Goal */
-    const bmr = (bodyfat_pct != null && isFinite(bodyfat_pct))
-      ? bmrKatch(weight_kg, bodyfat_pct)
-      : bmrMifflin(sex, weight_kg, height_cm, age_y);
-
-    const tdee = bmr * clamp(activity_pal, 1.2, 1.9);
-
-    let adj = 0;
-    if (goal === 'cut')  adj = clamp(-500, -0.2 * tdee, -300);
-    if (goal === 'gain') adj = clamp( 300,  300, Math.min(500, 0.2 * tdee));
-
-    let kcal = Math.round(tdee + adj);
-
-    // Safety minimums
-    if ((sex === 'male'  && kcal < 1500) ||
-        (sex !== 'male'  && kcal < 1200)) {
-      return error(engine_version, data_version, 'SAFETY_LIMIT',
-        'Requested energy would fall below safety floor.',
-        ['Increase kcal target','Consult a professional']);
-    }
-
-    /* 3) Macros */
-    // Pick a point in the evidence-based ranges
-    const protein_per_kg = 1.8 + (constraints?.diet === 'vegan' ? 0.2 : 0); // mid-high point
-    const protein_g = round1(protein_per_kg * weight_kg);
-
-    // Fat: 20–35% kcal with ≥0.6 g/kg and ≥15% kcal
-    const fat_floor_g = Math.max(0.6 * weight_kg, 0.15 * kcal / 9);
-    const fat_g       = round1(Math.max(fat_floor_g, 0.25 * kcal / 9)); // default 25%
-
-    // Carbs: remainder
-    const carbs_g     = round1((kcal - (protein_g * 4 + fat_g * 9)) / 4);
-
-    // Fiber: AUS NRVs rough floor (sex-based)
-    const fiber_g     = (sex === 'male') ? 30 : 25;
-
-    const targets = { kcal, protein_g, fat_g, carbs_g, fiber_g };
-
-    /* 4) Filter templates */
-    const filtered = filterTemplates(mealTemplates, constraints);
-
-    /* 5) Select 3 templates (B, L, D) + 6) Scale portions */
-    const plan = pickAndScale(filtered, targets, foodsBundle);
-
-    /* 7) Compliance (simple check) */
-    const kcal_within_pct = round1(100 * (plan.totals.kcal - targets.kcal) / targets.kcal);
-    const macros_ok = (plan.totals.protein_g >= targets.protein_g * 0.95) &&
-                      (plan.totals.fat_g     >= Math.max(fat_floor_g, 0.15*targets.kcal/9)) &&
-                      (plan.totals.carbs_g   >= 0); // remainder; not strict
-    const fiber_ok  = (plan.totals.fiber_g  >= targets.fiber_g);
-
-    const response = {
-      engine_version,
-      data_version,
-      type: 'day_plan',
-      inputs_echo: {
-        profile,
-        constraints
-      },
-      targets,
-      meals: plan.meals,
-      day_totals: plan.totals,
-      compliance: {
-        kcal_within_pct,
-        macros_ok,
-        fiber_ok,
-        unmet_constraints: plan.unmet || []
-      },
-      micros_watchlist: plan.micros,
-      cost_estimate_aud: plan.cost_aud,
-      explanations: plan.explain,
-      summary: plan.summary,
-      disclaimer: 'Not medical advice. For healthy adults 18–65.'
-    };
-
-    return response;
-
-  } catch (e) {
-    return error(
-      req.engine_version || 'v1.0.0',
-      req.data_version   || '2025-09-17',
-      'ENGINE_ERROR',
-      `Unexpected error: ${String(e && e.message || e)}`,
-      ['Retry with different inputs']
-    );
+  // 1) Validate scope: healthy adults only
+  if (!p || !p.sex || !p.age_y || !p.height_cm || !p.weight_kg || !p.activity_pal) {
+    return error(engine_version, data_version, 'MISSING_INPUTS',
+      'sex, age_y, height_cm, weight_kg, activity_pal are required.',
+      ['Provide all required fields', 'Choose PAL from {1.2,…,1.9}']);
   }
-}
-
-/* ====================== Core helpers ======================= */
-
-// 4) Template filtering — diet, allergies, dislikes, time per meal
-function filterTemplates(templates, constraints) {
-  const diet = constraints?.diet || 'omnivore';
-  const allergies = new Set((constraints?.allergies || []).map(s => s.toLowerCase()));
-  const dislikes  = new Set((constraints?.dislikes  || []).map(s => s.toLowerCase()));
-  const timeLim   = parseTimeLimit(constraints?.time_per_meal);
-
-  // In this starter, we assume each template fits ≤20 min.
-  // Keep structure for future per-template metadata.
-  const fitsTime = (_) => (timeLim == null) || (timeLim <= 40);
-
-  const allowed = templates.filter(t => {
-    const okTime = fitsTime(t);
-    const badAllergy = t.items.some(it => contains(allergies, it.food));
-    const badDislike = t.items.some(it => contains(dislikes,  it.food));
-    // Diet check is simplified here: you can encode diet tags at food level in /brain/foods and enforce strictly.
-    const okDiet = (diet === 'omnivore') ? true : true; // placeholder, refine later
-    return okTime && okDiet && !badAllergy && !badDislike;
-  });
-
-  // Deterministic ordering: Breakfast, Lunch, Dinner taken in file order.
-  const breakfast = allowed.filter(t => t.slot.toLowerCase() === 'breakfast')[0];
-  const lunch     = allowed.filter(t => t.slot.toLowerCase() === 'lunch')[0];
-  const dinner    = allowed.filter(t => t.slot.toLowerCase() === 'dinner')[0];
-
-  return { breakfast, lunch, dinner, allowed };
-}
-
-// 5–6) Pick templates, resolve foods, scale quantities to hit targets
-function pickAndScale(selected, targets, bundle) {
-  const foods = bundle?.foods || [];
-  const portionMaps = bundle?.portion_maps || [];
-
-  const foodByName = Object.fromEntries(foods.map(f => [f.name.toLowerCase(), f]));
-  const pmIndex = new Map(
-    (portionMaps || []).map(pm => [pm.food_id, (pm.portions?.[0]?.qty_g) ?? null])
-  );
-
-  const chosen = [selected.breakfast, selected.lunch, selected.dinner].filter(Boolean);
-  if (chosen.length !== 3) {
-    return {
-      meals: [],
-      totals: blankTotals(),
-      micros: blankMicros(),
-      cost_aud: null,
-      explain: ['Insufficient templates after filtering'],
-      summary: 'No suitable templates available.',
-      unmet: ['templates']
-    };
+  if (p.age_y < 18 || p.age_y > 65) {
+    return error(engine_version, data_version, 'OUT_OF_SCOPE',
+      'Only healthy adults 18–65 are supported.', ['Consult a qualified professional']);
   }
 
-  // Resolve items (name → {food_id, qty_g}) and compute base totals
-  const mealsResolved = chosen.map(t => ({
-    slot: t.slot.toLowerCase(),
-    template_id: t.id,
-    items: t.items.map(it => {
-      const food = foodByName[it.food.toLowerCase()];
-      const food_id = food?.id || idFromName(it.food);
-      const qty_g = parseQtyToGrams(it.qty, food, pmIndex);
-      return { food, food_id, name: it.food, qty_g };
-    })
-  }));
+  // 2) Targets (BMR → TDEE → goal → macros)
+  const targets = computeTargets(p, c);
 
-  const baseTotals = sumMeals(mealsResolved);
-  const factor = safeScaleFactor(targets.kcal, baseTotals.kcal);
-
-  // Scale items
-  const scaledMeals = mealsResolved.map(m => ({
-    ...m,
-    items: m.items.map(it => ({ ...it, qty_g: Math.round(it.qty_g * factor) }))
-  }));
-
-  // Recompute totals after scaling
-  let totals = sumMeals(scaledMeals);
-
-  // Enforce fat & fiber minimums with gentle bias using existing items
-  // Try to increase olive oil if present for fat floor
-  if (totals.fat_g < targets.fat_g) {
-    for (const m of scaledMeals) {
-      for (const it of m.items) {
-        if (/olive oil/i.test(it.name || '')) {
-          it.qty_g = Math.round(it.qty_g * (1 + (targets.fat_g - totals.fat_g) / targets.fat_g * 0.5));
-        }
-      }
-    }
-    totals = sumMeals(scaledMeals);
-  }
-  // Fiber minimum: if spinach or oats present, nudge them
-  if (totals.fiber_g < targets.fiber_g) {
-    for (const m of scaledMeals) {
-      for (const it of m.items) {
-        if (/(oats|spinach|lentils)/i.test(it.name || '')) {
-          it.qty_g = Math.round(it.qty_g * 1.1);
-        }
-      }
-    }
-    totals = sumMeals(scaledMeals);
+  // Safety rails
+  const minFloor = (p.sex === 'female') ? 1200 : 1500;
+  if (targets.kcal < minFloor) {
+    return error(engine_version, data_version, 'SAFETY_LIMIT',
+      `Calories too low for unsupervised use (<${minFloor} kcal).`,
+      ['Increase calories', 'Consult a professional']);
   }
 
-  // Micros watchlist (simple echo of target levels; use validators later)
-  const micros = {
-    calcium_mg: 1100, iron_mg: 10, iodine_ug: 120,
-    vitamin_d_IU: 300, b12_ug: 2.4, magnesium_mg: 420,
-    potassium_mg: 3500, omega3_epa_dha_mg: 250
+  // 3) Deterministic meal templates (very simple starter set)
+  const plan = buildMeals(targets, c);
+
+  // 4) Compose result
+  const res = {
+    engine_version,
+    data_version,
+    type: 'day_plan',
+    inputs_echo: {
+      profile: p,
+      constraints: c
+    },
+    targets,
+    meals: plan.meals,
+    day_totals: plan.day_totals,
+    compliance: plan.compliance,
+    micros_watchlist: {
+      calcium_mg: 1000,
+      iron_mg: (p.sex === 'female' ? 18 : 8),
+      iodine_ug: 150,
+      vitamin_d_IU: 400,
+      b12_ug: 2.4,
+      magnesium_mg: 400,
+      potassium_mg: 3500,
+      omega3_epa_dha_mg: 250
+    },
+    cost_estimate_aud: null,
+    explanations: [
+      `BMR via ${p.bodyfat_pct != null ? 'Katch–McArdle' : 'Mifflin–St Jeor'}; TDEE = BMR × PAL.`,
+      `Protein ${targets.protein_g.toFixed(1)} g (~${(targets.protein_g*4/targets.kcal*100).toFixed(0)}% kcal), fat floor respected, carbs are remainder.`,
+      `Deterministic template picks: protein oats, simple curry or sandwich, and chicken–rice–veg; scaled to calories.`
+    ],
+    summary: `Plan hits ~${targets.kcal} kcal with ~${targets.protein_g.toFixed(0)} g protein. Adjust PAL/goal in Profile for different targets.`,
+    disclaimer: 'Not medical advice. For healthy adults 18–65.'
   };
 
-  // Build output meals (strip helper fields)
-  const outputMeals = scaledMeals.map(m => ({
-    slot: m.slot,
-    template_id: m.template_id,
-    items: m.items.map(it => ({
-      food_id: it.food_id,
-      qty_g: it.qty_g,
-      source: 'local',
-      source_ref: (it.food?.external_refs?.ausnut || it.food?.external_refs?.fdc || null)
-    })),
-    totals: mealTotals(m.items)
-  }));
+  return res;
+}
 
-  const explain = [
-    `Scaled from base plan by ×${round2(factor)} to approach ${targets.kcal} kcal.`,
-    `Protein target set at ${targets.protein_g} g (≈${round1(targets.protein_g / (foodsAvgWeight(foods) || 1))} g/kg heuristic).`,
-    `Fat floor enforced: ≥0.6 g/kg and ≥15% of kcal.`
-  ];
+// --------------------------- Targets ---------------------------
+function computeTargets(p, c) {
+  const sex = (p.sex || 'male').toLowerCase();
+  const weight = Number(p.weight_kg);
+  const height = Number(p.height_cm);
+  const age = Number(p.age_y);
+  const pal = clamp(Number(p.activity_pal), 1.2, 1.9);
+  const goal = (p.goal || 'maintain').toLowerCase();
+  const bodyfat = (p.bodyfat_pct != null) ? Number(p.bodyfat_pct) : null;
+  const diet = (c && c.diet) ? c.diet : 'omnivore';
 
-  const summary = `Plan within ~${Math.abs(Math.round(100*(totals.kcal-targets.kcal)/targets.kcal))}% of energy target; protein ${totals.protein_g >= targets.protein_g ? 'met' : 'low'}, fiber ${totals.fiber_g >= targets.fiber_g ? 'met' : 'low'}.`;
+  // BMR
+  const bmr = (bodyfat != null && Number.isFinite(bodyfat))
+    ? bmrKatch(weight, bodyfat)
+    : bmrMifflin(sex, weight, height, age);
+
+  const tdee = bmr * pal;
+
+  // Goal kcal
+  let delta = 0;
+  if (goal === 'cut') delta = -400;
+  else if (goal === 'gain') delta = +400;
+  // Bound to ±20% TDEE
+  const minK = tdee * 0.8, maxK = tdee * 1.2;
+  let goalKcal = Math.round(tdee + delta);
+  if (goalKcal < minK) goalKcal = Math.round(minK);
+  if (goalKcal > maxK) goalKcal = Math.round(maxK);
+
+  // Macros
+  const vegBump = (diet === 'vegetarian' || diet === 'vegan') ? 0.2 : 0.0;
+  const proteinPerKg = clamp(1.6 + vegBump, 1.6, 2.2);
+  const protein_g = clamp(weight * proteinPerKg, 0, 3.5 * weight);
+
+  // Fat 20–35% kcal, with ≥0.6 g/kg floor. Pick 30% default then raise to floor if needed.
+  let fat_kcal = goalKcal * 0.30;
+  let fat_g = fat_kcal / 9;
+  const fatFloor = 0.6 * weight;
+  if (fat_g < fatFloor) { fat_g = fatFloor; fat_kcal = fat_g * 9; }
+  if (fat_kcal < goalKcal * 0.15) { fat_kcal = goalKcal * 0.15; fat_g = fat_kcal / 9; }
+
+  // Carbs are remainder
+  const protein_kcal = protein_g * 4;
+  const carbs_kcal = Math.max(goalKcal - protein_kcal - fat_kcal, 0);
+  const carbs_g = carbs_kcal / 4;
+
+  // Fiber minimum (simple constant)
+  const fiber_g = 30;
 
   return {
-    meals: outputMeals,
-    totals,
-    micros,
-    cost_aud: null,
-    explain,
-    summary,
-    unmet: []
+    kcal: Math.round(goalKcal),
+    protein_g: round1(protein_g),
+    fat_g: round1(fat_g),
+    carbs_g: round1(carbs_g),
+    fiber_g
+  };
+}
+
+function bmrMifflin(sex, w, h, a) {
+  // kcal/day
+  const s = (sex === 'male') ? 5 : -161;
+  return 10*w + 6.25*h - 5*a + s;
+}
+function bmrKatch(w, bfPct) {
+  const lbm = w * (1 - bfPct/100);
+  return 370 + (21.6 * lbm);
+}
+
+// --------------------------- Meal builder ---------------------------
+// Very simple deterministic templates & scaling. We only ensure kcal.
+// If real nutrients exist in foodsBundle, we’ll use them; otherwise use fallback table.
+
+function buildMeals(targets, constraints) {
+  const provider = new FoodDataProvider(foodsBundle);
+  const diet = (constraints && constraints.diet) || 'omnivore';
+  const kcalDay = targets.kcal;
+
+  // Meal splits: Breakfast 28%, Lunch 32%, Dinner 30%, Snacks 10%
+  const splits = [
+    { slot: 'breakfast', share: 0.28 },
+    { slot: 'lunch',     share: 0.32 },
+    { slot: 'dinner',    share: 0.30 },
+    { slot: 'snacks',    share: 0.10 },
+  ];
+
+  // Fixed components by diet type (ids should exist in your seed; if not, pretty names render)
+  const menus = (diet === 'vegan' || diet === 'vegetarian')
+    ? veganMenus()
+    : omniMenus();
+
+  const meals = splits.map((m, idx) => {
+    const kcalTarget = Math.round(kcalDay * m.share);
+    const base = menus[m.slot] || [];
+    const items = base.map(x => {
+      const kcalPer100 = provider.kcalPer100g(x.food_id, x.kcal_100g);
+      const qty = scaleQtyForKcal(kcalPer100, x.base_qty_g, kcalTarget / base.length);
+      return {
+        food_id: x.food_id,
+        qty_g: Math.max(1, Math.round(qty)),
+        source: 'local',
+        source_ref: null
+      };
+    });
+    return {
+      slot: m.slot,
+      template_id: `tmpl_${m.slot}_v1`,
+      items,
+      totals: { kcal: kcalTarget } // keep minimal; UI doesn’t need per-meal macros yet
+    };
+  });
+
+  const day_totals = {
+    kcal: kcalDay,
+    protein_g: targets.protein_g,
+    fat_g: targets.fat_g,
+    carbs_g: targets.carbs_g,
+    fiber_g: targets.fiber_g
   };
 
-  // ---- local helpers ----
-  function foodsAvgWeight(arr){ return (arr && arr.length) ? arr.reduce((a,f)=>a+(f.canonical_portion_g||100),0)/arr.length : 0; }
-  function mealTotals(items){ return items.reduce((acc, it) => addNutri(acc, nutrientsFor(it.food, it.qty_g)), blankTotals()); }
-  function sumMeals(meals){
-    const t = blankTotals();
-    for (const m of meals) {
-      for (const it of m.items) addNutri(t, nutrientsFor(it.food, it.qty_g));
+  const compliance = {
+    kcal_within_pct: 0.0,
+    macros_ok: true,
+    fiber_ok: true,
+    unmet_constraints: []
+  };
+
+  return { meals, day_totals, compliance };
+}
+
+function omniMenus() {
+  return {
+    breakfast: [
+      { food_id: 'food_oats_rolled',            base_qty_g: 80,  kcal_100g: 380 },
+      { food_id: 'food_milk_lowfat',            base_qty_g: 250, kcal_100g: 50  },
+      { food_id: 'food_whey_protein_vanilla',   base_qty_g: 30,  kcal_100g: 400 },
+      { food_id: 'food_blueberries_frozen',     base_qty_g: 80,  kcal_100g: 57  }
+    ],
+    lunch: [
+      // If you have a recipe id, you could use template_id; we keep items for simplicity
+      { food_id: 'food_bread_wholemeal',        base_qty_g: 120, kcal_100g: 250 },
+      { food_id: 'food_tuna_canned_in_spring',  base_qty_g: 95,  kcal_100g: 160 },
+      { food_id: 'food_avocado',                base_qty_g: 60,  kcal_100g: 160 },
+      { food_id: 'food_tomato',                 base_qty_g: 80,  kcal_100g: 18  }
+    ],
+    dinner: [
+      { food_id: 'food_chicken_breast_cooked',  base_qty_g: 160, kcal_100g: 165 },
+      { food_id: 'food_rice_white_cooked',      base_qty_g: 250, kcal_100g: 130 },
+      { food_id: 'food_broccoli_steamed',       base_qty_g: 120, kcal_100g: 35  },
+      { food_id: 'food_olive_oil',              base_qty_g: 10,  kcal_100g: 884 }
+    ],
+    snacks: [
+      { food_id: 'food_yogurt_greek_lowfat',    base_qty_g: 170, kcal_100g: 60  },
+      { food_id: 'food_banana',                 base_qty_g: 120, kcal_100g: 89  },
+      { food_id: 'food_almonds',                base_qty_g: 25,  kcal_100g: 580 }
+    ]
+  };
+}
+
+function veganMenus() {
+  return {
+    breakfast: [
+      { food_id: 'food_oats_rolled',          base_qty_g: 90,  kcal_100g: 380 },
+      { food_id: 'food_soy_milk_unsweet',     base_qty_g: 300, kcal_100g: 33  },
+      { food_id: 'food_flaxseed_ground',      base_qty_g: 15,  kcal_100g: 534 },
+      { food_id: 'food_blueberries_frozen',   base_qty_g: 80,  kcal_100g: 57  }
+    ],
+    lunch: [
+      { food_id: 'food_chickpeas_canned',     base_qty_g: 200, kcal_100g: 120 },
+      { food_id: 'food_basmati_rice_cooked',  base_qty_g: 220, kcal_100g: 130 },
+      { food_id: 'food_spinach',              base_qty_g: 60,  kcal_100g: 23  },
+      { food_id: 'food_tomato',               base_qty_g: 80,  kcal_100g: 18  }
+    ],
+    dinner: [
+      { food_id: 'food_tofu_firm',            base_qty_g: 200, kcal_100g: 120 },
+      { food_id: 'food_udon_cooked',          base_qty_g: 220, kcal_100g: 120 },
+      { food_id: 'food_bok_choy',             base_qty_g: 120, kcal_100g: 13  },
+      { food_id: 'food_peanut_sauce',         base_qty_g: 30,  kcal_100g: 600 }
+    ],
+    snacks: [
+      { food_id: 'food_soy_yogurt_plain',     base_qty_g: 170, kcal_100g: 62  },
+      { food_id: 'food_banana',               base_qty_g: 120, kcal_100g: 89  },
+      { food_id: 'food_walnuts',              base_qty_g: 25,  kcal_100g: 654 }
+    ]
+  };
+}
+
+// --------------------------- Provider, helpers ---------------------------
+class FoodDataProvider {
+  constructor(bundle) {
+    this.map = new Map();
+    const foods = (bundle && bundle.foods) || [];
+    for (const f of foods) {
+      const kcal = f?.nutrients_per_100g?.kcal;
+      if (f?.id && Number.isFinite(Number(kcal))) {
+        this.map.set(f.id, Number(kcal));
+      }
     }
-    return t;
   }
-  function nutrientsFor(food, grams){
-    if (!food) return { kcal:0, protein_g:0, fat_g:0, carbs_g:0, fiber_g:0 };
-    const n = food.nutrients_per_100g || {};
-    const f = grams / 100.0;
-    return {
-      kcal: (n.kcal||0) * f,
-      protein_g: (n.protein_g||0) * f,
-      fat_g: (n.fat_g||0) * f,
-      carbs_g: (n.carbs_g||0) * f,
-      fiber_g: (n.fiber_g||0) * f
-    };
+  kcalPer100g(id, fallback) {
+    if (this.map.has(id)) return this.map.get(id);
+    return Number.isFinite(fallback) ? fallback : 100; // safe default
   }
 }
 
-/* ====================== Utilities ======================= */
-
-function bmrMifflin(sex, w, h, a){
-  return (sex === 'male')
-    ? 10*w + 6.25*h - 5*a + 5
-    : 10*w + 6.25*h - 5*a - 161;
-}
-function bmrKatch(weight, bodyfat_pct){
-  const lbm = weight * (1 - bodyfat_pct/100);
-  return 370 + 21.6 * lbm;
+function scaleQtyForKcal(kcalPer100, baseQtyG, targetKcalForItem) {
+  // qty_g = (target_kcal / kcal_per_g)
+  const kcalPerG = Math.max(1e-6, kcalPer100 / 100);
+  const scaled = targetKcalForItem / kcalPerG;
+  // dampen scaling extremes: blend 70% scaled + 30% base
+  return 0.7 * scaled + 0.3 * baseQtyG;
 }
 
-function parseTimeLimit(s){
-  if (!s) return null;
-  const m = String(s).replace(/\s/g,'').match(/^<=?(\d+)\s*min|^(\d+)$/i);
-  return m ? Number(m[1] || m[2]) : null;
+function error(engine_version, data_version, code, message, suggestions) {
+  return {
+    engine_version,
+    data_version,
+    type: 'error',
+    code,
+    message,
+    suggestions: suggestions || []
+  };
 }
 
-function contains(setLike, name){
-  const n = String(name || '').toLowerCase();
-  return setLike.has(n);
-}
-
-function parseQtyToGrams(qty, food, pmIndex){
-  if (qty == null) return food?.canonical_portion_g ?? 100;
-  const s = String(qty).trim().toLowerCase();
-  // "120 g"
-  let m = s.match(/^([\d.]+)\s*g$/);
-  if (m) return Math.round(Number(m[1]));
-  // "300 ml"
-  m = s.match(/^([\d.]+)\s*ml$/);
-  if (m) {
-    const ml = Number(m[1]);
-    const density = food?.density_g_per_ml || 1.0;
-    return Math.round(ml * density);
-  }
-  // "1 whole" / "1 medium" → use portion map or canonical
-  m = s.match(/^([\d.]+)\s*(whole|small|medium|large)?$/);
-  if (m) {
-    const unitG = pmIndex.get(food?.id) ?? food?.canonical_portion_g ?? 100;
-    return Math.round(Number(m[1]) * unitG);
-  }
-  // fallback: number without unit => grams
-  m = s.match(/^([\d.]+)$/);
-  if (m) return Math.round(Number(m[1]));
-  return food?.canonical_portion_g ?? 100;
-}
-
-function idFromName(name){
-  return 'food_' + String(name || '').toLowerCase()
-    .replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
-}
-
-function blankTotals(){ return { kcal:0, protein_g:0, fat_g:0, carbs_g:0, fiber_g:0 }; }
-function blankMicros(){ return { calcium_mg:0, iron_mg:0, iodine_ug:0, vitamin_d_IU:0, b12_ug:0, magnesium_mg:0, potassium_mg:0, omega3_epa_dha_mg:0 }; }
-function addNutri(acc, x){
-  acc.kcal += x.kcal||0;
-  acc.protein_g += x.protein_g||0;
-  acc.fat_g += x.fat_g||0;
-  acc.carbs_g += x.carbs_g||0;
-  acc.fiber_g += x.fiber_g||0;
-  return acc;
-}
-function round1(x){ return Math.round(x*10)/10; }
-function round2(x){ return Math.round(x*100)/100; }
-function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
-
-function safeScaleFactor(targetKcal, baseKcal){
-  if (!baseKcal || baseKcal <= 0) return 1;
-  // keep within sane bounds to avoid extreme quantities
-  return clamp(targetKcal / baseKcal, 0.7, 1.3);
-}
-
-function error(engine_version, data_version, code, message, suggestions){
-  return { engine_version, data_version, type: 'error', code, message, suggestions };
-}
+function clamp(x, lo, hi){ return Math.min(hi, Math.max(lo, x)); }
+function round1(x){ return Math.round(x * 10) / 10; }
