@@ -1,4 +1,5 @@
-[
+// brain/foods/portion-maps.js
+export default [
   {
     "food_id": "food_tuna_springwater_drained",
     "portions": [
@@ -53,4 +54,4 @@
       }
     ]
   }
-]
+];
