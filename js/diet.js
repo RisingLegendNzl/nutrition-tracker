@@ -32,7 +32,8 @@ function _toLegacy(f){
   return rec;
 }
 
-const DB = Object.fromEntries(_foods.map(f => [String(f.name || '').toLowerCase(), _toLegacy(f)]));
+const DB_BY_NAME = Object.fromEntries(_foods.map(f => [String(f.name || '').toLowerCase(), _toLegacy(f)]));
+const DB_BY_ID   = Object.fromEntries(_foods.map(f => [f.id, _toLegacy(f)]));
 
 
 function todayWeekdayAEST(){
@@ -60,7 +61,11 @@ function parseQty(q){
   return { grams:0, ml:0, units:0, unitLabel:'' };
 }
 
-function recFor(food){ return DB[(food||'').toLowerCase()] || null; }
+function recForById(id){ return DB_BY_ID[id] || null; }
+function recForName(name){ return DB_BY_NAME[(name||'').toLowerCase()] || null; }
+function recFor(item){
+  return (item.food_id && recForById(item.food_id)) || recForName(item.food);
+}
 
 function amountToGrams(q, rec){
   if (q.grams) return q.grams;
@@ -70,7 +75,7 @@ function amountToGrams(q, rec){
 }
 
 function nutForItem(item){
-  const rec = recFor(item.food);
+  const rec = recFor(item);
   if (!rec) return { k:0,p:0,c:0,f:0,fib:0,fe:0,zn:0,ca:0,vC:0,fol:0,kplus:0 };
 
   const q = parseQty(item.qty);
@@ -292,7 +297,7 @@ export function renderDiet(){
 function ingredientRowHTML(day, mealName, it){
   const cid = `${day}:${mealName}`;
   const foodKey = (it.food || '').toLowerCase();
-  const rec = recFor(foodKey);
+  const rec = recFor(it);
 
   // Prefill numeric amount + unit selector from it.qty
   const q = parseQty(it.qty);
@@ -319,7 +324,6 @@ function ingredientRowHTML(day, mealName, it){
           <button class="ing-save" type="button">Save</button>
           <button class="ing-reset" type="button">Reset</button>
         </div>
-        ${(!rec || (unit==='whole' && !rec.unit_g)) ? `<div class="ing-note">Tip: this food has no default per-piece weight. If you choose “whole”, set a weight in grams for best accuracy.</div>` : ``}
       </div>
     </li>
   `;
