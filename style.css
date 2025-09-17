@@ -419,3 +419,89 @@ body.menu-open::before{
 body.empty main { display: none; }
 .day-switcher{ display:none; }
 body.is-diet .day-switcher{ display:grid; }
+
+
+
+/* ========== Chip toggles (Training days) ========== */
+.chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.chips .chip {
+  --bg: #15191e;           /* card bg */
+  --border: #2b3240;
+  --text: #dbe2ea;
+  --bg-on: #2a6df6;         /* primary */
+  --text-on: #fff;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1;
+  font-weight: 600;
+  user-select: none;
+  transition: background .18s, border-color .18s, color .18s, box-shadow .18s, transform .06s;
+}
+
+/* hide real checkbox but keep it accessible */
+.chips .chip input[type="checkbox"]{
+  position:absolute; inset:0; width:100%; height:100%;
+  opacity:0; margin:0; cursor:pointer;
+}
+
+.chips .chip:hover { border-color:#3a4354; }
+.chips .chip:active { transform: translateY(1px); }
+
+/* Focus ring (keyboard) */
+.chips .chip:has(input[type="checkbox"]:focus-visible){
+  box-shadow: 0 0 0 2px rgba(42,109,246,.35);
+}
+
+/* ON state (modern browsers) */
+.chips .chip:has(input[type="checkbox"]:checked){
+  background: var(--bg-on);
+  border-color: var(--bg-on);
+  color: var(--text-on);
+  box-shadow: 0 6px 18px rgba(42,109,246,.28);
+}
+
+/* Fallback for browsers without :has — JS toggles .is-checked */
+.chips .chip.is-checked{
+  background: var(--bg-on);
+  border-color: var(--bg-on);
+  color: var(--text-on);
+  box-shadow: 0 6px 18px rgba(42,109,246,.28);
+}
+
+/* Compact on small screens */
+@media (max-width: 420px){
+  .chips { grid-template-columns: repeat(3, minmax(0, 1fr)); gap:10px; }
+  .chips .chip { padding: 11px 16px; }
+}
+
+/* Optional: tighten profile spacing a touch */
+#profilePage .card .field { margin-bottom: 14px; }
+#profilePage .card .section-title { margin-bottom: 14px; }
+
+/* ========== Buttons: add a neutral 'secondary' variant ========== */
+button.secondary{
+  background: #2b3140;
+  color: #e7ecf2;
+  border: 1px solid #364053;
+}
+button.secondary:hover{
+  background: #333a4d;
+  border-color: #41506a;
+}
+button.secondary:active{
+  background: #2a3142;
+}
