@@ -2,8 +2,8 @@
 // Central nutrition data bundle: foods + portions + optional demo meal plan.
 // This module re-exports from brain/foods and adds a legacy-compatible mealPlan export.
 
-import foodsCore from './foods/foods.core.json' assert { type: 'json' };
-import portionMaps from './foods/portion-maps.json' assert { type: 'json' };
+import foodsCore from './foods/foods.core.js' assert { type: 'json' };
+import portionMaps from './foods/portion-maps.js' assert { type: 'json' };
 
 export const ENGINE_VERSION = 'v1.0.0';
 export const DATA_VERSION = '2025-09-17';
