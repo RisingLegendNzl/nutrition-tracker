@@ -1,4 +1,5 @@
-[
+// brain/foods/foods.core.js
+export default [
   {
     "id": "food_rolled_oats",
     "name": "rolled oats",
@@ -945,4 +946,4 @@
     },
     "notes": null
   }
-]
+];
