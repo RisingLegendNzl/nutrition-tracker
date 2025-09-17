@@ -1,8 +1,9 @@
 // filename: js/diet.js
 import { loadState, saveState, GOAL_KEY } from './utils.js';
+import { foodsBundle, mealPlan } from '../brain/diet.data.js';
 
 /* -------------------- Nutrition helpers -------------------- */
-const DB = window.NUTRITION_DB || {};
+const DB = ((foodsBundle && foodsBundle.foods) || []) || {};
 
 function todayWeekdayAEST(){
   const d = new Date(new Date().toLocaleString('en-US',{ timeZone:'Australia/Brisbane' }));
@@ -111,7 +112,7 @@ export function mountDiet(){
 }
 
 export function renderDiet(){
-  const plan = (window.mealPlan && Object.keys(window.mealPlan).length) ? window.mealPlan : {};
+  const plan = (mealPlan && Object.keys(mealPlan).length) ? mealPlan : {};
   const names = Object.keys(plan);
 
   // resolve active day safely
@@ -290,7 +291,7 @@ function bar(label, val, goal, unit){
 }
 
 function changeDay(delta){
-  const names = Object.keys(window.mealPlan || {});
+  const names = Object.keys(mealPlan || {});
   if (!names.length) return;
   const current = loadState(DAY_KEY) || names[0];
   const next = names[(names.indexOf(current) + delta + names.length) % names.length];
