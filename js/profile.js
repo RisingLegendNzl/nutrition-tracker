@@ -219,11 +219,12 @@ function ensureRoot(){
 
       <div class="field">
         <label>Training days (optional)</label>
-        <div id="p_training_days" style="display:flex;flex-wrap:wrap;gap:8px">
+        <div id="p_training_days" class="chips">
           ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>(
-            `<label class="pill" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #eee;border-radius:999px;cursor:pointer">
-              <input type="checkbox" data-day="${d}"/> ${d}
-            </label>`
+            `<label class="chip">
+               <input type="checkbox" data-day="${d}"/>
+               ${d}
+             </label>`
           )).join('')}
         </div>
       </div>
@@ -237,7 +238,7 @@ function ensureRoot(){
       </div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-        <button id="p_save" class="primary">Save</button>
+        <button id="p_save" class="secondary">Save</button>
         <button id="p_reset" class="ghost">Reset to defaults</button>
         <button id="p_cancel" class="ghost">Cancel</button>
         <!-- Generate Plan button is injected here at runtime -->
@@ -543,6 +544,15 @@ export function mountProfile(){
 
   // Generate Plan button
   injectGenerateButton(u);
+
+  // ---- (3) JS enhancer for chips (fallback for browsers without :has) ----
+  u.trainingWrap.querySelectorAll('label.chip').forEach(lbl => {
+    const cb = lbl.querySelector('input[type="checkbox"]');
+    const sync = () => lbl.classList.toggle('is-checked', cb.checked);
+    cb.addEventListener('change', sync);
+    cb.addEventListener('blur', sync);
+    sync();
+  });
 }
 
 export { ensureRoot as renderProfile, ensureRoot as initProfile };
