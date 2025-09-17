@@ -1,5 +1,5 @@
 // js/plan.io.js
-// Plan export/import + local library for Nutrify
+// Plan export/import + local library + Library UI for Nutrify
 
 const LIB_KEY = 'nutrify_plan_library_v1';   // localStorage key
 const FILE_EXT = '.nutrify.json';
@@ -23,22 +23,17 @@ export function applyPlanToDiet(planObject) {
     return false;
   }
 
-  // Install/replace global plan
   window.mealPlan = planObject.plan;
 
-  // Persist for reloads
   try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan)); } catch {}
 
-  // Trigger re-render (diet.js exposes renderDiet)
   if (typeof window.renderDiet === 'function') {
     try { window.renderDiet(); } catch {}
   } else {
-    // Fallback: nudge the app to Diet tab
     location.hash = '#diet';
     setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), 0);
   }
 
-  // NEW: broadcast plan-updated event for any listeners
   try {
     window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: planObject }));
   } catch {}
@@ -47,15 +42,11 @@ export function applyPlanToDiet(planObject) {
   return true;
 }
 
+/* -------- Download / Upload (file based) -------- */
+
 export function downloadCurrentPlan() {
   const obj = captureCurrentPlan();
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.download = (obj.meta.name || 'nutrify-plan') + FILE_EXT;
-  a.href = URL.createObjectURL(blob);
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  downloadBlob(obj, (obj.meta.name || 'nutrify-plan') + FILE_EXT);
 }
 
 export function uploadPlanFile(file) {
@@ -76,10 +67,9 @@ export function uploadPlanFile(file) {
 export function saveToLibrary(name) {
   const lib = getLib();
   const obj = captureCurrentPlan();
-  obj.meta.name = (name || obj.meta.name).trim();
-  if (!obj.meta.name) obj.meta.name = suggestName();
-  lib.unshift(obj);                 // newest first
-  while (lib.length > 20) lib.pop();// cap
+  obj.meta.name = (name || obj.meta.name).trim() || suggestName();
+  lib.unshift(obj);                       // newest first
+  while (lib.length > 20) lib.pop();      // cap
   setLib(lib);
   toast('Saved to Library');
   return obj.meta.name;
@@ -103,6 +93,14 @@ export function deleteFromLibrary(index) {
   setLib(lib);
 }
 
+export function exportFromLibrary(index) {
+  const lib = getLib();
+  const entry = lib[index];
+  if (!entry) return;
+  const name = (entry.meta?.name || 'nutrify-plan') + FILE_EXT;
+  downloadBlob(entry, name);
+}
+
 /* ----------------- helpers ----------------- */
 
 function suggestName() {
@@ -122,8 +120,18 @@ function fromLocal() {
   try { return JSON.parse(localStorage.getItem('nutrify_mealPlan') || 'null') || {}; }
   catch { return {}; }
 }
+function downloadBlob(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = URL.createObjectURL(blob);
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+}
 
-/* ---- Minimal UI helpers (optional) ---- */
+/* ---- Minimal UI helpers (menu + library modal) ---- */
+
 export function attachPlanMenu(container) {
   if (!container || container.querySelector('.plan-menu')) return;
   const wrap = document.createElement('div');
@@ -133,13 +141,15 @@ export function attachPlanMenu(container) {
   wrap.style.marginLeft = 'auto';
 
   const makeBtn = (txt, cls='ghost small') => { const b=document.createElement('button'); b.className=cls; b.textContent=txt; return b; };
+  const libBtn = makeBtn('Library');
   const saveBtn = makeBtn('Save to Library');
   const exportBtn = makeBtn('Export');
   const importBtn = makeBtn('Import');
 
+  libBtn.onclick = () => showLibraryModal();
   saveBtn.onclick = () => {
     const name = prompt('Name this plan:', suggestName());
-    if (name != null) saveToLibrary(name);
+    if (name != null) { saveToLibrary(name); showLibraryModal(true); }
   };
   exportBtn.onclick = () => downloadCurrentPlan();
   importBtn.onclick = () => {
@@ -151,13 +161,124 @@ export function attachPlanMenu(container) {
       try {
         const data = await uploadPlanFile(file);
         if (!applyPlanToDiet(data)) toast('Invalid plan file');
+        else showLibraryModal(true);
       } catch { toast('Import failed'); }
     };
     input.click();
   };
 
-  wrap.append(saveBtn, exportBtn, importBtn);
+  wrap.append(libBtn, saveBtn, exportBtn, importBtn);
   container.appendChild(wrap);
+}
+
+function showLibraryModal(forceOpen=false) {
+  const id = 'planLibraryOverlay';
+  let ovl = document.getElementById(id);
+  if (ovl && !forceOpen) { ovl.remove(); return; }
+  if (ovl) ovl.remove();
+
+  ovl = document.createElement('div');
+  ovl.id = id;
+  Object.assign(ovl.style, {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+    zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+  });
+  ovl.addEventListener('click', (e)=>{ if (e.target === ovl) ovl.remove(); });
+
+  const card = document.createElement('div');
+  Object.assign(card.style, {
+    width: 'min(720px, 100%)', maxHeight: '90vh', overflow: 'auto',
+    background: 'white', borderRadius: '12px', padding: '16px'
+  });
+
+  const head = document.createElement('div');
+  head.style.display = 'flex';
+  head.style.justifyContent = 'space-between';
+  head.style.alignItems = 'center';
+
+  const title = document.createElement('h3');
+  title.textContent = 'Plan Library';
+  title.style.margin = '0';
+
+  const close = document.createElement('button');
+  close.textContent = 'Close';
+  Object.assign(close.style, { border: 'none', padding: '6px 10px', borderRadius: '8px', background: '#eee', cursor: 'pointer' });
+  close.addEventListener('click', () => ovl.remove());
+  head.append(title, close);
+
+  const list = document.createElement('div');
+  list.style.marginTop = '12px';
+  renderLibraryList(list);
+
+  card.append(head, list);
+  ovl.append(card);
+  document.body.appendChild(ovl);
+}
+
+function renderLibraryList(container) {
+  const lib = getLib();
+  container.innerHTML = '';
+
+  if (!lib.length) {
+    const p = document.createElement('p');
+    p.textContent = 'No saved plans yet.';
+    container.appendChild(p);
+    return;
+  }
+
+  const table = document.createElement('table');
+  Object.assign(table.style, { width: '100%', borderCollapse: 'collapse' });
+
+  const thead = document.createElement('thead');
+  thead.innerHTML = `<tr>
+    <th style="text-align:left;padding:8px;border-bottom:1px solid #eee">Name</th>
+    <th style="text-align:left;padding:8px;border-bottom:1px solid #eee">Created</th>
+    <th style="text-align:right;padding:8px;border-bottom:1px solid #eee">Actions</th>
+  </tr>`;
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  lib.forEach((entry, i) => {
+    const tr = document.createElement('tr');
+
+    const nameTd = document.createElement('td');
+    nameTd.style.padding = '8px';
+    nameTd.textContent = entry.meta?.name || `Plan #${i+1}`;
+
+    const dateTd = document.createElement('td');
+    dateTd.style.padding = '8px';
+    const d = entry.meta?.created_at ? new Date(entry.meta.created_at) : null;
+    dateTd.textContent = d ? d.toLocaleString() : '—';
+
+    const actTd = document.createElement('td');
+    actTd.style.padding = '8px';
+    actTd.style.textAlign = 'right';
+    actTd.style.whiteSpace = 'nowrap';
+
+    const mkBtn = (label, bg, handler) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      Object.assign(b.style, { border:'none', padding:'6px 10px', borderRadius:'8px', marginLeft:'6px', background:bg, color:'#fff', cursor:'pointer' });
+      b.addEventListener('click', handler);
+      return b;
+    };
+
+    const loadB = mkBtn('Load', '#0e7fff', () => { loadFromLibrary(i); });
+    const expB  = mkBtn('Export', '#6b7280', () => { exportFromLibrary(i); });
+    const delB  = mkBtn('Delete', '#ef4444', () => {
+      if (confirm('Delete this saved plan?')) {
+        deleteFromLibrary(i);
+        renderLibraryList(container);
+      }
+    });
+
+    actTd.append(loadB, expB, delB);
+    tr.append(nameTd, dateTd, actTd);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  container.appendChild(table);
 }
 
 function toast(msg) {
