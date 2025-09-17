@@ -1,9 +1,9 @@
 // brain/diet.data.js
-// Central nutrition data bundle: foods + portions + optional demo meal plan.
-// This module re-exports from brain/foods and adds a legacy-compatible mealPlan export.
+// Central nutrition data bundle: foods + portions + demo weekly plan.
+// ES-module imports (no JSON assertions).
 
-import foodsCore from './foods/foods.core.js' assert { type: 'json' };
-import portionMaps from './foods/portion-maps.js' assert { type: 'json' };
+import foodsCore from './foods/foods.core.js';
+import portionMaps from './foods/portion-maps.js';
 
 export const ENGINE_VERSION = 'v1.0.0';
 export const DATA_VERSION = '2025-09-17';
@@ -17,7 +17,7 @@ export const foodsBundle = {
   brands: []
 };
 
-// Demo weekly meal plan (legacy format, will be replaced by generator-based templates).
+// Demo weekly meal plan (legacy format; we’ll migrate to templates next)
 export const mealPlan = {
   "Monday": [
     { meal: "Breakfast", items: [
@@ -40,7 +40,6 @@ export const mealPlan = {
       { food:"olive oil", qty:"15 g" }
     ]}
   ],
-
   "Tuesday": [
     { meal: "Breakfast", items: [
       { food:"rolled oats", qty:"120 g" },
@@ -63,7 +62,6 @@ export const mealPlan = {
       { food:"olive oil", qty:"15 g" }
     ]}
   ],
-
   "Wednesday": [
     { meal: "Breakfast", items: [
       { food:"rolled oats", qty:"120 g" },
@@ -86,7 +84,6 @@ export const mealPlan = {
       { food:"olive oil", qty:"15 g" }
     ]}
   ],
-
   "Thursday": [
     { meal: "Breakfast", items: [
       { food:"rolled oats", qty:"120 g" },
@@ -108,7 +105,6 @@ export const mealPlan = {
       { food:"olive oil", qty:"15 g" }
     ]}
   ],
-
   "Friday": [
     { meal: "Breakfast", items: [
       { food:"rolled oats", qty:"120 g" },
@@ -131,7 +127,6 @@ export const mealPlan = {
       { food:"olive oil", qty:"15 g" }
     ]}
   ],
-
   "Saturday": [
     { meal: "Breakfast", items: [
       { food:"rolled oats", qty:"120 g" },
@@ -153,7 +148,6 @@ export const mealPlan = {
       { food:"olive oil", qty:"15 g" }
     ]}
   ],
-
   "Sunday": [
     { meal: "Breakfast", items: [
       { food:"rolled oats", qty:"120 g" },
@@ -165,7 +159,7 @@ export const mealPlan = {
       { food:"tuna (springwater, drained)", qty:"200 g" },
       { food:"lentils (canned, drained)", qty:"150 g" },
       { food:"sweet potato", qty:"350 g" },
-      { food:"spinash", qty:"100 g" } // <- typo guard: if you see zeroes, fix to "spinach"
+      { food:"spinach", qty:"100 g" }  // fix typo if you still have “spinash”
     ]},
     { meal: "Dinner", items: [
       { food:"chicken thigh fillets", qty:"450 g" },
@@ -177,7 +171,7 @@ export const mealPlan = {
   ]
 };
 
-// Back-compat window.* mirrors (optional)
+// Back-compat mirrors
 if (typeof window !== 'undefined') {
   window.NUTRIFY_FOODS = foodsCore;
   window.PORTION_MAPS = portionMaps;
