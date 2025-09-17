@@ -3,7 +3,7 @@
 // Adds: age, activity PAL, goal, bodyfat%, diet, allergies, dislikes, training days.
 
 import { clamp, showSnack } from './utils.js';
-import { applyPlanToDiet } from './plan.io.js';
+// import { applyPlanToDiet } from './plan.io.js'; // no longer used here (direct apply instead)
 import { generateDayPlan } from '../engine/nutritionEngine.js';
 import { foodsBundle } from '../brain/diet.data.js';
 
@@ -545,7 +545,7 @@ export function mountProfile(){
   // Generate Plan button
   injectGenerateButton(u);
 
-  // ---- (3) JS enhancer for chips (fallback for browsers without :has) ----
+  // ---- JS enhancer for chips (fallback for browsers without :has) ----
   u.trainingWrap.querySelectorAll('label.chip').forEach(lbl => {
     const cb = lbl.querySelector('input[type="checkbox"]');
     const sync = () => lbl.classList.toggle('is-checked', cb.checked);
@@ -613,12 +613,16 @@ function onGenerateFromProfile(u){
     return;
   }
 
-  // Convert engine JSON → legacy weekly plan and apply to all days
+  // Convert engine JSON → legacy weekly plan and APPLY DIRECTLY
   const weeklyPlan = planFromEngine(result);
-  applyPlanToDiet({
-    meta: { name: 'Generated Plan', created_at: new Date().toISOString(), engine_version: req.engine_version, data_version: req.data_version },
-    plan: weeklyPlan
-  });
+
+  // -------------- DIRECT APPLY + RERENDER --------------
+  window.mealPlan = weeklyPlan;
+  try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(weeklyPlan)); } catch {}
+  if (typeof window.renderDiet === 'function') {
+    try { window.renderDiet(); } catch {}
+  }
+  // -----------------------------------------------------
 
   showSnack(result.summary || 'Plan generated');
 }
