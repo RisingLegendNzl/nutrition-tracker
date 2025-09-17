@@ -1,7 +1,12 @@
 // filename: js/profile.js
 // Profile with Gender field; saves gender used by hydration mask.
+// + Generate Plan button (uses unsaved form values first, then saved profile).
+// + Calls Nutrition Engine and applies the plan to Diet (all week).
 
 import { clamp, showSnack } from './utils.js';
+import { applyPlanToDiet } from './plan.io.js';
+import { generateDayPlan } from '../engine/nutritionEngine.js';
+import { foodsBundle } from '../brain/diet.data.js';
 
 const KEY = 'profile_v1';
 const listeners = new Set();
@@ -142,6 +147,7 @@ function ensureRoot(){
           <button id="p_save" class="primary">Save</button>
           <button id="p_reset" class="ghost">Reset to defaults</button>
           <button id="p_cancel" class="ghost hidden">Cancel</button>
+          <!-- Generate Plan button is injected here at runtime -->
         </div>
 
         <div id="p_error" style="color:#ff7b7b;margin-top:8px;display:none"></div>
@@ -340,5 +346,92 @@ export function mountProfile(){
   u.cancel.addEventListener('click', ()=>{
     u.page.classList.add('hidden');
   });
+
+  // --- Generate Plan button (injected next to Save) ---
+  injectGenerateButton(u);
 }
 export { ensureRoot as renderProfile, ensureRoot as initProfile };
+
+/* ===================== Generate Plan wiring ===================== */
+
+function injectGenerateButton(u){
+  const row = u.save?.parentElement || u.page.querySelector('div[style*="flex-wrap"]') || u.page;
+  if (!row || document.getElementById('p_generate')) return;
+
+  const gen = document.createElement('button');
+  gen.id = 'p_generate';
+  gen.className = 'primary';
+  gen.textContent = 'Generate Plan';
+  gen.style.marginLeft = '8px';
+  gen.addEventListener('click', () => onGenerateFromProfile(u));
+  row.appendChild(gen);
+}
+
+function onGenerateFromProfile(u){
+  // Prefer UNSAVED form values if present; else fall back to saved profile.
+  const r = readFromUI(u);
+  const saved = getProfile() || {};
+  const sex = (r.data.gender || saved.gender || 'male').toLowerCase();
+
+  // Normalize height (optional in your UI)
+  let height_cm = (r.data.height_cm === '' || r.data.height_cm == null)
+      ? (Number(saved.height_cm) || 175)
+      : Number(r.data.height_cm);
+
+  const weight_kg = Number(r.data.weight_kg || saved.weight_kg || 71);
+
+  // Until you add these fields to the Profile UI, use saved values if any; else defaults.
+  const age_y       = Number(saved.age_y ?? 23);
+  const bodyfat_pct = (saved.bodyfat_pct != null) ? Number(saved.bodyfat_pct) : null;
+  const activity_pal= Number(saved.activity_pal ?? 1.6);
+  const goal        = String(saved.goal || 'maintain').toLowerCase();
+
+  const profileForEngine = { sex, age_y, height_cm, weight_kg, bodyfat_pct, activity_pal, goal };
+
+  const req = {
+    engine_version: 'v1.0.0',
+    data_version: '2025-09-17',
+    profile: profileForEngine,
+    constraints: {
+      diet: saved.diet || 'omnivore',
+      allergies: saved.allergies || [],
+      dislikes: saved.dislikes || [],
+      budget_mode: false,
+      time_per_meal: '<=20min',
+      training_days: saved.training_days || []
+    },
+    features: { ai_swaps: false, live_prices: false }
+  };
+
+  const result = generateDayPlan(req);
+  if (result?.type === 'error'){
+    showSnack(result.message || 'Generation error');
+    return;
+  }
+
+  // Convert engine JSON → legacy weekly plan and apply
+  const weeklyPlan = planFromEngine(result);
+  const planObject = {
+    meta: { name: 'Generated Plan', created_at: new Date().toISOString(), engine_version: req.engine_version, data_version: req.data_version },
+    plan: weeklyPlan
+  };
+  applyPlanToDiet(planObject);
+
+  showSnack(result.summary || 'Plan generated');
+}
+
+/* Map engine result to legacy mealPlan (apply same plan to all days) */
+function planFromEngine(engineRes){
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
+  const legacyMeals = (engineRes.meals || []).map(m => ({
+    meal: (m.slot || 'meal').replace(/^\w/, c => c.toUpperCase()),
+    items: (m.items || []).map(it => ({
+      food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
+      qty: `${Math.round(Number(it.qty_g||0))} g`
+    }))
+  }));
+  const plan = {};
+  for (const d of days) plan[d] = legacyMeals;
+  return plan;
+}
