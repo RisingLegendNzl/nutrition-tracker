@@ -1,9 +1,9 @@
 // brain/diet.data.js
-// Central nutrition data bundle: foods + portions + demo weekly plan.
-// ES-module imports (no JSON assertions).
+// Central nutrition data bundle: foods + portions + meal plan built from templates.
 
 import foodsCore from './foods/foods.core.js';
 import portionMaps from './foods/portion-maps.js';
+import mealTemplates from './recipes/meal-templates.js';
 
 export const ENGINE_VERSION = 'v1.0.0';
 export const DATA_VERSION = '2025-09-17';
@@ -17,159 +17,21 @@ export const foodsBundle = {
   brands: []
 };
 
-// Demo weekly meal plan (legacy format; we’ll migrate to templates next)
-export const mealPlan = {
-  "Monday": [
-    { meal: "Breakfast", items: [
-      { food:"rolled oats", qty:"120 g" },
-      { food:"full cream milk", qty:"300 ml" },
-      { food:"banana", qty:"1 medium" },
-      { food:"peanut butter", qty:"40 g" }
-    ]},
-    { meal: "Lunch", items: [
-      { food:"beef mince 5★ (lean)", qty:"250 g" },
-      { food:"frozen mixed vegetables", qty:"200 g" },
-      { food:"sweet potato", qty:"400 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]},
-    { meal: "Dinner", items: [
-      { food:"chicken thigh fillets", qty:"450 g" },
-      { food:"lentils (canned, drained)", qty:"150 g" },
-      { food:"spinach", qty:"100 g" },
-      { food:"avocado", qty:"1 whole" },
-      { food:"olive oil", qty:"15 g" }
-    ]}
-  ],
-  "Tuesday": [
-    { meal: "Breakfast", items: [
-      { food:"rolled oats", qty:"120 g" },
-      { food:"full cream milk", qty:"250 ml" },
-      { food:"banana", qty:"1 medium" },
-      { food:"greek yogurt", qty:"150 g" },
-      { food:"peanut butter", qty:"30 g" }
-    ]},
-    { meal: "Lunch", items: [
-      { food:"beef mince 3★ (regular)", qty:"250 g" },
-      { food:"frozen mixed vegetables", qty:"200 g" },
-      { food:"rice (cooked)", qty:"300 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]},
-    { meal: "Dinner", items: [
-      { food:"chicken thigh fillets", qty:"450 g" },
-      { food:"potatoes", qty:"350 g" },
-      { food:"carrots", qty:"100 g" },
-      { food:"peas", qty:"100 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]}
-  ],
-  "Wednesday": [
-    { meal: "Breakfast", items: [
-      { food:"rolled oats", qty:"120 g" },
-      { food:"full cream milk", qty:"300 ml" },
-      { food:"banana", qty:"1 medium" },
-      { food:"peanut butter", qty:"40 g" }
-    ]},
-    { meal: "Lunch", items: [
-      { food:"tuna (springwater, drained)", qty:"200 g" },
-      { food:"lentils (canned, drained)", qty:"150 g" },
-      { food:"sweet potato", qty:"350 g" },
-      { food:"spinach", qty:"100 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]},
-    { meal: "Dinner", items: [
-      { food:"chicken thigh fillets", qty:"450 g" },
-      { food:"potatoes", qty:"350 g" },
-      { food:"carrots", qty:"100 g" },
-      { food:"peas", qty:"100 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]}
-  ],
-  "Thursday": [
-    { meal: "Breakfast", items: [
-      { food:"rolled oats", qty:"120 g" },
-      { food:"full cream milk", qty:"300 ml" },
-      { food:"banana", qty:"1 medium" },
-      { food:"greek yogurt", qty:"150 g" },
-      { food:"peanut butter", qty:"30 g" }
-    ]},
-    { meal: "Lunch", items: [
-      { food:"beef mince 5★ (lean)", qty:"250 g" },
-      { food:"frozen mixed vegetables", qty:"200 g" },
-      { food:"sweet potato", qty:"400 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]},
-    { meal: "Dinner", items: [
-      { food:"chicken thigh fillets", qty:"450 g" },
-      { food:"rice (cooked)", qty:"300 g" },
-      { food:"spinach", qty:"100 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]}
-  ],
-  "Friday": [
-    { meal: "Breakfast", items: [
-      { food:"rolled oats", qty:"120 g" },
-      { food:"full cream milk", qty:"250 ml" },
-      { food:"banana", qty:"1 medium" },
-      { food:"peanut butter", qty:"40 g" }
-    ]},
-    { meal: "Lunch", items: [
-      { food:"tuna (springwater, drained)", qty:"200 g" },
-      { food:"lentils (canned, drained)", qty:"150 g" },
-      { food:"potatoes", qty:"350 g" },
-      { food:"spinach", qty:"100 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]},
-    { meal: "Dinner", items: [
-      { food:"chicken thigh fillets", qty:"450 g" },
-      { food:"sweet potato", qty:"350 g" },
-      { food:"carrots", qty:"100 g" },
-      { food:"peas", qty:"100 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]}
-  ],
-  "Saturday": [
-    { meal: "Breakfast", items: [
-      { food:"rolled oats", qty:"120 g" },
-      { food:"full cream milk", qty:"300 ml" },
-      { food:"banana", qty:"1 medium" },
-      { food:"greek yogurt", qty:"150 g" },
-      { food:"peanut butter", qty:"30 g" }
-    ]},
-    { meal: "Lunch", items: [
-      { food:"beef mince 3★ (regular)", qty:"250 g" },
-      { food:"frozen mixed vegetables", qty:"200 g" },
-      { food:"rice (cooked)", qty:"300 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]},
-    { meal: "Dinner", items: [
-      { food:"chicken thigh fillets", qty:"450 g" },
-      { food:"potatoes", qty:"350 g" },
-      { food:"spinach", qty:"100 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]}
-  ],
-  "Sunday": [
-    { meal: "Breakfast", items: [
-      { food:"rolled oats", qty:"120 g" },
-      { food:"full cream milk", qty:"250 ml" },
-      { food:"banana", qty:"1 medium" },
-      { food:"peanut butter", qty:"40 g" }
-    ]},
-    { meal: "Lunch", items: [
-      { food:"tuna (springwater, drained)", qty:"200 g" },
-      { food:"lentils (canned, drained)", qty:"150 g" },
-      { food:"sweet potato", qty:"350 g" },
-      { food:"spinach", qty:"100 g" }  // fix typo if you still have “spinash”
-    ]},
-    { meal: "Dinner", items: [
-      { food:"chicken thigh fillets", qty:"450 g" },
-      { food:"potatoes", qty:"350 g" },
-      { food:"carrots", qty:"100 g" },
-      { food:"peas", qty:"100 g" },
-      { food:"olive oil", qty:"15 g" }
-    ]}
-  ]
-};
+// Weekly meal plan built from templates
+export const mealPlan = (function(){
+  const byId = Object.fromEntries(mealTemplates.map(t => [t.id, t]));
+  const day = (...ids) => ids.map(id => ({ meal: byId[id].slot, items: byId[id].items }));
+
+  return {
+    Monday:    day('tmpl_breakfast_oats_pb_banana_milk','tmpl_lunch_beef5_veg_sweetpotato_oo','tmpl_dinner_chicken_lentils_spinach_avocado_oo'),
+    Tuesday:   day('tmpl_breakfast_oats_yog_pb_banana_milk250','tmpl_lunch_beef3_veg_rice_oo','tmpl_dinner_chicken_potato_carrot_peas_oo'),
+    Wednesday: day('tmpl_breakfast_oats_pb_banana_milk','tmpl_lunch_tuna_lentils_sp_spinach_oo','tmpl_dinner_chicken_potato_carrot_peas_oo'),
+    Thursday:  day('tmpl_breakfast_oats_yog_pb_banana_milk250','tmpl_lunch_beef5_veg_sweetpotato_oo','tmpl_dinner_chicken_rice_spinach_oo'),
+    Friday:    day('tmpl_breakfast_oats_pb_banana_milk','tmpl_lunch_tuna_lentils_sp_spinach_oo','tmpl_dinner_chicken_sweetpotato_carrot_peas_oo'),
+    Saturday:  day('tmpl_breakfast_oats_yog_pb_banana_milk250','tmpl_lunch_beef3_veg_rice_oo','tmpl_dinner_chicken_potato_carrot_peas_oo'),
+    Sunday:    day('tmpl_breakfast_oats_pb_banana_milk','tmpl_lunch_tuna_lentils_sp_spinach_oo','tmpl_dinner_chicken_potato_carrot_peas_oo')
+  };
+})();
 
 // Back-compat mirrors
 if (typeof window !== 'undefined') {
