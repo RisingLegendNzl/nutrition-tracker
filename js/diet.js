@@ -317,6 +317,14 @@ function ingredientRowHTML(day, mealName, it){
       <div class="ing-line">
         <span class="ing-food">${it.food}</span>
         <span class="ing-qty">${it.qty}</span>
+        ${(() => {
+          const info = storeInfoFor(it.food);
+          const pref = (getProfile()?.store_preference) || 'none';
+          if (!info || !info.url || pref === 'none') return '';
+          const label = pref.replace(/^./, c=>c.toUpperCase());
+          const brand = info.brand ? ` (${info.brand})` : '';
+          return `<a class="buy-link" href="${info.url}" target="_blank" rel="noopener">Buy at ${label}${brand}</a>`;
+        })()}
         <button class="ing-edit-btn" type="button" aria-label="Edit amount">Edit</button>
       </div>
       <div class="ing-editor">
