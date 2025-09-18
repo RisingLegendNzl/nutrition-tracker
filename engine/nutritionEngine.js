@@ -13,64 +13,65 @@ export function generateDayPlan(req) {
   const p = (req && req.profile) || {};
   const c = (req && req.constraints) || {};
 
+  // 1) Validate scope: healthy adults only
   if (!p || !p.sex || !p.age_y || !p.height_cm || !p.weight_kg || !p.activity_pal) {
-    return { error: 'invalid_inputs', reason: 'Missing or invalid profile' };
+    return error(engine_version, data_version, 'MISSING_INPUTS',
+      'sex, age_y, height_cm, weight_kg, activity_pal are required.',
+      ['Provide all required fields', 'Choose PAL from {1.2,…,1.9}']);
+  }
+  if (p.age_y < 18 || p.age_y > 65) {
+    return error(engine_version, data_version, 'OUT_OF_SCOPE',
+      'Only healthy adults 18–65 are supported.', ['Consult a qualified professional']);
   }
 
+  // 2) Targets (BMR → TDEE → goal → macros)
   const targets = computeTargets(p, c);
-  const diet = (c && c.diet) || 'omnivore';
-  const menus = (diet === 'vegan' || diet === 'vegetarian') ? veganMenus() : omniMenus();
-  const kcalDay = targets.kcal;
-  const splits = [
-    { slot: 'breakfast', share: 0.28 },
-    { slot: 'lunch',     share: 0.32 },
-    { slot: 'dinner',    share: 0.30 },
-    { slot: 'snacks',    share: 0.10 }
-  ];
 
-  const provider = new FoodDataProvider(foodsBundle);
-  function scaleQtyForKcal(kcalPer100, baseQty, kcalTargetEach){
-    const kcalPerGram = Math.max(0.1, kcalPer100 / 100);
-    const baseKcal = baseQty * kcalPerGram;
-    const factor = Math.max(0.5, Math.min(1.8, kcalTargetEach / Math.max(1, baseKcal)));
-    return baseQty * factor;
+  // Safety rails
+  const minFloor = (p.sex === 'female') ? 1200 : 1500;
+  if (targets.kcal < minFloor) {
+    return error(engine_version, data_version, 'SAFETY_LIMIT',
+      `Calories too low for unsupervised use (<${minFloor} kcal).`,
+      ['Increase calories', 'Consult a professional']);
   }
 
-  const meals = splits.map((m) => {
-    const kcalTarget = Math.round(kcalDay * m.share);
-    const base = menus[m.slot] || [];
-    const N = Math.max(1, base.length);
-    const items = base.map(x => {
-      const kcalPer100 = provider.kcalPer100g(x.food_id, x.kcal_100g);
-      const qty = scaleQtyForKcal(kcalPer100, x.base_qty_g, kcalTarget / N);
-      return { food_id: x.food_id, qty_g: Math.max(1, Math.round(qty)) };
-    });
-    return { slot: m.slot, template_id: `tmpl_${m.slot}_v1`, items, totals: { kcal: kcalTarget } };
-  });
+  // 3) Deterministic meal templates (very simple starter set)
+  const plan = buildMeals(targets, c);
 
-  const day_totals = {
-    kcal: kcalDay,
-    protein_g: targets.protein_g,
-    fat_g: targets.fat_g,
-    carbs_g: targets.carbs_g,
-    fiber_g: targets.fiber_g
-  };
-  const compliance = { kcal_within_pct: 0.0, protein_within_pct: 0.0 };
-
-  return {
-    engine_version, data_version, type: 'day_plan',
-    inputs_echo: { profile: p, constraints: c },
-    targets, meals, day_totals, compliance,
-    micros_watchlist: { calcium_mg: 1000, iron_mg: (p.sex === 'female' ? 18 : 8), iodine_ug: 150, vitamin_d_IU: 400, b12_ug: 2.4, magnesium_mg: 400, potassium_mg: 3500, omega3_epa_dha_mg: 250 },
+  // 4) Compose result
+  const res = {
+    engine_version,
+    data_version,
+    type: 'day_plan',
+    inputs_echo: {
+      profile: p,
+      constraints: c
+    },
+    targets,
+    meals: plan.meals,
+    day_totals: plan.day_totals,
+    compliance: plan.compliance,
+    micros_watchlist: {
+      calcium_mg: 1000,
+      iron_mg: (p.sex === 'female' ? 18 : 8),
+      iodine_ug: 150,
+      vitamin_d_IU: 400,
+      b12_ug: 2.4,
+      magnesium_mg: 400,
+      potassium_mg: 3500,
+      omega3_epa_dha_mg: 250
+    },
     cost_estimate_aud: null,
     explanations: [
       `BMR via ${p.bodyfat_pct != null ? 'Katch–McArdle' : 'Mifflin–St Jeor'}; TDEE = BMR × PAL.`,
-      `Protein ${targets.protein_g.toFixed(1)} g (~${Math.round(targets.protein_g*4/targets.kcal*100)}% kcal), fat floor respected, carbs are remainder.`,
-      `Deterministic template picks scaled to calories.`
+      `Protein ${targets.protein_g.toFixed(1)} g (~${(targets.protein_g*4/targets.kcal*100).toFixed(0)}% kcal), fat floor respected, carbs are remainder.`,
+      `Deterministic template picks: protein oats, simple curry or sandwich, and chicken–rice–veg; scaled to calories.`
     ],
-    summary: `Plan hits ~${targets.kcal} kcal with ~${Math.round(targets.protein_g)} g protein.`,
+    summary: `Plan hits ~${targets.kcal} kcal with ~${targets.protein_g.toFixed(0)} g protein. Adjust PAL/goal in Profile for different targets.`,
     disclaimer: 'Not medical advice. For healthy adults 18–65.'
   };
+
+  return res;
 }
 
 // --------------------------- Targets ---------------------------
@@ -298,74 +299,11 @@ function round1(x){ return Math.round(x * 10) / 10; }
 
 export function generateWeekPlan(req){
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const baseDay = generateDayPlan(req);
-  if (!baseDay || !baseDay.meals) return { plan: {} };
-
+  const day = generateDayPlan(req);
+  if (!day || !day.meals) return { plan: {} };
+  const base = day.meals;
   const plan = {};
-  const c = (req && req.constraints) || {};
-  const diet = (c && c.diet) || 'omnivore';
-  const menus = (diet === 'vegan' || diet === 'vegetarian') ? veganMenus() : omniMenus();
-
-  const variants = (diet === 'vegan' || diet === 'vegetarian') ? [
-    { lunchSwap: ['food_lentils_canned_drained','food_chickpeas_canned_drained', 220, 119],
-      dinnerSwap: ['food_peas','food_broccoli', 120, 34] },
-    { lunchSwap: ['food_brown_rice_cooked','food_wholegrain_pasta_cooked', 220, 124],
-      dinnerSwap: ['food_spinach','food_broccoli', 100, 34] },
-    { lunchSwap: null, dinnerSwap: null }
-  ] : [
-    { lunchSwap: ['food_beef_mince_5_lean','food_chicken_breast', 250, 165],
-      dinnerSwap: ['food_broccoli','food_spinach', 100, 23] },
-    { lunchSwap: ['food_sweet_potato','food_brown_rice_cooked', 250, 123],
-      dinnerSwap: ['food_brown_rice_cooked','food_wholegrain_pasta_cooked', 240, 124] },
-    { lunchSwap: null,
-      dinnerSwap: ['food_chicken_thigh_fillets','food_chicken_breast', 300, 165] }
-  ];
-
-  const provider = new FoodDataProvider(foodsBundle);
-  const targets = baseDay.targets || { kcal: 2500 };
-
-  function kcalOf(menu){
-    return (menu||[]).reduce((s,x)=> s + provider.kcalPer100g(x.food_id, x.kcal_100g) * (x.base_qty_g/100), 0);
-  }
-  function scaleTo(menu, share){
-    const need = targets.kcal * share;
-    const base = Math.max(1, kcalOf(menu));
-    const factor = Math.max(0.6, Math.min(1.6, need / base));
-    return menu.map(x => ({ food_id: x.food_id, qty_g: Math.round(x.base_qty_g * factor) }));
-  }
-  function applySwap(arr, swap){
-    if (!swap) return arr.map(x=>({...x}));
-    const [fromId, toId, qty, kcal100] = swap;
-    return arr.map(x => x.food_id === fromId ? ({ food_id: toId, base_qty_g: qty, kcal_100g: kcal100 }) : ({...x}));
-  }
-
-  const splitBase = [0.28, 0.32, 0.30, 0.10];
-  days.forEach((d, idx)=>{
-    const jitter = [0, +0.02, -0.02, +0.03, -0.03, +0.01, -0.01][idx % 7];
-    const splits = {
-      breakfast: Math.max(0.22, Math.min(0.34, splitBase[0] + jitter)),
-      lunch:     Math.max(0.26, Math.min(0.36, splitBase[1] - jitter/2)),
-      dinner:    Math.max(0.24, Math.min(0.36, splitBase[2] - jitter/2)),
-      snacks:    splitBase[3]
-    };
-    const v = variants[idx % variants.length];
-
-    const baseMeals = (baseDay.meals || []);
-    const baseB = baseMeals.find(m=>m.slot==='breakfast')?.items || [];
-    const baseS = baseMeals.find(m=>m.slot==='snacks')?.items || [];
-
-    const lunchMenu  = applySwap(menus.lunch,  v.lunchSwap);
-    const dinnerMenu = applySwap(menus.dinner, v.dinnerSwap);
-
-    const meals = [
-      { slot:'breakfast', items: baseB.map(it=>({ food_id: it.food_id, qty_g: it.qty_g })) },
-      { slot:'lunch',     items: scaleTo(lunchMenu,  splits.lunch) },
-      { slot:'dinner',    items: scaleTo(dinnerMenu, splits.dinner) },
-      { slot:'snacks',    items: baseS.map(it=>({ food_id: it.food_id, qty_g: it.qty_g })) }
-    ];
-    plan[d] = meals;
-  });
-
+  days.forEach(d => { plan[d] = base; });
   return { plan, meta: { type:'week_plan', source:'engine', created_at: new Date().toISOString() } };
 }
 
