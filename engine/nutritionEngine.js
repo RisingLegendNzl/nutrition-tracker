@@ -205,28 +205,27 @@ function buildMeals(targets, constraints) {
 function omniMenus() {
   return {
     breakfast: [
-      { food_id: 'food_oats_rolled',            base_qty_g: 80,  kcal_100g: 380 },
-      { food_id: 'food_milk_lowfat',            base_qty_g: 250, kcal_100g: 50  },
-      { food_id: 'food_whey_protein_vanilla',   base_qty_g: 30,  kcal_100g: 400 },
-      { food_id: 'food_blueberries_frozen',     base_qty_g: 80,  kcal_100g: 57  }
+      { food_id: 'food_rolled_oats',             base_qty_g: 80,  kcal_100g: 380 },
+      { food_id: 'food_full_cream_milk',         base_qty_g: 250, kcal_100g: 64  },
+      { food_id: 'food_peanut_butter',           base_qty_g: 30,  kcal_100g: 588 },
+      { food_id: 'food_banana',                  base_qty_g: 80,  kcal_100g: 89  }
     ],
     lunch: [
-      // If you have a recipe id, you could use template_id; we keep items for simplicity
-      { food_id: 'food_bread_wholemeal',        base_qty_g: 120, kcal_100g: 250 },
-      { food_id: 'food_tuna_canned_in_spring',  base_qty_g: 95,  kcal_100g: 160 },
-      { food_id: 'food_avocado',                base_qty_g: 60,  kcal_100g: 160 },
-      { food_id: 'food_tomato',                 base_qty_g: 80,  kcal_100g: 18  }
+      { food_id: 'food_beef_mince_5_lean',       base_qty_g: 250, kcal_100g: 137 },
+      { food_id: 'food_frozen_mixed_vegetables', base_qty_g: 200, kcal_100g: 40  },
+      { food_id: 'food_sweet_potato',            base_qty_g: 350, kcal_100g: 86  },
+      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
     ],
     dinner: [
-      { food_id: 'food_chicken_breast_cooked',  base_qty_g: 160, kcal_100g: 165 },
-      { food_id: 'food_rice_white_cooked',      base_qty_g: 250, kcal_100g: 130 },
-      { food_id: 'food_broccoli_steamed',       base_qty_g: 120, kcal_100g: 35  },
-      { food_id: 'food_olive_oil',              base_qty_g: 10,  kcal_100g: 884 }
+      { food_id: 'food_chicken_thigh_fillets',   base_qty_g: 300, kcal_100g: 145 },
+      { food_id: 'food_rice_cooked',             base_qty_g: 250, kcal_100g: 130 },
+      { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
+      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
     ],
     snacks: [
-      { food_id: 'food_yogurt_greek_lowfat',    base_qty_g: 170, kcal_100g: 60  },
-      { food_id: 'food_banana',                 base_qty_g: 120, kcal_100g: 89  },
-      { food_id: 'food_almonds',                base_qty_g: 25,  kcal_100g: 580 }
+      { food_id: 'food_greek_yogurt',            base_qty_g: 170, kcal_100g: 73  },
+      { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
+      { food_id: 'food_avocado',                 base_qty_g: 60,  kcal_100g: 160 }
     ]
   };
 }
@@ -234,27 +233,25 @@ function omniMenus() {
 function veganMenus() {
   return {
     breakfast: [
-      { food_id: 'food_oats_rolled',          base_qty_g: 90,  kcal_100g: 380 },
-      { food_id: 'food_soy_milk_unsweet',     base_qty_g: 300, kcal_100g: 33  },
-      { food_id: 'food_flaxseed_ground',      base_qty_g: 15,  kcal_100g: 534 },
-      { food_id: 'food_blueberries_frozen',   base_qty_g: 80,  kcal_100g: 57  }
+      { food_id: 'food_rolled_oats',             base_qty_g: 90,  kcal_100g: 380 },
+      { food_id: 'food_peanut_butter',           base_qty_g: 15,  kcal_100g: 588 },
+      { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  }
     ],
     lunch: [
-      { food_id: 'food_chickpeas_canned',     base_qty_g: 200, kcal_100g: 120 },
-      { food_id: 'food_basmati_rice_cooked',  base_qty_g: 220, kcal_100g: 130 },
-      { food_id: 'food_spinach',              base_qty_g: 60,  kcal_100g: 23  },
-      { food_id: 'food_tomato',               base_qty_g: 80,  kcal_100g: 18  }
+      { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
+      { food_id: 'food_rice_cooked',             base_qty_g: 220, kcal_100g: 130 },
+      { food_id: 'food_spinach',                 base_qty_g: 60,  kcal_100g: 23  },
+      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
     ],
     dinner: [
-      { food_id: 'food_tofu_firm',            base_qty_g: 200, kcal_100g: 120 },
-      { food_id: 'food_udon_cooked',          base_qty_g: 220, kcal_100g: 120 },
-      { food_id: 'food_bok_choy',             base_qty_g: 120, kcal_100g: 13  },
-      { food_id: 'food_peanut_sauce',         base_qty_g: 30,  kcal_100g: 600 }
+      { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
+      { food_id: 'food_potatoes',                base_qty_g: 300, kcal_100g: 77  },
+      { food_id: 'food_peas',                    base_qty_g: 120, kcal_100g: 81  },
+      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
     ],
     snacks: [
-      { food_id: 'food_soy_yogurt_plain',     base_qty_g: 170, kcal_100g: 62  },
-      { food_id: 'food_banana',               base_qty_g: 120, kcal_100g: 89  },
-      { food_id: 'food_walnuts',              base_qty_g: 25,  kcal_100g: 654 }
+      { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
+      { food_id: 'food_avocado',                 base_qty_g: 60,  kcal_100g: 160 }
     ]
   };
 }
