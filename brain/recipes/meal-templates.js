@@ -111,4 +111,50 @@ export default [
       { food: "olive oil", qty: "15 g" }
     ]
   }
+
+  ,
+  {
+    id: "tmpl_lunch_chicken_breast_brownrice_broccoli_oo",
+    name: "Chicken Breast + Brown Rice + Broccoli + Olive Oil",
+    slot: "Lunch",
+    items: [
+      { food: "chicken breast", qty: "300 g" },
+      { food: "brown rice (cooked)", qty: "300 g" },
+      { food: "broccoli", qty: "120 g" },
+      { food: "olive oil", qty: "10 g" }
+    ]
+  },
+  {
+    id: "tmpl_dinner_salmon_chickpeas_spinach_oo",
+    name: "Canned Salmon + Chickpeas + Spinach + Olive Oil",
+    slot: "Dinner",
+    items: [
+      { food: "salmon (canned, drained)", qty: "200 g" },
+      { food: "chickpeas (canned, drained)", qty: "150 g" },
+      { food: "spinach", qty: "100 g" },
+      { food: "olive oil", qty: "10 g" }
+    ]
+  },
+  {
+    id: "tmpl_lunch_beans_pasta_broccoli_oo",
+    name: "Kidney Beans + Wholegrain Pasta + Broccoli + Olive Oil",
+    slot: "Lunch",
+    items: [
+      { food: "kidney beans (canned, drained)", qty: "200 g" },
+      { food: "wholegrain pasta (cooked)", qty: "240 g" },
+      { food: "broccoli", qty: "120 g" },
+      { food: "olive oil", qty: "10 g" }
+    ]
+  },
+  {
+    id: "tmpl_breakfast_bread_cottage_pb_banana",
+    name: "Wholemeal Toast + Cottage Cheese + Peanut Butter + Banana",
+    slot: "Breakfast",
+    items: [
+      { food: "wholemeal bread", qty: "2 slice" },
+      { food: "cottage cheese", qty: "200 g" },
+      { food: "peanut butter", qty: "20 g" },
+      { food: "banana", qty: "1 medium" }
+    ]
+  }
 ];
