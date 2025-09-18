@@ -73,44 +73,4 @@ export default {
     url: "https://www.coles.com.au/",
     brand: "Produce"
   }
-}
-  ,
-  food_chicken_breast: {
-    url: "https://www.coles.com.au/browse/meat-seafood/deli-poultry/chicken-breast",
-    pack_size_g: 1000,
-    brand: "Coles"
-  },
-  food_brown_rice_cooked: {
-    url: "https://www.coles.com.au/browse/pantry/pasta-rice-grains/rice/brown-rice",
-    brand: "Various"
-  },
-  food_wholegrain_pasta_cooked: {
-    url: "https://www.coles.com.au/browse/pantry/pasta-rice-grains/pasta/wholemeal",
-    brand: "Various"
-  },
-  food_wholemeal_bread: {
-    url: "https://www.coles.com.au/browse/bakery/bread/wholemeal-bread",
-    brand: "Bakery"
-  },
-  food_cottage_cheese: {
-    url: "https://www.coles.com.au/browse/dairy-eggs-fridge/cheese/cottage-ricotta-cream-cheese",
-    brand: "Dairy"
-  },
-  food_broccoli: {
-    url: "https://www.coles.com.au/browse/fruit-veg/vegetables/broccoli-cauliflower",
-    brand: "Produce"
-  },
-  food_chickpeas_canned_drained: {
-    url: "https://www.coles.com.au/browse/pantry/canned-food-soups-noodles/canned-beans-legumes/chickpeas",
-    brand: "Various"
-  },
-  food_kidney_beans_canned_drained: {
-    url: "https://www.coles.com.au/browse/pantry/canned-food-soups-noodles/canned-beans-legumes/kidney-beans",
-    brand: "Various"
-  },
-  food_canned_salmon_drained: {
-    url: "https://www.coles.com.au/browse/meat-seafood/seafood/canned-seafood/salmon",
-    brand: "Various"
-  }
-
 };
