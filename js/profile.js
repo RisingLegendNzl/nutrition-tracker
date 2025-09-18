@@ -89,9 +89,9 @@ function isValid(p){
 
 /* ============ Compute helpers / units ============ */
 
-function computeHydroLitres(weight_kg, ml_per_kg){
-  const ml = weight_kg * ml_per_kg;
-  return Math.round(ml) / 1000;
+function computeHydroLitres(weight_kg){
+  const ml = weight_kg * 35;
+  return ml > 0 ? (ml/1000) : 0;
 }
 function kgFromLbs(lbs){ return Math.round((Number(lbs)||0) * 0.45359237 * 10) / 10; }
 function cmFromFeetIn(feet, inches){
@@ -240,13 +240,6 @@ function ensureRoot(){
           )).join('')}
         </div>
       </div>
-
-      <div class="field">
-        <label for="p_mlkg">Hydration baseline (ml per kg)</label>
-        <input id="p_mlkg" type="number" inputmode="numeric" min="20" max="60" step="1" placeholder="35"/>
-        <div id="p_goal_preview" class="pill" style="margin-top:8px">
-          <span>Daily hydration goal</span><strong id="p_goal_value">—</strong>
-        </div>
       </div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
@@ -276,6 +269,7 @@ function ensureEditButton(){
     const u = ui();
     const p = getProfile() || defaults();
     writeToUI(u, p);
+  updateButtons(u);
     document.getElementById('p_title').textContent = 'Edit Profile';
     show(false);
   });
@@ -316,8 +310,7 @@ function ui(){
     trainingWrap: el('p_training_days'),
 
     // ml/kg + preview
-    mlkg: el('p_mlkg'),
-    goalPrev: el('p_goal_preview'),
+
     goalVal: el('p_goal_value'),
 
     // actions
@@ -336,8 +329,6 @@ function defaults(){
     height_unit: 'cm',    // 'cm' | 'ftin'
     weight_kg: 71,
     height_cm: '',
-    ml_per_kg: 35,
-
     // nutrition fields
     store_preference: 'none',
     age_y: 23,
@@ -405,12 +396,8 @@ function readFromUI(u){
   const training_days = Array.from(u.trainingWrap.querySelectorAll('input[type="checkbox"]'))
     .filter(cb => cb.checked)
     .map(cb => cb.getAttribute('data-day'));
-
-  const ml_per_kg = Number(u.mlkg.value);
-
   // quick validations
   const weightIsOk = Number.isFinite(weight_kg) && weight_kg >= 30 && weight_kg <= 300;
-  const mlkgIsOk = Number.isFinite(ml_per_kg) && ml_per_kg >= 20 && ml_per_kg <= 60;
   const heightOk = (u.hcm.value === '' && prefs.height_unit==='cm')
                 || (u.hft.value === '' && u.hin.value === '' && prefs.height_unit==='ftin')
                 || (Number.isFinite(height_cm) && height_cm >= 120 && height_cm <= 230);
@@ -419,7 +406,7 @@ function readFromUI(u){
 
   return {
     prefs,
-    ok: weightIsOk && mlkgIsOk && heightOk && ageOk && bfOk,
+    ok: weightIsOk && heightOk && ageOk && bfOk,
     data: {
       name, gender: prefs.gender,
       weight_unit: prefs.weight_unit,
@@ -486,9 +473,6 @@ function writeToUI(u, p){
   });
 
   // ml/kg + preview
-  u.mlkg.value = p.ml_per_kg ?? 35;
-  const litres = computeHydroLitres(p.weight_kg, p.ml_per_kg);
-  u.goalPrev.querySelector('strong').textContent = litres ? `${litres.toFixed(1).replace(/\.0$/, '')} L` : '—';
 }
 
 /* ================== Mount & Events ================== */
@@ -498,6 +482,7 @@ function show(readonly=true){
   if (readonly){
     const p = getProfile() || defaults();
     writeToUI(u, p);
+  updateButtons(u);
   }
   u.page.classList.remove('hidden');
 }
@@ -521,26 +506,23 @@ export function mountProfile(){
   // live hydration preview
   const updatePreview = ()=>{
     const r = readFromUI(u);
-    if (!Number.isFinite(r.data.weight_kg) || !Number.isFinite(r.data.ml_per_kg)) {
-      u.goalPrev.querySelector('strong').textContent = '—';
-      return;
-    }
-    const litres = computeHydroLitres(r.data.weight_kg, r.data.ml_per_kg);
-    u.goalPrev.querySelector('strong').textContent = `${litres.toFixed(1).replace(/\.0$/, '')} L`;
   };
   u.weightVal.addEventListener('input', updatePreview);
-  u.mlkg.addEventListener('input', updatePreview);
-  u.weightUnit.addEventListener('change', updatePreview);
-
   // Save
+  u.save.disabled = true;
+  updateButtons(u);
   u.save.addEventListener('click', ()=>{
     const r = readFromUI(u);
-    if (!r.ok){
+    const missing = missingRequired(u);
+    if (!r.ok || missing.length){
       u.error.style.display = 'block';
-      u.error.textContent = 'Please check your entries.';
+      u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
+      markInvalid(u, missing);
       return;
     }
     u.error.style.display = 'none';
+    markInvalid(u, []);
+    clearDraft();
 
     // Normalize optional fields
     const cleaned = { ...r.data };
@@ -586,6 +568,9 @@ function injectGenerateButton(u){
     btn.textContent = 'Generate Meal Plan';
     u.cancel.parentElement.appendChild(btn);
   }
+  updateButtons(u);
+  // autosave draft
+  wireDraftAutosave(u);
   btn.onclick = ()=>{
     const r = readFromUI(u);
     const missing = (typeof missingRequired==='function') ? missingRequired(u) : [];
@@ -595,6 +580,8 @@ function injectGenerateButton(u){
       return;
     }
     u.error.style.display = 'none';
+    markInvalid(u, []);
+    clearDraft();
     const req = { profile: r.data, constraints: { diet: r.data.diet, allergies: r.data.allergies, dislikes: r.data.dislikes } };
     try{
       const out = generateWeekPlan(req);
@@ -702,4 +689,71 @@ function planFromEngine(engineRes){
   const plan = {};
   for (const d of days) plan[d] = legacyMeals;
   return plan;
+}
+
+
+// ===== Additional validation helpers (Phase 1) =====
+function missingRequired(u){
+  const out = [];
+  const gv = (el)=> (el && (el.value ?? '').toString().trim()) || '';
+  const gender = gv(u.gender);
+  const age = Number(gv(u.age));
+  const w = Number(gv(u.weightVal));
+  const hcm = gv(u.hcm);
+  const hft = gv(u.hft); const hin = gv(u.hin);
+  const activity = gv(u.activity);
+  const goal = gv(u.goal);
+  const diet = gv(u.diet);
+
+  if (!gender) out.push('gender');
+  if (!(Number.isFinite(age) && age>=18 && age<=65)) out.push('age');
+  if (!(Number.isFinite(w) && w>=30 && w<=300)) out.push('weight');
+  // height: either cm present or ft+in present
+  const heightOk = (u.heightUnit.value==='cm' && hcm !== '') ||
+                   (u.heightUnit.value==='ftin' && (hft !== '' || hin !== ''));
+  if (!heightOk) out.push('height');
+  if (!activity) out.push('activity');
+  if (!goal) out.push('goal');
+  if (!diet) out.push('diet');
+  return out;
+}
+
+function markInvalid(u, missing){
+  // clear previous
+  const fields = [
+    ['gender', u.gender], ['age', u.age], ['weight', u.weightVal],
+    ['height', u.heightUnit.value==='cm' ? u.hcm : u.hftinBlock],
+    ['activity', u.activity], ['goal', u.goal], ['diet', u.diet]
+  ];
+  fields.forEach(([name, el])=>{
+    if (!el) return;
+    const field = el.closest('.field') || el.parentElement;
+    if (!field) return;
+    field.classList.toggle('invalid', missing.includes(name));
+  });
+}
+
+function updateButtons(u){
+  const missing = missingRequired(u);
+  const disabled = missing.length > 0;
+  if (u.save) u.save.disabled = disabled;
+  const gen = document.getElementById('p_gen');
+  if (gen) gen.disabled = disabled;
+}
+
+
+// ===== Draft persistence (localStorage) =====
+const DRAFT_KEY = 'profile_draft_v1';
+function readDraft(){ try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch { return null; } }
+function saveDraftFromUI(u){
+  const r = readFromUI(u);
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(r.data));
+}
+function clearDraft(){ localStorage.removeItem(DRAFT_KEY); }
+function wireDraftAutosave(u){
+  const inputs = u.page.querySelectorAll('input, select, textarea');
+  inputs.forEach(inp=>{
+    inp.addEventListener('input', ()=>{ saveDraftFromUI(u); updateButtons(u); });
+    inp.addEventListener('change', ()=>{ saveDraftFromUI(u); updateButtons(u); });
+  });
 }
