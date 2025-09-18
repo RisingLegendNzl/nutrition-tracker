@@ -2,6 +2,7 @@ import { loadState, saveState, GOAL_KEY } from './utils.js';
 import { getProfile, onProfileChange } from './profile.js';
 import { foodsBundle, mealPlan } from '../brain/diet.data.js';
 
+/* -------------------- Nutrition helpers -------------------- */
 
 function loadPlanFromStorage(){
   try{
@@ -16,7 +17,7 @@ function loadPlanFromStorage(){
   }
   return (mealPlan && Object.keys(mealPlan).length) ? mealPlan : {};
 }
-/* -------------------- Nutrition helpers -------------------- */
+
 
 // Build a legacy per-100g map { k,p,c,f,fib,fe,zn,ca,vC,fol,kplus, unit_g? } keyed by lowercase food name
 const _foods = (foodsBundle && foodsBundle.foods) || [];
