@@ -505,3 +505,12 @@ button.secondary:hover{
 button.secondary:active{
   background: #2a3142;
 }
+
+/* Store buy link */
+.buy-link{
+  margin-left:8px;
+  font-size:0.9em;
+  text-decoration:underline;
+  opacity:0.85;
+}
+.buy-link:hover{ opacity:1; }
