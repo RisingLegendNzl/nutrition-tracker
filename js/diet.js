@@ -1,3 +1,4 @@
+// filename: js/diet.js
 import { loadState, saveState, GOAL_KEY } from './utils.js';
 import { getProfile, onProfileChange } from './profile.js';
 import { foodsBundle, mealPlan } from '../brain/diet.data.js';
@@ -322,7 +323,7 @@ function ingredientRowHTML(day, mealName, it){
           if (!info || !info.url || pref === 'none') return '';
           const label = pref.replace(/^./, c=>c.toUpperCase());
           const brand = info.brand ? ` (${info.brand})` : '';
-          return `<a class="buy-pill" href="${info.url}" target="_blank" rel="noopener">Buy at ${label}${brand}</a>`;
+          return `<a class="buy-link" href="${info.url}" target="_blank" rel="noopener">Buy at ${label}${brand}</a>`;
         })()}
         <button class="ing-edit-btn" type="button" aria-label="Edit amount">Edit</button>
       </div>
