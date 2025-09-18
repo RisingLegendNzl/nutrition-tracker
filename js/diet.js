@@ -1,268 +1,345 @@
-// js/diet.js — full replacement (targets from nutrify_targets; plan from nutrify_mealPlan)
+// filename: js/diet.js
+import { loadState, saveState, GOAL_KEY } from './utils.js';
+import { foodsBundle, mealPlan } from '../brain/diet.data.js';
 
-import { loadState, saveState } from './utils.js';
-import { foodsBundle } from '../brain/diet.data.js';
+/* -------------------- Nutrition helpers -------------------- */
 
-// ----------------------------
-// Storage keys & constants
-// ----------------------------
-const PLAN_KEY = 'nutrify_mealPlan';
-const TARGETS_KEY = 'nutrify_targets';   // new, engine-owned
-const GOAL_KEY = 'diet_goal';            // legacy fallback for bars
-const DAY_KEY = 'diet_day';
+// Build a legacy per-100g map { k,p,c,f,fib,fe,zn,ca,vC,fol,kplus, unit_g? } keyed by lowercase food name
+const _foods = (foodsBundle && foodsBundle.foods) || [];
+const _pms   = (foodsBundle && foodsBundle.portion_maps) || [];
+const _pmIndex = new Map(_pms.map(pm => [pm.food_id, (pm.portions && pm.portions[0] && pm.portions[0].qty_g) || null]));
 
-// ----------------------------
-// Food indexes (by id + name)
-// ----------------------------
-const foods = Array.isArray(foodsBundle?.foods) ? foodsBundle.foods : [];
-const portionMaps = Array.isArray(foodsBundle?.portion_maps) ? foodsBundle.portion_maps : [];
-
-const byId = Object.fromEntries(foods.map(f => [f.id, f]));
-const byName = Object.fromEntries(
-  foods.map(f => [String(f.name || '').toLowerCase(), f])
-);
-
-// default grams per “unit” for foods that have a portion map
-const unitGrams = Object.fromEntries(
-  portionMaps.map(pm => [pm.food_id, (pm.portions?.[0]?.qty_g) ?? null])
-);
-
-// ----------------------------
-// Helpers
-// ----------------------------
-function todayName() {
-  return new Date().toLocaleDateString('en-AU', { weekday: 'long' });
+function _toLegacy(f){
+  const n = (f && f.nutrients_per_100g) || {};
+  const rec = {
+    per: 100,
+    k: n.kcal || 0,
+    p: n.protein_g || 0,
+    c: n.carbs_g || 0,
+    f: n.fat_g || 0,
+    fib: n.fiber_g || 0,
+    fe: n.iron_mg || 0,
+    zn: 0,
+    ca: n.calcium_mg || 0,
+    vC: 0,
+    fol: 0,
+    kplus: n.potassium_mg || 0
+  };
+  const unit = _pmIndex.get(f.id);
+  if (unit != null) rec.unit_g = unit;
+  return rec;
 }
 
-function parseQtyStr(s = '') {
-  s = String(s).trim().toLowerCase();
-  let m;
-  if ((m = s.match(/^\s*([\d.]+)\s*g\b/))) return { grams: +m[1] };
-  if ((m = s.match(/^\s*([\d.]+)\s*ml\b/))) return { ml: +m[1] };
-  if ((m = s.match(/^\s*([\d.]+)\s*(?:unit|can|whole)\b/))) return { units: +m[1] };
-  // If string is just a number, assume grams
-  if ((m = s.match(/^\s*([\d.]+)\s*$/))) return { grams: +m[1] };
-  return { grams: 0 };
+const DB = Object.fromEntries(_foods.map(f => [String(f.name || '').toLowerCase(), _toLegacy(f)]));
+
+
+function todayWeekdayAEST(){
+  const d = new Date(new Date().toLocaleString('en-US',{ timeZone:'Australia/Brisbane' }));
+  return d.toLocaleDateString('en-US',{ weekday:'long' }); // "Monday"
 }
 
-function gramsFor(qtyStr, foodId) {
-  const q = parseQtyStr(qtyStr);
+function parseQty(q){
+  if (!q) return { grams:0, ml:0, units:0, unitLabel:'' };
+  const s = q.toLowerCase().trim();
+
+  let m = s.match(/([\d.]+)\s*g/);
+  if (m) return { grams:+m[1], ml:0, units:0, unitLabel:'g' };
+
+  m = s.match(/([\d.]+)\s*ml/);
+  if (m) return { grams:0, ml:+m[1], units:0, unitLabel:'ml' };
+
+  m = s.match(/([\d.]+)\s*(whole|medium|can)/);
+  if (m) return { grams:0, ml:0, units:+m[1], unitLabel:m[2] };
+
+  // "1 (200 g)" style not used in plan but kept for safety
+  m = s.match(/([\d.]+)\s*\(\s*([\d.]+)\s*g\s*\)/);
+  if (m) return { grams:+m[2], ml:0, units:0, unitLabel:'g' };
+
+  return { grams:0, ml:0, units:0, unitLabel:'' };
+}
+
+function recFor(food){ return DB[(food||'').toLowerCase()] || null; }
+
+function amountToGrams(q, rec){
   if (q.grams) return q.grams;
-  if (q.ml) return q.ml; // density≈1 for common liquids we use
-  if (q.units && unitGrams[foodId]) return q.units * unitGrams[foodId];
+  if (q.ml)    return q.ml; // treat ml≈g for milk/yogurt/fluids; oil handled as grams in plan
+  if (q.units && rec && rec.unit_g) return q.units * rec.unit_g;
   return 0;
 }
 
-function nutForItem(it) {
-  const f =
-    (it.food_id && byId[it.food_id]) ||
-    byName[String(it.food || '').toLowerCase()];
-  if (!f) return { kcal: 0, p: 0, c: 0, fat: 0, fib: 0, fe: 0, zn: 0 };
+function nutForItem(item){
+  const rec = recFor(item.food);
+  if (!rec) return { k:0,p:0,c:0,f:0,fib:0,fe:0,zn:0,ca:0,vC:0,fol:0,kplus:0 };
 
-  const n = f.nutrients_per_100g || {};
-  const qtyStr =
-    typeof it.qty_g === 'number' ? `${Math.round(it.qty_g)} g` : (it.qty || '');
-  const g = gramsFor(qtyStr, f.id);
-  const k = g / 100;
+  const q = parseQty(item.qty);
+  const grams = amountToGrams(q, rec);
+  const factor = grams / (rec.per || 100);
+  const scale = v => (v || 0) * factor;
 
   return {
-    kcal: (n.kcal || 0) * k,
-    p: (n.protein_g || 0) * k,
-    c: (n.carbs_g || 0) * k,
-    fat: (n.fat_g || 0) * k,
-    fib: (n.fiber_g || 0) * k,
-    fe: (n.iron_mg || 0) * k,
-    zn: (n.zinc_mg || 0) * k
+    k:scale(rec.k), p:scale(rec.p), c:scale(rec.c), f:scale(rec.f),
+    fib:scale(rec.fib), fe:scale(rec.fe), zn:scale(rec.zn), ca:scale(rec.ca),
+    vC:scale(rec.vC), fol:scale(rec.fol), kplus:scale(rec.kplus)
   };
 }
 
-function sumMeal(items) {
-  return items.reduce(
-    (a, it) => {
-      const t = nutForItem(it);
-      a.kcal += t.kcal;
-      a.p += t.p;
-      a.c += t.c;
-      a.fat += t.fat;
-      a.fib += t.fib;
-      a.fe += t.fe;
-      a.zn += t.zn;
-      return a;
-    },
-    { kcal: 0, p: 0, c: 0, fat: 0, fib: 0, fe: 0, zn: 0 }
-  );
+function sumMeal(meal){
+  return (meal.items||[]).reduce((a,it)=>{
+    const n = nutForItem(it);
+    for (const k in a) a[k] += n[k] || 0;
+    return a;
+  }, { k:0,p:0,c:0,f:0,fib:0,fe:0,zn:0,ca:0,vC:0,fol:0,kplus:0 });
 }
 
-function getPlan() {
-  try {
-    const p = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
-    if (p && typeof p === 'object') return p;
-  } catch {}
-  // in-memory fallback, used right after generation
-  return window.mealPlan || {};
-}
+const rnd = x => Math.round(x);
 
-function readGoalTargets() {
-  // 1) Preferred: engine targets
-  try {
-    const t = JSON.parse(localStorage.getItem(TARGETS_KEY) || 'null');
-    if (t && t.targets) {
-      return {
-        kcal: Number(t.targets.kcal) || 0,
-        protein: Number(t.targets.protein_g) || 0,
-        fibre: Number(t.targets.fiber_g) || 0,
-        iron: 8,
-        zinc: 14
-      };
-    }
-  } catch {}
-  // 2) Legacy: whatever your app used to store
-  const legacy = loadState(GOAL_KEY);
-  if (legacy) return legacy;
-  // 3) Sensible fallback
-  return { kcal: 2500, protein: 140, fibre: 30, iron: 8, zinc: 14 };
-}
-
-// ----------------------------
-// DOM refs
-// ----------------------------
-const dayNameEl = document.getElementById('dayName');
-const prevBtn = document.getElementById('prevDay');
-const nextBtn = document.getElementById('nextDay');
-const mealsEl = document.getElementById('meals');
-const barsEl = document.getElementById('bars');
+/* -------------------- DOM & state -------------------- */
+const mealsEl   = document.getElementById('meals');
+const barsEl    = document.getElementById('bars');
 const summaryEl = document.getElementById('macroSummary');
+const dayNameEl = document.getElementById('dayName');
+const prevBtn   = document.getElementById('prevDay');
+const nextBtn   = document.getElementById('nextDay');
 
-// ----------------------------
-// Rendering
-// ----------------------------
-function bar(label, val, goal, unit) {
-  const numVal = Number(val) || 0;
-  const numGoal = Math.max(1, Number(goal) || 1);
-  const pct = Math.min(100, (numVal / numGoal) * 100);
+const EATEN_KEY   = 'diet_eaten';
+const DAY_KEY     = 'diet_day';
+const QTY_OVR_KEY = 'diet_qty_overrides_v1'; // { [day:meal]: { [foodNameLower]: "120 g" } }
+
+/* -------------------- Overrides helpers -------------------- */
+function getOverrides(){
+  return loadState(QTY_OVR_KEY) || {};
+}
+function setOverride(cid, food, qtyStr){
+  const all = getOverrides();
+  const bucket = all[cid] || {};
+  if (qtyStr && qtyStr.trim()){
+    bucket[food.toLowerCase()] = qtyStr.trim();
+  } else {
+    delete bucket[food.toLowerCase()];
+  }
+  all[cid] = bucket;
+  saveState(QTY_OVR_KEY, all);
+}
+function getEffectiveItems(day, mealName, items){
+  const cid = `${day}:${mealName}`;
+  const ovr = getOverrides()[cid] || {};
+  return (items || []).map(it => {
+    const key = (it.food || '').toLowerCase();
+    if (ovr[key]){
+      return { ...it, qty: ovr[key] };
+    }
+    return it;
+  });
+}
+
+/* -------------------- Public API -------------------- */
+export function mountDiet(){
+  prevBtn.onclick = ()=> changeDay(-1);
+  nextBtn.onclick = ()=> changeDay(+1);
+  renderDiet();
+}
+
+export function renderDiet(){
+  const plan = (mealPlan && Object.keys(mealPlan).length) ? mealPlan : {};
+  const names = Object.keys(plan);
+
+  // resolve active day safely
+  let day = loadState(DAY_KEY);
+  if (!day || !plan[day]){
+    const today = todayWeekdayAEST();
+    day = plan[today] ? today : (names[0] || 'Monday');
+    saveState(DAY_KEY, day);
+  }
+
+  dayNameEl.textContent = day;
+  const mealsRaw = plan[day] || [];
+  const eaten = loadState(EATEN_KEY) || {};
+
+  // clear UI
+  mealsEl.innerHTML = '';
+  barsEl.innerHTML = '';
+  summaryEl.innerHTML = '';
+
+  if (!mealsRaw.length){
+    mealsEl.innerHTML = `<div class="empty-state">
+      <div class="empty-title">No meals found for ${day}.</div>
+      <div class="empty-sub">Ensure <code>data.js</code> loads before <code>js/app.js</code> and day names match.</div>
+    </div>`;
+    return;
+  }
+
+  // ---------- Render meals with inline ingredient editors ----------
+  mealsRaw.forEach(m=>{
+    const items = getEffectiveItems(day, m.meal, m.items);
+    const mealForSum = { ...m, items };
+    const totals = sumMeal(mealForSum);
+    const cid = `${day}:${m.meal}`;
+    const checked = !!eaten[cid];
+
+    const row = document.createElement('div');
+    row.className = 'meal-row';
+    row.innerHTML = `
+      <div class="meal-top">
+        <button class="meal-title" type="button">
+          <div class="title-line"><span class="chev"></span><span>${m.meal}</span></div>
+          <div class="meal-macros">${rnd(totals.k)} kcal • ${rnd(totals.p)} g protein • ${rnd(totals.fib)} g fibre</div>
+        </button>
+        <label class="switch"><input type="checkbox" ${checked?'checked':''} data-id="${cid}"><span class="slider"></span></label>
+      </div>
+      <div class="ingredients">
+        <ul class="ing-list">
+          ${items.map(it=>ingredientRowHTML(day, m.meal, it)).join('')}
+        </ul>
+      </div>
+    `;
+    row.querySelector('.meal-title').onclick = ()=> row.classList.toggle('open');
+    row.querySelector('input[type="checkbox"]').onchange = (e)=>{
+      const map = loadState(EATEN_KEY) || {};
+      if (e.target.checked) map[cid] = true; else delete map[cid];
+      saveState(EATEN_KEY, map);
+      renderDiet(); // recalc remaining from scratch
+    };
+
+    // Wire ingredient editors
+    row.querySelectorAll('.ing-edit-btn').forEach(btn=>{
+      btn.onclick = (ev)=>{
+        const li = ev.currentTarget.closest('li');
+        li.classList.toggle('edit-open');
+        const input = li.querySelector('.ing-input');
+        if (input) input.focus();
+      };
+    });
+
+    row.querySelectorAll('.ing-save').forEach(btn=>{
+      btn.onclick = (ev)=>{
+        const li = ev.currentTarget.closest('li');
+        const food = li.getAttribute('data-food');
+        const cidLocal = li.getAttribute('data-cid');
+        const amt = li.querySelector('.ing-input').value.trim();
+        const unit = li.querySelector('.ing-unit').value;
+        const qtyStr = amt ? `${amt} ${unit}` : '';
+        setOverride(cidLocal, food, qtyStr);
+        renderDiet();
+      };
+    });
+
+    row.querySelectorAll('.ing-reset').forEach(btn=>{
+      btn.onclick = (ev)=>{
+        const li = ev.currentTarget.closest('li');
+        const food = li.getAttribute('data-food');
+        const cidLocal = li.getAttribute('data-cid');
+        setOverride(cidLocal, food, '');
+        renderDiet();
+      };
+    });
+
+    mealsEl.appendChild(row);
+  });
+
+  // ---------- Compute Remaining (single pass, uneaten only) ----------
+  const goals = loadState(GOAL_KEY) || { kcal:3500, protein:200, fibre:30, iron:8, zinc:14 };
+
+  const remaining = mealsRaw.reduce((a,m)=>{
+    const cid = `${day}:${m.meal}`;
+    if (!eaten[cid]) {
+      const effItems = getEffectiveItems(day, m.meal, m.items);
+      const t = sumMeal({ ...m, items: effItems });
+      a.k   += t.k;
+      a.p   += t.p;
+      a.fib += t.fib;
+      a.fe  += t.fe;
+      a.zn  += t.zn;
+    }
+    return a;
+  }, { k:0, p:0, fib:0, fe:0, zn:0 });
+
+  summaryEl.innerHTML = `
+    <div class="pill"><span>Calories</span><strong>${rnd(remaining.k)}</strong></div>
+    <div class="pill"><span>Protein</span><strong>${rnd(remaining.p)} g</strong></div>
+    <div class="pill"><span>Fibre</span><strong>${rnd(remaining.fib)} g</strong></div>
+  `;
+
+  barsEl.innerHTML = [
+    bar('Calories', rnd(remaining.k), goals.kcal, 'kcal'),
+    bar('Protein',  rnd(remaining.p), goals.protein, 'g'),
+    bar('Fibre',    rnd(remaining.fib), goals.fibre, 'g'),
+    bar('Iron',     remaining.fe.toFixed(1),  goals.iron, 'mg'),
+    bar('Zinc',     remaining.zn.toFixed(1),  goals.zinc, 'mg'),
+  ].join('');
+}
+
+/* -------------------- UI helpers -------------------- */
+function ingredientRowHTML(day, mealName, it){
+  const cid = `${day}:${mealName}`;
+  const foodKey = (it.food || '').toLowerCase();
+  const rec = recFor(foodKey);
+
+  // Prefill numeric amount + unit selector from it.qty
+  const q = parseQty(it.qty);
+  let amt = q.grams || q.ml || q.units || '';
+  let unit = q.unitLabel || (q.ml ? 'ml' : 'g');
+
+  // allowed units: g, ml, whole
+  const unitOptions = ['g','ml','whole'];
+  if (unit && !unitOptions.includes(unit)) unitOptions.unshift(unit);
+
+  return `
+    <li class="ing" data-food="${foodKey}" data-cid="${cid}">
+      <div class="ing-line">
+        <span class="ing-food">${it.food}</span>
+        <span class="ing-qty">${it.qty}</span>
+        <button class="ing-edit-btn" type="button" aria-label="Edit amount">Edit</button>
+      </div>
+      <div class="ing-editor">
+        <div class="ing-editor-row">
+          <input class="ing-input" type="number" min="0" step="1" value="${amt}" inputmode="decimal">
+          <select class="ing-unit">
+            ${unitOptions.map(u=>`<option value="${u}" ${u===unit?'selected':''}>${u}</option>`).join('')}
+          </select>
+          <button class="ing-save" type="button">Save</button>
+          <button class="ing-reset" type="button">Reset</button>
+        </div>
+        ${(!rec || (unit==='whole' && !rec.unit_g)) ? `<div class="ing-note">Tip: this food has no default per-piece weight. If you choose “whole”, set a weight in grams for best accuracy.</div>` : ``}
+      </div>
+    </li>
+  `;
+}
+
+function bar(label, val, goal, unit){
+  const pct = Math.min(100, (Number(val) / Number(goal)) * 100);
   return `
     <div class="bar-row">
       <div class="bar-label">
         <span>${label}</span>
-        <span class="bar-value">${numVal} ${unit} / ${numGoal} ${unit}</span>
+        <span class="bar-value">${val} ${unit} / ${goal} ${unit}</span>
       </div>
       <div class="bar-outer"><div class="bar-inner" style="width:${pct}%"></div></div>
-    </div>`;
+    </div>
+  `;
 }
 
-export function renderDiet() {
-  const plan = getPlan();
-  const days = Object.keys(plan);
-
-  if (!days.length) {
-    mealsEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-title">No plan found</div>
-        <div class="empty-sub">Generate a plan from your Profile.</div>
-      </div>`;
-    barsEl.innerHTML = '';
-    summaryEl.innerHTML = '';
-    return;
-  }
-
-  let day = loadState(DAY_KEY) || todayName();
-  if (!plan[day]) day = days[0];
-  saveState(DAY_KEY, day);
-  if (dayNameEl) dayNameEl.textContent = day;
-
-  // Render meals
-  mealsEl.innerHTML = '';
-  const dayMeals = plan[day] || [];
-  const totals = { kcal: 0, p: 0, c: 0, fat: 0, fib: 0, fe: 0, zn: 0 };
-
-  dayMeals.forEach((m) => {
-    // Normalise items: support either {food_id, qty_g} or {food, qty}
-    const items = (m.items || []).map((it) => ({
-      ...it,
-      qty:
-        typeof it.qty_g === 'number'
-          ? `${Math.round(it.qty_g)} g`
-          : (it.qty || '')
-    }));
-
-    const t = sumMeal(items);
-    for (const k in totals) totals[k] += t[k] || 0;
-
-    const html = `
-      <div class="meal-row">
-        <div class="meal-top">
-          <button class="meal-title">
-            <div class="title-line">
-              <span class="chev"></span>
-              <span>${m.meal || m.slot || 'Meal'}</span>
-            </div>
-            <div class="meal-macros">
-              ${Math.round(t.kcal)} kcal • ${Math.round(t.p)} g protein • ${Math.round(t.fib)} g fibre
-            </div>
-          </button>
-        </div>
-        <div class="ingredients">
-          <ul class="ing-list">
-            ${items
-              .map((it) => {
-                const name =
-                  it.food ||
-                  byId[it.food_id]?.name ||
-                  (it.food_id ? String(it.food_id) : '');
-                return `<li class="ing">
-                          <div class="ing-line">
-                            <span class="ing-food">${name}</span>
-                            <span class="ing-qty">${it.qty || ''}</span>
-                          </div>
-                        </li>`;
-              })
-              .join('')}
-          </ul>
-        </div>
-      </div>`;
-
-    const el = document.createElement('div');
-    el.innerHTML = html.trim();
-    const row = el.firstElementChild;
-    row.querySelector('.meal-title').onclick = () => row.classList.toggle('open');
-    mealsEl.appendChild(row);
-  });
-
-  // Bars + summary from engine targets (preferred)
-  const g = readGoalTargets();
-  barsEl.innerHTML =
-    bar('Calories', Math.round(totals.kcal), g.kcal, 'kcal') +
-    bar('Protein', Math.round(totals.p), g.protein, 'g') +
-    bar('Fibre', Math.round(totals.fib), g.fibre, 'g') +
-    bar('Iron', totals.fe.toFixed(1), g.iron, 'mg') +
-    bar('Zinc', totals.zn.toFixed(1), g.zinc, 'mg');
-
-  summaryEl.innerHTML = `
-    <div class="pill"><span>Calories</span><strong>${Math.round(
-      totals.kcal
-    )}</strong></div>
-    <div class="pill"><span>Protein</span><strong>${Math.round(
-      totals.p
-    )} g</strong></div>
-    <div class="pill"><span>Fibre</span><strong>${Math.round(
-      totals.fib
-    )} g</strong></div>`;
-}
-
-// Optional day cycling (enable later if you want)
-function onPrev() {}
-function onNext() {}
-
-export function mountDiet() {
-  if (prevBtn) prevBtn.onclick = onPrev;
-  if (nextBtn) nextBtn.onclick = onNext;
+function changeDay(delta){
+  const names = Object.keys(mealPlan || {});
+  if (!names.length) return;
+  const current = loadState(DAY_KEY) || names[0];
+  const next = names[(names.indexOf(current) + delta + names.length) % names.length];
+  saveState(DAY_KEY, next);
   renderDiet();
 }
 
-// Auto-render if this screen is active
-if (document.body.classList.contains('is-diet')) {
-  renderDiet();
+// --- Router hookup: Diet ---
+function _rerenderDiet(){
+  if (typeof mountDiet === 'function') return mountDiet();
+  if (typeof renderDiet === 'function') return renderDiet();
+  if (typeof initDiet === 'function')   return initDiet();
+  // If you use a namespaced API, expose it here:
+  if (typeof Diet?.render === 'function') return Diet.render();
+  if (typeof Diet?.mount  === 'function') return Diet.mount();
 }
 
-// Also expose for profile → generate flow
-window.renderDiet = renderDiet;
+window.addEventListener('route:show', (e)=>{
+  if (e.detail?.page === 'diet') _rerenderDiet();
+});
+
+// Optional: render immediately if user lands on Diet first
+if (document.body.classList.contains('is-diet')) _rerenderDiet();
