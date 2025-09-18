@@ -354,32 +354,6 @@ function defaults(){
   };
 }
 
-
-/* ============== Required field checks ============== */
-function missingRequired(u){
-  const out = [];
-  // Gender
-  const g = String((u.gender && u.gender.value) || '').trim();
-  if (!g) out.push('Gender');
-  // Age  (12..100)
-  const age_v = Number((u.age && u.age.value) || '');
-  if (!Number.isFinite(age_v) || age_v < 12 || age_v > 100) out.push('Age');
-  // Weight (kg)
-  const wv = (u.weightVal && u.weightVal.value || '').trim();
-  if (!wv || !Number.isFinite(Number(wv))) out.push('Weight');
-  // Height cm
-  const hcm = (u.hcm && u.hcm.value || '').trim();
-  if (!hcm || !Number.isFinite(Number(hcm))) out.push('Height');
-  // Activity
-  const pal = Number((u.activity && u.activity.value) || '');
-  if (!Number.isFinite(pal) && !String(u.activity && u.activity.value)) out.push('Activity');
-  // Goal
-  if (!u.goal || !String(u.goal.value)) out.push('Goal');
-  // Diet
-  if (!u.diet || !String(u.diet.value)) out.push('Diet');
-  return out;
-}
-
 /* =============== Read/Write UI =============== */
 
 function readFromUI(u){
@@ -531,10 +505,7 @@ function show(readonly=true){
 export function mountProfile(){
   const u = ui();
 
-    const wire = () => updateButtons(u);
-  Object.values(u).forEach(el=>{ try{ el.addEventListener && el.addEventListener('input', wire); el.addEventListener && el.addEventListener('change', wire);}catch{} });
-  updateButtons(u);
-// unit switchers
+  // unit switchers
   u.heightUnit.addEventListener('change', ()=>{
     if (u.heightUnit.value === 'cm'){
       u.hcmBlock.classList.remove('hidden');
@@ -591,26 +562,7 @@ export function mountProfile(){
   // Generate Plan button
   injectGenerateButton(u);
 
-  
-function updateButtons(u){
-  const missing = missingRequired(u);
-  const disabled = missing.length > 0;
-  if (u.save) u.save.disabled = disabled;
-  const gen = document.getElementById('p_gen');
-  if (gen) gen.disabled = disabled;
-  if (u.error){
-    if (disabled){
-      u.error.style.display = 'block';
-      u.error.textContent = `Please complete: ${missing.join(', ')}`;
-    } else {
-      u.error.style.display = 'none';
-      u.error.textContent = '';
-    }
-  }
-}
-
-
-// ---- JS enhancer for chips (fallback for browsers without :has) ----
+  // ---- JS enhancer for chips (fallback for browsers without :has) ----
   u.trainingWrap.querySelectorAll('label.chip').forEach(lbl => {
     const cb = lbl.querySelector('input[type="checkbox"]');
     const sync = () => lbl.classList.toggle('is-checked', cb.checked);
