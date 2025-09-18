@@ -526,3 +526,8 @@ button.secondary:active{
   font-size:0.9em;
   line-height:1;
 }
+
+
+/* helper for unit-stamped inputs */
+.input-with-unit{ position:relative; display:flex; align-items:center; }
+.input-with-unit .unit{ margin-left:8px; opacity:0.7; }
