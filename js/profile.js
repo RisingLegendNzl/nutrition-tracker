@@ -630,7 +630,7 @@ function onGenerateFromProfile(u){
     features: { ai_swaps: false, live_prices: false }
   };
 
-  const result = generateDayPlan(req);
+  const result = generateWeekPlan(req);
   if (result?.type === 'error'){
     showSnack(result.message || 'Generation error');
     return;
@@ -675,9 +675,28 @@ function onGenerateFromProfile(u){
 }
 
 /* Map engine result to legacy mealPlan (same plan to all days) */
+
 function planFromEngine(engineRes){
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
+
+  if (engineRes && engineRes.meta && engineRes.meta.type === 'week_plan' && engineRes.plan){
+    const mapped = {};
+    for (const d of days){
+      const meals = engineRes.plan[d] || [];
+      mapped[d] = (meals || []).map(m => ({
+        meal: (m.slot || 'meal').replace(/^\w/, c => c.toUpperCase()),
+        items: (m.items || []).map(it => ({
+          food_id: it.food_id,
+          food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
+          qty: `${Math.round(Number(it.qty_g||0))} g`
+        }))
+      }));
+    }
+    return mapped;
+  }
+
+  // Fallback: duplicate single-day meals across the week
   const legacyMeals = (engineRes.meals || []).map(m => ({
     meal: (m.slot || 'meal').replace(/^\w/, c => c.toUpperCase()),
     items: (m.items || []).map(it => ({
@@ -686,12 +705,10 @@ function planFromEngine(engineRes){
       qty: `${Math.round(Number(it.qty_g||0))} g`
     }))
   }));
-  const plan = {};
-  for (const d of days) plan[d] = legacyMeals;
-  return plan;
+  const out = {};
+  days.forEach(d => out[d] = legacyMeals);
+  return out;
 }
-
-
 // ===== Additional validation helpers (Phase 1) =====
 function missingRequired(u){
   const out = [];
