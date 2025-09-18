@@ -12,7 +12,7 @@ import { getProfile, onProfileChange } from "./profile.js";
  * - No snackbars/popups.
  */
 
-export function isAutoOn() { return false; }
+export function isAutoOn() { return true; }
 
 // ---------- DOM ----------
 const goalLitresEl = document.getElementById('goalLitres');
@@ -48,7 +48,7 @@ function loadWater(dateStr = AEST_DATE()){
 // ---------- Config ----------
 const DEFAULT_MANUAL_TARGET_ML = 3000;
 const MIN_TARGET_ML            = 1500;
-const MAX_TARGET_ML            = 3000;
+const MAX_TARGET_ML            = 5000;
 
 // ---------- Profile / Mask ----------
 function absUrl(rel){ return new URL(rel, document.baseURI).toString(); }
@@ -65,7 +65,12 @@ function applyHumanMask(){
 
 // ---------- Target helpers ----------
 function currentTargetMl(){
-  const raw = parseInt(localStorage.getItem(WATER_TARGET_KEY) || "0", 10);
+  const w = Number(getProfile()?.weight_kg);
+  if (Number.isFinite(w) && w>0){
+    const ml = Math.round(w*35);
+    return clamp(ml, MIN_TARGET_ML, MAX_TARGET_ML);
+  }
+  const raw = parseInt(localStorage.getItem(WATER_TARGET_KEY) || '0', 10);
   const base = Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MANUAL_TARGET_ML;
   return clamp(base, MIN_TARGET_ML, MAX_TARGET_ML);
 }
@@ -158,7 +163,7 @@ function wireUIOnce(){
     });
   }
   resetWater?.addEventListener('click', resetTodayWater);
-  onProfileChange(()=> applyHumanMask());
+  onProfileChange(()=> { applyHumanMask(); renderHydro(); });
   wired = true;
 }
 
