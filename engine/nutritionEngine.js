@@ -218,8 +218,8 @@ function omniMenus() {
     ],
     dinner: [
       { food_id: 'food_chicken_thigh_fillets',   base_qty_g: 300, kcal_100g: 145 },
-      { food_id: 'food_brown_rice_cooked',             base_qty_g: 250, kcal_100g: 130 },
-      { food_id: 'food_broccoli',                base_qty_g: 120, kcal_100g: 34  },
+      { food_id: 'food_rice_cooked',             base_qty_g: 250, kcal_100g: 130 },
+      { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
       { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
     ],
     snacks: [
@@ -239,7 +239,7 @@ function veganMenus() {
     ],
     lunch: [
       { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
-      { food_id: 'food_brown_rice_cooked',             base_qty_g: 220, kcal_100g: 130 },
+      { food_id: 'food_rice_cooked',             base_qty_g: 220, kcal_100g: 130 },
       { food_id: 'food_spinach',                 base_qty_g: 60,  kcal_100g: 23  },
       { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
     ],
