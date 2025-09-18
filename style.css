@@ -542,3 +542,18 @@ button.secondary:active{
 button:disabled, .primary:disabled, .ghost:disabled, .secondary:disabled {
   opacity: .5; cursor: default; filter: grayscale(0.1);
 }
+
+
+/* Strong invalid outline for required fields */
+.field.invalid input,
+.field.invalid select,
+.field.invalid textarea,
+.field.invalid .control > input,
+.field.invalid .control > select {
+  border: 1px solid #ff4d4d !important;
+  box-shadow: 0 0 0 2px rgba(255,77,77,.15) !important;
+}
+#p_error { color:#ff4d4d; }
+button:disabled, .primary:disabled, .ghost:disabled, .secondary:disabled {
+  opacity: .5; cursor: not-allowed; filter: grayscale(0.1);
+}
