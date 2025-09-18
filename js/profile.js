@@ -240,7 +240,14 @@ function ensureRoot(){
           )).join('')}
         </div>
       </div>
-</div>
+
+      <div class="field">
+        <label for="p_mlkg">Hydration baseline (ml per kg)</label>
+        <input id="p_mlkg" type="number" inputmode="numeric" min="20" max="60" step="1" placeholder="35"/>
+        <div id="p_goal_preview" class="pill" style="margin-top:8px">
+          <span>Daily hydration goal</span><strong id="p_goal_value">—</strong>
+        </div>
+      </div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <button id="p_save" class="secondary">Save</button>
@@ -253,10 +260,7 @@ function ensureRoot(){
     </section>
   `;
   return root;
-
-  try { injectGenerateButton(ui()); } catch {}
 }
-
 
 function ensureEditButton(){
   if (editBtn && document.body.contains(editBtn)) return editBtn;
@@ -312,7 +316,9 @@ function ui(){
     trainingWrap: el('p_training_days'),
 
     // ml/kg + preview
-            goalVal: el('p_goal_value'),
+    mlkg: el('p_mlkg'),
+    goalPrev: el('p_goal_preview'),
+    goalVal: el('p_goal_value'),
 
     // actions
     save: el('p_save'),
@@ -330,7 +336,9 @@ function defaults(){
     height_unit: 'cm',    // 'cm' | 'ftin'
     weight_kg: 71,
     height_cm: '',
-        // nutrition fields
+    ml_per_kg: 35,
+
+    // nutrition fields
     store_preference: 'none',
     age_y: 23,
     activity_pal: 1.6,
@@ -398,8 +406,11 @@ function readFromUI(u){
     .filter(cb => cb.checked)
     .map(cb => cb.getAttribute('data-day'));
 
+  const ml_per_kg = Number(u.mlkg.value);
+
   // quick validations
   const weightIsOk = Number.isFinite(weight_kg) && weight_kg >= 30 && weight_kg <= 300;
+  const mlkgIsOk = Number.isFinite(ml_per_kg) && ml_per_kg >= 20 && ml_per_kg <= 60;
   const heightOk = (u.hcm.value === '' && prefs.height_unit==='cm')
                 || (u.hft.value === '' && u.hin.value === '' && prefs.height_unit==='ftin')
                 || (Number.isFinite(height_cm) && height_cm >= 120 && height_cm <= 230);
@@ -408,7 +419,7 @@ function readFromUI(u){
 
   return {
     prefs,
-    ok: weightIsOk && heightOk && ageOk && bfOk,
+    ok: weightIsOk && mlkgIsOk && heightOk && ageOk && bfOk,
     data: {
       name, gender: prefs.gender,
       weight_unit: prefs.weight_unit,
@@ -476,7 +487,9 @@ function writeToUI(u, p){
 
   // ml/kg + preview
   u.mlkg.value = p.ml_per_kg ?? 35;
-  }
+  const litres = computeHydroLitres(p.weight_kg, p.ml_per_kg);
+  u.goalPrev.querySelector('strong').textContent = litres ? `${litres.toFixed(1).replace(/\.0$/, '')} L` : '—';
+}
 
 /* ================== Mount & Events ================== */
 
@@ -512,7 +525,9 @@ export function mountProfile(){
       u.goalPrev.querySelector('strong').textContent = '—';
       return;
     }
-    };
+    const litres = computeHydroLitres(r.data.weight_kg, r.data.ml_per_kg);
+    u.goalPrev.querySelector('strong').textContent = `${litres.toFixed(1).replace(/\.0$/, '')} L`;
+  };
   u.weightVal.addEventListener('input', updatePreview);
   u.mlkg.addEventListener('input', updatePreview);
   u.weightUnit.addEventListener('change', updatePreview);
@@ -577,7 +592,6 @@ function injectGenerateButton(u){
     if (!r.ok || missing.length){
       u.error.style.display = 'block';
       u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
-      try { markInvalid(u, missing); } catch {}
       return;
     }
     u.error.style.display = 'none';
