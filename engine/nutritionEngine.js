@@ -295,3 +295,15 @@ function error(engine_version, data_version, code, message, suggestions) {
 
 function clamp(x, lo, hi){ return Math.min(hi, Math.max(lo, x)); }
 function round1(x){ return Math.round(x * 10) / 10; }
+
+
+export function generateWeekPlan(req){
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const day = generateDayPlan(req);
+  if (!day || !day.meals) return { plan: {} };
+  const base = day.meals;
+  const plan = {};
+  days.forEach(d => { plan[d] = base; });
+  return { plan, meta: { type:'week_plan', source:'engine', created_at: new Date().toISOString() } };
+}
+
