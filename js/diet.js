@@ -1,17 +1,10 @@
-// filename: js/diet.js  (patched to prefer saved plan + nutrify_targets, keep overrides)
-// NOTE: Derived from your latest file; only surgical changes applied.
-
+// filename: js/diet.js
 import { loadState, saveState, GOAL_KEY } from './utils.js';
 import { foodsBundle, mealPlan } from '../brain/diet.data.js';
 
-/* -------------------- Storage keys -------------------- */
-const PLAN_KEY    = 'nutrify_mealPlan';   // new: preferred source of truth
-const TARGETS_KEY = 'nutrify_targets';    // new: preferred targets for bars
-const DAY_KEY     = 'diet_day';
-
 /* -------------------- Nutrition helpers -------------------- */
 
-// Build a legacy per-100g map keyed by lowercase food name
+// Build a legacy per-100g map { k,p,c,f,fib,fe,zn,ca,vC,fol,kplus, unit_g? } keyed by lowercase food name
 const _foods = (foodsBundle && foodsBundle.foods) || [];
 const _pms   = (foodsBundle && foodsBundle.portion_maps) || [];
 const _pmIndex = new Map(_pms.map(pm => [pm.food_id, (pm.portions && pm.portions[0] && pm.portions[0].qty_g) || null]));
@@ -26,7 +19,7 @@ function _toLegacy(f){
     f: n.fat_g || 0,
     fib: n.fiber_g || 0,
     fe: n.iron_mg || 0,
-    zn: n.zinc_mg || 0,
+    zn: 0,
     ca: n.calcium_mg || 0,
     vC: 0,
     fol: 0,
@@ -37,9 +30,8 @@ function _toLegacy(f){
   return rec;
 }
 
-// Index by name (legacy) and by id (new)
-const DB_BY_NAME = Object.fromEntries(_foods.map(f => [String(f.name || '').toLowerCase(), _toLegacy(f)]));
-const DB_BY_ID   = Object.fromEntries(_foods.map(f => [f.id, _toLegacy(f)]));
+const DB = Object.fromEntries(_foods.map(f => [String(f.name || '').toLowerCase(), _toLegacy(f)]));
+
 
 function todayWeekdayAEST(){
   const d = new Date(new Date().toLocaleString('en-US',{ timeZone:'Australia/Brisbane' }));
@@ -63,15 +55,10 @@ function parseQty(q){
   m = s.match(/([\d.]+)\s*\(\s*([\d.]+)\s*g\s*\)/);
   if (m) return { grams:+m[2], ml:0, units:0, unitLabel:'g' };
 
-  // bare number: assume grams
-  m = s.match(/^\s*([\d.]+)\s*$/);
-  if (m) return { grams:+m[1], ml:0, units:0, unitLabel:'g' };
-
   return { grams:0, ml:0, units:0, unitLabel:'' };
 }
 
-function recForName(food){ return DB_BY_NAME[(food||'').toLowerCase()] || null; }
-function recForId(id){ return DB_BY_ID[id] || null; }
+function recFor(food){ return DB[(food||'').toLowerCase()] || null; }
 
 function amountToGrams(q, rec){
   if (q.grams) return q.grams;
@@ -81,13 +68,10 @@ function amountToGrams(q, rec){
 }
 
 function nutForItem(item){
-  // NEW: prefer food_id mapping, fallback to name (keeps your original behavior)
-  const rec = (item.food_id && recForId(item.food_id)) || recForName(item.food);
+  const rec = recFor(item.food);
   if (!rec) return { k:0,p:0,c:0,f:0,fib:0,fe:0,zn:0,ca:0,vC:0,fol:0,kplus:0 };
 
-  // normalise qty if engine gives qty_g
-  const qtyStr = (typeof item.qty_g === 'number') ? `${Math.round(item.qty_g)} g` : item.qty;
-  const q = parseQty(qtyStr);
+  const q = parseQty(item.qty);
   const grams = amountToGrams(q, rec);
   const factor = grams / (rec.per || 100);
   const scale = v => (v || 0) * factor;
@@ -109,36 +93,6 @@ function sumMeal(meal){
 
 const rnd = x => Math.round(x);
 
-/* -------------------- Plan/targets helpers (NEW) -------------------- */
-function getActivePlan(){
-  try{
-    const saved = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
-    if (saved && typeof saved === 'object' && Object.keys(saved).length) return saved;
-  } catch {}
-  return (mealPlan && typeof mealPlan === 'object') ? mealPlan : {};
-}
-
-function readGoalTargets(){
-  // 1) Preferred: engine targets saved by generator
-  try{
-    const t = JSON.parse(localStorage.getItem(TARGETS_KEY) || 'null');
-    if (t && t.targets){
-      return {
-        kcal: Number(t.targets.kcal) || 0,
-        protein: Number(t.targets.protein_g) || 0,
-        fibre: Number(t.targets.fiber_g) || 0,
-        iron: 8,
-        zinc: 14
-      };
-    }
-  }catch{}
-  // 2) Legacy fallback
-  const legacy = loadState(GOAL_KEY);
-  if (legacy) return legacy;
-  // 3) Defaults
-  return { kcal:2500, protein:140, fibre:30, iron:8, zinc:14 };
-}
-
 /* -------------------- DOM & state -------------------- */
 const mealsEl   = document.getElementById('meals');
 const barsEl    = document.getElementById('bars');
@@ -148,6 +102,7 @@ const prevBtn   = document.getElementById('prevDay');
 const nextBtn   = document.getElementById('nextDay');
 
 const EATEN_KEY   = 'diet_eaten';
+const DAY_KEY     = 'diet_day';
 const QTY_OVR_KEY = 'diet_qty_overrides_v1'; // { [day:meal]: { [foodNameLower]: "120 g" } }
 
 /* -------------------- Overrides helpers -------------------- */
@@ -185,8 +140,7 @@ export function mountDiet(){
 }
 
 export function renderDiet(){
-  // CHANGED: prefer saved plan (localStorage) then bundled plan
-  const plan = getActivePlan();
+  const plan = (mealPlan && Object.keys(mealPlan).length) ? mealPlan : {};
   const names = Object.keys(plan);
 
   // resolve active day safely
@@ -209,18 +163,14 @@ export function renderDiet(){
   if (!mealsRaw.length){
     mealsEl.innerHTML = `<div class="empty-state">
       <div class="empty-title">No meals found for ${day}.</div>
-      <div class="empty-sub">Generate a plan from your Profile, or ensure <code>brain/diet.data.js</code> is loaded.</div>
+      <div class="empty-sub">Ensure <code>data.js</code> loads before <code>js/app.js</code> and day names match.</div>
     </div>`;
     return;
   }
 
   // ---------- Render meals with inline ingredient editors ----------
   mealsRaw.forEach(m=>{
-    const items = getEffectiveItems(day, m.meal, m.items).map(it => {
-      // normalise if engine provided qty_g
-      const qty = (typeof it.qty_g === 'number') ? `${Math.round(it.qty_g)} g` : it.qty;
-      return { ...it, qty };
-    });
+    const items = getEffectiveItems(day, m.meal, m.items);
     const mealForSum = { ...m, items };
     const totals = sumMeal(mealForSum);
     const cid = `${day}:${m.meal}`;
@@ -287,16 +237,12 @@ export function renderDiet(){
   });
 
   // ---------- Compute Remaining (single pass, uneaten only) ----------
-  // CHANGED: use nutrify_targets (preferred), fallback to legacy
-  const goals = readGoalTargets();
+  const goals = loadState(GOAL_KEY) || { kcal:3500, protein:200, fibre:30, iron:8, zinc:14 };
 
   const remaining = mealsRaw.reduce((a,m)=>{
     const cid = `${day}:${m.meal}`;
     if (!eaten[cid]) {
-      const effItems = getEffectiveItems(day, m.meal, m.items).map(it => {
-        const qty = (typeof it.qty_g === 'number') ? `${Math.round(it.qty_g)} g` : it.qty;
-        return { ...it, qty };
-      });
+      const effItems = getEffectiveItems(day, m.meal, m.items);
       const t = sumMeal({ ...m, items: effItems });
       a.k   += t.k;
       a.p   += t.p;
@@ -326,6 +272,7 @@ export function renderDiet(){
 function ingredientRowHTML(day, mealName, it){
   const cid = `${day}:${mealName}`;
   const foodKey = (it.food || '').toLowerCase();
+  const rec = recFor(foodKey);
 
   // Prefill numeric amount + unit selector from it.qty
   const q = parseQty(it.qty);
@@ -352,7 +299,7 @@ function ingredientRowHTML(day, mealName, it){
           <button class="ing-save" type="button">Save</button>
           <button class="ing-reset" type="button">Reset</button>
         </div>
-        <!-- Tip removed by request -->
+        ${(!rec || (unit==='whole' && !rec.unit_g)) ? `<div class="ing-note">Tip: this food has no default per-piece weight. If you choose “whole”, set a weight in grams for best accuracy.</div>` : ``}
       </div>
     </li>
   `;
@@ -372,8 +319,7 @@ function bar(label, val, goal, unit){
 }
 
 function changeDay(delta){
-  // CHANGED: use active plan (may be saved or bundled)
-  const names = Object.keys(getActivePlan() || {});
+  const names = Object.keys(mealPlan || {});
   if (!names.length) return;
   const current = loadState(DAY_KEY) || names[0];
   const next = names[(names.indexOf(current) + delta + names.length) % names.length];
