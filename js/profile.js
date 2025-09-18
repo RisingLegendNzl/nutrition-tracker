@@ -46,6 +46,7 @@ function migrate(p){
   if (!('gender' in p))      p.gender = 'male';
 
   // new nutrition fields
+  if (!('store_preference' in p)) p.store_preference = 'none';
   if (!('age_y' in p))          p.age_y = 23;
   if (!('activity_pal' in p))   p.activity_pal = 1.6;
   if (!('goal' in p))           p.goal = 'maintain';
@@ -81,6 +82,7 @@ function isValid(p){
   if (p.goal && !['cut','maintain','gain'].includes(String(p.goal).toLowerCase())) return false;
   if (p.bodyfat_pct != null && p.bodyfat_pct !== '' && (!Number.isFinite(Number(p.bodyfat_pct)) || p.bodyfat_pct < 5 || p.bodyfat_pct > 50)) return false;
   if (p.diet && !['omnivore','vegetarian','vegan','pescetarian'].includes(String(p.diet))) return false;
+  if (p.store_preference && !['none','coles','woolworths'].includes(String(p.store_preference))) return false;
 
   return true;
 }
@@ -207,6 +209,16 @@ function ensureRoot(){
         </select>
       </div>
 
+
+<div class="field">
+  <label for="p_store">Preferred store</label>
+  <select id="p_store">
+    <option value="none" selected>None</option>
+    <option value="coles">Coles</option>
+    <option value="woolworths">Woolworths</option>
+  </select>
+</div>
+
       <div class="field">
         <label for="p_allergies">Allergies (comma-separated)</label>
         <input id="p_allergies" type="text" placeholder="e.g., milk, soy"/>
@@ -298,6 +310,7 @@ function ui(){
     activity: el('p_activity'),
     goal: el('p_goal'),
     diet: el('p_diet'),
+    store: el('p_store'),
     allergies: el('p_allergies'),
     dislikes: el('p_dislikes'),
     trainingWrap: el('p_training_days'),
@@ -326,6 +339,7 @@ function defaults(){
     ml_per_kg: 35,
 
     // nutrition fields
+    store_preference: 'none',
     age_y: 23,
     activity_pal: 1.6,
     goal: 'maintain',
@@ -375,6 +389,7 @@ function readFromUI(u){
   const activity_pal = Number(u.activity.value || 1.6);
   const goal = String(u.goal.value || 'maintain').toLowerCase();
   const diet = String(u.diet.value || 'omnivore');
+  const store_preference = String(u.store.value || 'none');
 
   // lists
   const allergies = (u.allergies.value || '')
@@ -418,6 +433,7 @@ function readFromUI(u){
       goal,
       bodyfat_pct,
       diet,
+      store_preference,
       allergies,
       dislikes,
       training_days
@@ -457,6 +473,7 @@ function writeToUI(u, p){
   u.activity.value = String(p.activity_pal ?? 1.6);
   u.goal.value = String(p.goal || 'maintain').toLowerCase();
   u.diet.value = p.diet || 'omnivore';
+  if (u.store) u.store.value = p.store_preference || 'none';
 
   u.allergies.value = Array.isArray(p.allergies) ? p.allergies.join(', ') : '';
   u.dislikes.value = Array.isArray(p.dislikes) ? p.dislikes.join(', ') : '';
