@@ -946,4 +946,387 @@ export default [
     },
     "notes": null
   }
+,
+  {
+  "id": "food_chicken_breast",
+  "name": "chicken breast",
+  "canonical_portion_g": 100,
+  "density_g_per_ml": null,
+  "brand_id": null,
+  "external_refs": {
+    "ausnut": null,
+    "fdc": null,
+    "barcode_ean": null
+  },
+  "category": "unknown",
+  "diet_tags": [
+    "omnivore"
+  ],
+  "allergens": [],
+  "is_fortified": false,
+  "kitchen_state": "raw",
+  "yield_factor": 1.0,
+  "retention_factors": {
+    "default": 1.0
+  },
+  "cost_aud_per_100g": 0,
+  "nutrients_per_100g": {
+    "kcal": 165.0,
+    "protein_g": 31.0,
+    "fat_g": 3.6,
+    "carbs_g": 0.0,
+    "fiber_g": 0.0,
+    "sodium_mg": 0.0,
+    "potassium_mg": 256.0,
+    "calcium_mg": 15.0,
+    "iron_mg": 0.7,
+    "iodine_ug": 0.0,
+    "magnesium_mg": 0.0,
+    "vitamin_d_IU": 0.0,
+    "b12_ug": 0.0,
+    "omega3_epa_dha_mg": 0.0
+  },
+  "notes": null
+},
+  {
+  "id": "food_brown_rice_cooked",
+  "name": "brown rice (cooked)",
+  "canonical_portion_g": 100,
+  "density_g_per_ml": null,
+  "brand_id": null,
+  "external_refs": {
+    "ausnut": null,
+    "fdc": null,
+    "barcode_ean": null
+  },
+  "category": "unknown",
+  "diet_tags": [
+    "omnivore",
+    "vegetarian",
+    "vegan"
+  ],
+  "allergens": [],
+  "is_fortified": false,
+  "kitchen_state": "raw",
+  "yield_factor": 1.0,
+  "retention_factors": {
+    "default": 1.0
+  },
+  "cost_aud_per_100g": 0,
+  "nutrients_per_100g": {
+    "kcal": 123.0,
+    "protein_g": 2.6,
+    "fat_g": 1.0,
+    "carbs_g": 25.6,
+    "fiber_g": 1.8,
+    "sodium_mg": 0.0,
+    "potassium_mg": 43.0,
+    "calcium_mg": 10.0,
+    "iron_mg": 0.4,
+    "iodine_ug": 0.0,
+    "magnesium_mg": 0.0,
+    "vitamin_d_IU": 0.0,
+    "b12_ug": 0.0,
+    "omega3_epa_dha_mg": 0.0
+  },
+  "notes": null
+},
+  {
+  "id": "food_wholegrain_pasta_cooked",
+  "name": "wholegrain pasta (cooked)",
+  "canonical_portion_g": 100,
+  "density_g_per_ml": null,
+  "brand_id": null,
+  "external_refs": {
+    "ausnut": null,
+    "fdc": null,
+    "barcode_ean": null
+  },
+  "category": "unknown",
+  "diet_tags": [
+    "omnivore",
+    "vegetarian",
+    "vegan"
+  ],
+  "allergens": [],
+  "is_fortified": false,
+  "kitchen_state": "raw",
+  "yield_factor": 1.0,
+  "retention_factors": {
+    "default": 1.0
+  },
+  "cost_aud_per_100g": 0,
+  "nutrients_per_100g": {
+    "kcal": 124.0,
+    "protein_g": 5.0,
+    "fat_g": 1.0,
+    "carbs_g": 24.0,
+    "fiber_g": 3.0,
+    "sodium_mg": 0.0,
+    "potassium_mg": 44.0,
+    "calcium_mg": 7.0,
+    "iron_mg": 0.7,
+    "iodine_ug": 0.0,
+    "magnesium_mg": 0.0,
+    "vitamin_d_IU": 0.0,
+    "b12_ug": 0.0,
+    "omega3_epa_dha_mg": 0.0
+  },
+  "notes": null
+},
+  {
+  "id": "food_wholemeal_bread",
+  "name": "wholemeal bread",
+  "canonical_portion_g": 40,
+  "density_g_per_ml": null,
+  "brand_id": null,
+  "external_refs": {
+    "ausnut": null,
+    "fdc": null,
+    "barcode_ean": null
+  },
+  "category": "unknown",
+  "diet_tags": [
+    "omnivore",
+    "vegetarian",
+    "vegan"
+  ],
+  "allergens": [],
+  "is_fortified": false,
+  "kitchen_state": "raw",
+  "yield_factor": 1.0,
+  "retention_factors": {
+    "default": 1.0
+  },
+  "cost_aud_per_100g": 0,
+  "nutrients_per_100g": {
+    "kcal": 247.0,
+    "protein_g": 9.0,
+    "fat_g": 3.0,
+    "carbs_g": 43.0,
+    "fiber_g": 7.0,
+    "sodium_mg": 0.0,
+    "potassium_mg": 260.0,
+    "calcium_mg": 80.0,
+    "iron_mg": 2.6,
+    "iodine_ug": 0.0,
+    "magnesium_mg": 0.0,
+    "vitamin_d_IU": 0.0,
+    "b12_ug": 0.0,
+    "omega3_epa_dha_mg": 0.0
+  },
+  "notes": null
+},
+  {
+  "id": "food_cottage_cheese",
+  "name": "cottage cheese",
+  "canonical_portion_g": 100,
+  "density_g_per_ml": null,
+  "brand_id": null,
+  "external_refs": {
+    "ausnut": null,
+    "fdc": null,
+    "barcode_ean": null
+  },
+  "category": "unknown",
+  "diet_tags": [
+    "omnivore",
+    "vegetarian"
+  ],
+  "allergens": [],
+  "is_fortified": false,
+  "kitchen_state": "raw",
+  "yield_factor": 1.0,
+  "retention_factors": {
+    "default": 1.0
+  },
+  "cost_aud_per_100g": 0,
+  "nutrients_per_100g": {
+    "kcal": 98.0,
+    "protein_g": 11.0,
+    "fat_g": 4.3,
+    "carbs_g": 3.4,
+    "fiber_g": 0.0,
+    "sodium_mg": 0.0,
+    "potassium_mg": 104.0,
+    "calcium_mg": 83.0,
+    "iron_mg": 0.1,
+    "iodine_ug": 0.0,
+    "magnesium_mg": 0.0,
+    "vitamin_d_IU": 0.0,
+    "b12_ug": 0.0,
+    "omega3_epa_dha_mg": 0.0
+  },
+  "notes": null
+},
+  {
+  "id": "food_broccoli",
+  "name": "broccoli",
+  "canonical_portion_g": 100,
+  "density_g_per_ml": null,
+  "brand_id": null,
+  "external_refs": {
+    "ausnut": null,
+    "fdc": null,
+    "barcode_ean": null
+  },
+  "category": "unknown",
+  "diet_tags": [
+    "omnivore",
+    "vegetarian",
+    "vegan"
+  ],
+  "allergens": [],
+  "is_fortified": false,
+  "kitchen_state": "raw",
+  "yield_factor": 1.0,
+  "retention_factors": {
+    "default": 1.0
+  },
+  "cost_aud_per_100g": 0,
+  "nutrients_per_100g": {
+    "kcal": 34.0,
+    "protein_g": 2.8,
+    "fat_g": 0.4,
+    "carbs_g": 7.0,
+    "fiber_g": 2.6,
+    "sodium_mg": 0.0,
+    "potassium_mg": 316.0,
+    "calcium_mg": 47.0,
+    "iron_mg": 0.7,
+    "iodine_ug": 0.0,
+    "magnesium_mg": 0.0,
+    "vitamin_d_IU": 0.0,
+    "b12_ug": 0.0,
+    "omega3_epa_dha_mg": 0.0
+  },
+  "notes": null
+},
+  {
+  "id": "food_chickpeas_canned_drained",
+  "name": "chickpeas (canned, drained)",
+  "canonical_portion_g": 100,
+  "density_g_per_ml": null,
+  "brand_id": null,
+  "external_refs": {
+    "ausnut": null,
+    "fdc": null,
+    "barcode_ean": null
+  },
+  "category": "unknown",
+  "diet_tags": [
+    "omnivore",
+    "vegetarian",
+    "vegan"
+  ],
+  "allergens": [],
+  "is_fortified": false,
+  "kitchen_state": "raw",
+  "yield_factor": 1.0,
+  "retention_factors": {
+    "default": 1.0
+  },
+  "cost_aud_per_100g": 0,
+  "nutrients_per_100g": {
+    "kcal": 119.0,
+    "protein_g": 6.0,
+    "fat_g": 2.0,
+    "carbs_g": 19.0,
+    "fiber_g": 5.0,
+    "sodium_mg": 0.0,
+    "potassium_mg": 171.0,
+    "calcium_mg": 33.0,
+    "iron_mg": 1.3,
+    "iodine_ug": 0.0,
+    "magnesium_mg": 0.0,
+    "vitamin_d_IU": 0.0,
+    "b12_ug": 0.0,
+    "omega3_epa_dha_mg": 0.0
+  },
+  "notes": null
+},
+  {
+  "id": "food_kidney_beans_canned_drained",
+  "name": "kidney beans (canned, drained)",
+  "canonical_portion_g": 100,
+  "density_g_per_ml": null,
+  "brand_id": null,
+  "external_refs": {
+    "ausnut": null,
+    "fdc": null,
+    "barcode_ean": null
+  },
+  "category": "unknown",
+  "diet_tags": [
+    "omnivore",
+    "vegetarian",
+    "vegan"
+  ],
+  "allergens": [],
+  "is_fortified": false,
+  "kitchen_state": "raw",
+  "yield_factor": 1.0,
+  "retention_factors": {
+    "default": 1.0
+  },
+  "cost_aud_per_100g": 0,
+  "nutrients_per_100g": {
+    "kcal": 95.0,
+    "protein_g": 6.5,
+    "fat_g": 0.5,
+    "carbs_g": 16.0,
+    "fiber_g": 6.5,
+    "sodium_mg": 0.0,
+    "potassium_mg": 280.0,
+    "calcium_mg": 27.0,
+    "iron_mg": 1.8,
+    "iodine_ug": 0.0,
+    "magnesium_mg": 0.0,
+    "vitamin_d_IU": 0.0,
+    "b12_ug": 0.0,
+    "omega3_epa_dha_mg": 0.0
+  },
+  "notes": null
+},
+  {
+  "id": "food_canned_salmon_drained",
+  "name": "salmon (canned, drained)",
+  "canonical_portion_g": 100,
+  "density_g_per_ml": null,
+  "brand_id": null,
+  "external_refs": {
+    "ausnut": null,
+    "fdc": null,
+    "barcode_ean": null
+  },
+  "category": "unknown",
+  "diet_tags": [
+    "omnivore"
+  ],
+  "allergens": [],
+  "is_fortified": false,
+  "kitchen_state": "raw",
+  "yield_factor": 1.0,
+  "retention_factors": {
+    "default": 1.0
+  },
+  "cost_aud_per_100g": 0,
+  "nutrients_per_100g": {
+    "kcal": 142.0,
+    "protein_g": 20.0,
+    "fat_g": 6.0,
+    "carbs_g": 0.0,
+    "fiber_g": 0.0,
+    "sodium_mg": 0.0,
+    "potassium_mg": 300.0,
+    "calcium_mg": 200.0,
+    "iron_mg": 0.8,
+    "iodine_ug": 0.0,
+    "magnesium_mg": 0.0,
+    "vitamin_d_IU": 200.0,
+    "b12_ug": 4.0,
+    "omega3_epa_dha_mg": 1000.0
+  },
+  "notes": null
+}
 ];
