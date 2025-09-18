@@ -3,8 +3,8 @@
 // Adds: age, activity PAL, goal, bodyfat%, diet, allergies, dislikes, training days.
 
 import { clamp, showSnack } from './utils.js';
-// import { applyPlanToDiet } from './plan.io.js'; // no longer used here (direct apply instead)
-import { generateDayPlan } from '../engine/nutritionEngine.js';
+import { applyPlanToDiet } from './plan.io.js';
+import { generateDayPlan, generateWeekPlan } from '../engine/nutritionEngine.js';
 import { foodsBundle } from '../brain/diet.data.js';
 
 const KEY = 'profile_v1';
@@ -354,36 +354,6 @@ function defaults(){
   };
 }
 
-
-/* ============== Required field checks ============== */
-function missingRequired(u){
-  const out = [];
-  // Age
-  const age_v = Number(u.age.value || '');
-  if (!Number.isFinite(age_v) || age_v < 18 || age_v > 65) out.push('Age (18–65)');
-  // Weight
-  const wv = u.weightVal.value.trim();
-  if (!wv || !Number.isFinite(Number(wv))) out.push('Weight');
-  // Height (either cm or ft/in must be provided)
-  if (u.heightUnit.value === 'cm'){
-    if (u.hcm.value === '' || !Number.isFinite(Number(u.hcm.value))) out.push('Height (cm)');
-  } else {
-    const ft = u.hft.value.trim(), inch = u.hin.value.trim();
-    if ((!ft && !inch) || (!Number.isFinite(Number(ft)) && !Number.isFinite(Number(inch)))) out.push('Height (ft/in)');
-  }
-  // Activity
-  const pal = Number(u.activity.value || '');
-  if (!Number.isFinite(pal)) out.push('Activity (PAL)');
-  // Goal
-  if (!u.goal.value) out.push('Goal');
-  // Diet
-  if (!u.diet.value) out.push('Diet');
-  // Hydration baseline
-  const mlkg = Number(u.mlkg.value || '');
-  if (!Number.isFinite(mlkg)) out.push('Hydration baseline (ml/kg)');
-  return out;
-}
-
 /* =============== Read/Write UI =============== */
 
 function readFromUI(u){
@@ -565,10 +535,9 @@ export function mountProfile(){
   // Save
   u.save.addEventListener('click', ()=>{
     const r = readFromUI(u);
-    const missing = missingRequired(u);
-    if (!r.ok || missing.length){
+    if (!r.ok){
       u.error.style.display = 'block';
-      u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
+      u.error.textContent = 'Please check your entries.';
       return;
     }
     u.error.style.display = 'none';
@@ -607,29 +576,41 @@ export { ensureRoot as renderProfile, ensureRoot as initProfile };
 
 /* =============== Generate Plan wiring =============== */
 
-function injectGenerateButton(u){
-  const row = u.save?.parentElement || u.page.querySelector('div[style*="flex-wrap"]') || u.page;
-  if (!row || document.getElementById('p_generate')) return;
 
-  const gen = document.createElement('button');
-  gen.id = 'p_generate';
-  gen.className = 'primary';
-  gen.textContent = 'Generate Plan';
-  gen.style.marginLeft = '8px';
-  gen.addEventListener('click', () => onGenerateFromProfile(u));
-  row.appendChild(gen);
+function injectGenerateButton(u){
+  let btn = document.getElementById('p_gen');
+  if (!btn){
+    btn = document.createElement('button');
+    btn.id = 'p_gen';
+    btn.className = 'primary';
+    btn.textContent = 'Generate Meal Plan';
+    u.cancel.parentElement.appendChild(btn);
+  }
+  btn.onclick = ()=>{
+    const r = readFromUI(u);
+    const missing = (typeof missingRequired==='function') ? missingRequired(u) : [];
+    if (!r.ok || missing.length){
+      u.error.style.display = 'block';
+      u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
+      return;
+    }
+    u.error.style.display = 'none';
+    const req = { profile: r.data, constraints: { diet: r.data.diet, allergies: r.data.allergies, dislikes: r.data.dislikes } };
+    try{
+      const out = generateWeekPlan(req);
+      if (out && out.plan){
+        applyPlanToDiet({ plan: out.plan, meta: out.meta || {} });
+      }
+    }catch(e){
+      console.warn('Generation failed', e);
+      alert('Could not generate a plan.');
+    }
+  };
 }
 
 function onGenerateFromProfile(u){
   // Prefer UNSAVED form values first
   const r = readFromUI(u);
-  const missing = missingRequired(u);
-  if (!r.ok || missing.length){
-    u.error.style.display = 'block';
-    u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
-    return;
-  }
-  u.error.style.display = 'none';
   const saved = getProfile() || defaults();
 
   // Compose engine profile with fallback for optional fields
