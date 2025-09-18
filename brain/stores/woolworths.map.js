@@ -41,4 +41,44 @@ export default {
     pack_size_g: 750,
     brand: "Woolworths"
   }
+}
+  ,
+  food_chicken_breast: {
+    url: "https://www.woolworths.com.au/shop/search/products?searchTerm=chicken%20breast",
+    pack_size_g: 1000,
+    brand: "Woolworths"
+  },
+  food_brown_rice_cooked: {
+    url: "https://www.woolworths.com.au/shop/search/products?searchTerm=brown%20rice",
+    brand: "Various"
+  },
+  food_wholegrain_pasta_cooked: {
+    url: "https://www.woolworths.com.au/shop/search/products?searchTerm=wholemeal%20pasta",
+    brand: "Various"
+  },
+  food_wholemeal_bread: {
+    url: "https://www.woolworths.com.au/shop/search/products?searchTerm=wholemeal%20bread",
+    brand: "Bakery"
+  },
+  food_cottage_cheese: {
+    url: "https://www.woolworths.com.au/shop/search/products?searchTerm=cottage%20cheese",
+    brand: "Dairy"
+  },
+  food_broccoli: {
+    url: "https://www.woolworths.com.au/shop/search/products?searchTerm=broccoli",
+    brand: "Produce"
+  },
+  food_chickpeas_canned_drained: {
+    url: "https://www.woolworths.com.au/shop/search/products?searchTerm=chickpeas%20canned",
+    brand: "Various"
+  },
+  food_kidney_beans_canned_drained: {
+    url: "https://www.woolworths.com.au/shop/search/products?searchTerm=kidney%20beans%20canned",
+    brand: "Various"
+  },
+  food_canned_salmon_drained: {
+    url: "https://www.woolworths.com.au/shop/search/products?searchTerm=canned%20salmon",
+    brand: "Various"
+  }
+
 };
