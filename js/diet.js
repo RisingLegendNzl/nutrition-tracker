@@ -1,5 +1,6 @@
 // filename: js/diet.js
 import { loadState, saveState, GOAL_KEY } from './utils.js';
+import { getProfile, onProfileChange } from './profile.js';
 import { foodsBundle, mealPlan } from '../brain/diet.data.js';
 
 /* -------------------- Nutrition helpers -------------------- */
@@ -31,6 +32,34 @@ function _toLegacy(f){
 }
 
 const DB = Object.fromEntries(_foods.map(f => [String(f.name || '').toLowerCase(), _toLegacy(f)]));
+
+const NAME_TO_ID = new Map(_foods.map(f => [String(f.name || '').toLowerCase(), f.id]));
+let __storeMap = null;
+
+async function loadStoreMap() {
+  try {
+    const pref = (getProfile()?.store_preference) || 'none';
+    if (pref === 'coles') {
+      __storeMap = (await import('../brain/stores/coles.map.js')).default || null;
+    } else if (pref === 'woolworths') {
+      __storeMap = (await import('../brain/stores/woolworths.map.js')).default || null;
+    } else {
+      __storeMap = null;
+    }
+  } catch { __storeMap = null; }
+}
+
+function storeInfoFor(foodName){
+  if (!__storeMap) return null;
+  const id = NAME_TO_ID.get(String(foodName||'').toLowerCase());
+  if (!id) return null;
+  return __storeMap[id] || null;
+}
+
+// Preload on module init and also when profile changes
+loadStoreMap();
+try { onProfileChange(()=>{ loadStoreMap().then(()=>{ try{ renderDiet(); }catch{} }); }); } catch {}
+
 
 
 function todayWeekdayAEST(){
@@ -136,7 +165,7 @@ function getEffectiveItems(day, mealName, items){
 export function mountDiet(){
   prevBtn.onclick = ()=> changeDay(-1);
   nextBtn.onclick = ()=> changeDay(+1);
-  renderDiet();
+  loadStoreMap().then(()=>renderDiet());
 }
 
 export function renderDiet(){
