@@ -354,6 +354,36 @@ function defaults(){
   };
 }
 
+
+/* ============== Required field checks ============== */
+function missingRequired(u){
+  const out = [];
+  // Age
+  const age_v = Number(u.age.value || '');
+  if (!Number.isFinite(age_v) || age_v < 18 || age_v > 65) out.push('Age (18–65)');
+  // Weight
+  const wv = u.weightVal.value.trim();
+  if (!wv || !Number.isFinite(Number(wv))) out.push('Weight');
+  // Height (either cm or ft/in must be provided)
+  if (u.heightUnit.value === 'cm'){
+    if (u.hcm.value === '' || !Number.isFinite(Number(u.hcm.value))) out.push('Height (cm)');
+  } else {
+    const ft = u.hft.value.trim(), inch = u.hin.value.trim();
+    if ((!ft && !inch) || (!Number.isFinite(Number(ft)) && !Number.isFinite(Number(inch)))) out.push('Height (ft/in)');
+  }
+  // Activity
+  const pal = Number(u.activity.value || '');
+  if (!Number.isFinite(pal)) out.push('Activity (PAL)');
+  // Goal
+  if (!u.goal.value) out.push('Goal');
+  // Diet
+  if (!u.diet.value) out.push('Diet');
+  // Hydration baseline
+  const mlkg = Number(u.mlkg.value || '');
+  if (!Number.isFinite(mlkg)) out.push('Hydration baseline (ml/kg)');
+  return out;
+}
+
 /* =============== Read/Write UI =============== */
 
 function readFromUI(u){
@@ -535,9 +565,10 @@ export function mountProfile(){
   // Save
   u.save.addEventListener('click', ()=>{
     const r = readFromUI(u);
-    if (!r.ok){
+    const missing = missingRequired(u);
+    if (!r.ok || missing.length){
       u.error.style.display = 'block';
-      u.error.textContent = 'Please check your entries.';
+      u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
       return;
     }
     u.error.style.display = 'none';
@@ -592,6 +623,13 @@ function injectGenerateButton(u){
 function onGenerateFromProfile(u){
   // Prefer UNSAVED form values first
   const r = readFromUI(u);
+  const missing = missingRequired(u);
+  if (!r.ok || missing.length){
+    u.error.style.display = 'block';
+    u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
+    return;
+  }
+  u.error.style.display = 'none';
   const saved = getProfile() || defaults();
 
   // Compose engine profile with fallback for optional fields
