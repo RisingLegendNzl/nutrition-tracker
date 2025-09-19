@@ -63,6 +63,22 @@ export function requireComplete(){ return !!getProfile(); }
 
 /* ================ Validation ================= */
 
+
+/* ================== UI Validation Helpers ================== */
+function setInvalid(el, msg){
+  if (!el) return;
+  const field = el.closest('.field'); if (!field) return;
+  field.classList.add('invalid');
+  let m = field.querySelector('.error-msg');
+  if (!m){ m = document.createElement('div'); m.className = 'error-msg'; field.appendChild(m); }
+  m.textContent = msg || 'Required';
+}
+function clearInvalid(el){
+  if (!el) return;
+  const field = el.closest('.field'); if (!field) return;
+  field.classList.remove('invalid');
+  const m = field.querySelector('.error-msg'); if (m) m.remove();
+}
 function isValid(p){
   if (!p) return false;
   const w = Number(p.weight_kg);
@@ -485,6 +501,62 @@ function writeToUI(u, p){
   u.goalPrev.querySelector('strong').textContent = litres ? `${litres.toFixed(1).replace(/\.0$/, '')} L` : '—';
 }
 
+
+/* ================== UI Validation (inline errors) ================== */
+function _fieldWrap(el){ return el ? el.closest('.field') : null; }
+function setInvalid(el, msg){
+  const wrap = _fieldWrap(el); if (!wrap) return;
+  wrap.classList.add('invalid');
+  let em = wrap.querySelector('.error-msg');
+  if (!em){ em = document.createElement('div'); em.className = 'error-msg'; wrap.appendChild(em); }
+  em.textContent = msg || 'Required';
+}
+function clearInvalid(el){
+  const wrap = _fieldWrap(el); if (!wrap) return;
+  wrap.classList.remove('invalid');
+  const em = wrap.querySelector('.error-msg'); if (em) em.remove();
+}
+
+/** Validate required fields and mark invalid ones.
+ * Required: Weight 30–300 kg (or lb converted), Age 18–65, Height 120–230 cm (or ft/in equivalent).
+ */
+function validateUI(u){
+  const missing = [];
+
+  // Weight
+  const wu = u.weightUnit.value;
+  const wRaw = u.weightVal.value;
+  let wk = null;
+  if (wu === 'kg') wk = Number(wRaw);
+  else wk = (Number(wRaw)||0) * 0.45359237;
+  const weightOk = Number.isFinite(wk) && wk >= 30 && wk <= 300;
+  if (!weightOk){ missing.push('Weight'); setInvalid(u.weightVal, 'Enter 30–300'); } else { clearInvalid(u.weightVal); }
+
+  // Age
+  const ageVal = u.age ? (u.age.value === '' ? NaN : Number(u.age.value)) : NaN;
+  const ageOk = Number.isFinite(ageVal) && ageVal >= 18 && ageVal <= 65;
+  if (!ageOk){ missing.push('Age'); if (u.age) setInvalid(u.age, 'Enter 18–65'); } else { if (u.age) clearInvalid(u.age); }
+
+  // Height
+  let heightOk = false;
+  if (u.heightUnit.value === 'cm'){
+    const h = u.hcm.value === '' ? NaN : Number(u.hcm.value);
+    heightOk = Number.isFinite(h) && h >= 120 && h <= 230;
+    if (!heightOk){ setInvalid(u.hcm, 'Enter 120–230'); } else { clearInvalid(u.hcm); }
+  } else {
+    const ft = u.hft.value === '' ? NaN : Number(u.hft.value);
+    const inch = u.hin.value === '' ? NaN : Number(u.hin.value);
+    if (Number.isFinite(ft) && Number.isFinite(inch)){
+      const cm = Math.round(((ft*12)+inch)*2.54);
+      heightOk = cm >= 120 && cm <= 230;
+    }
+    if (!heightOk){ setInvalid(u.hft, 'Enter ft/in'); setInvalid(u.hin, 'Enter ft/in'); }
+    else { clearInvalid(u.hft); clearInvalid(u.hin); }
+  }
+
+  const ok = weightOk && ageOk && heightOk;
+  return { ok, missing };
+}
 /* ================== Mount & Events ================== */
 
 function show(readonly=true){
@@ -498,6 +570,14 @@ function show(readonly=true){
 
 export function mountProfile(){
   const u = ui();
+  // Live validation + button state
+  function _syncBtns(){
+    const v = validateUI(u);
+    if (u.save) u.save.disabled = !v.ok;
+    const g = document.getElementById('p_gen'); if (g) g.disabled = !v.ok;
+  }
+  _syncBtns();
+
 
   // unit switchers
   u.heightUnit.addEventListener('change', ()=>{
@@ -511,6 +591,11 @@ export function mountProfile(){
       u.hcm.value = '';
     }
   });
+  // Hook inputs for live validation and button state
+  const _inputs = [u.name,u.gender,u.age,u.weightVal,u.weightUnit,u.heightUnit,u.hcm,u.hft,u.hin];
+  _inputs.forEach(el => el && el.addEventListener('input', _syncBtns));
+  _inputs.forEach(el => el && el.addEventListener('change', _syncBtns));
+
 
   // live hydration preview
   const updatePreview = ()=>{
@@ -579,6 +664,8 @@ function injectGenerateButton(u){
     btn.textContent = 'Generate Meal Plan';
     u.cancel.parentElement.appendChild(btn);
   }
+  // Disable initially if invalid
+  { const v = validateUI(u); btn.disabled = !v.ok; }
   btn.onclick = ()=>{
     const r = readFromUI(u);
     const missing = (typeof missingRequired==='function') ? missingRequired(u) : [];
