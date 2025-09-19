@@ -66,7 +66,6 @@ export function requireComplete(){ return !!getProfile(); }
 function isValid(p){
   if (!p) return false;
   const w = Number(p.weight_kg);
-  const mlkg = Number(p.ml_per_kg);
   if (!Number.isFinite(w) || w < 30 || w > 300) return false;
   if (!Number.isFinite(mlkg) || mlkg < 20 || mlkg > 60) return false;
 
@@ -245,7 +244,6 @@ function ensureRoot(){
         <label for="p_mlkg">Hydration baseline (ml per kg)</label>
         <input id="p_mlkg" type="number" inputmode="numeric" min="20" max="60" step="1" placeholder="35"/>
         <div id="p_goal_preview" class="pill" style="margin-top:8px">
-          <span>Daily hydration goal</span><strong id="p_goal_value">—</strong>
         </div>
       </div>
 
@@ -318,7 +316,6 @@ function ui(){
     // ml/kg + preview
     mlkg: el('p_mlkg'),
     goalPrev: el('p_goal_preview'),
-    goalVal: el('p_goal_value'),
 
     // actions
     save: el('p_save'),
