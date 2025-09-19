@@ -67,7 +67,6 @@ function isValid(p){
   if (!p) return false;
   const w = Number(p.weight_kg);
   if (!Number.isFinite(w) || w < 30 || w > 300) return false;
-  if (!Number.isFinite(mlkg) || mlkg < 20 || mlkg > 60) return false;
 
   // height is optional in your UI; if provided, validate range
   if (p.height_cm !== '' && p.height_cm != null) {
@@ -241,8 +240,6 @@ function ensureRoot(){
       </div>
 
       <div class="field">
-        <label for="p_mlkg">Hydration baseline (ml per kg)</label>
-        <input id="p_mlkg" type="number" inputmode="numeric" min="20" max="60" step="1" placeholder="35"/>
         <div id="p_goal_preview" class="pill" style="margin-top:8px">
         </div>
       </div>
@@ -312,12 +309,7 @@ function ui(){
     allergies: el('p_allergies'),
     dislikes: el('p_dislikes'),
     trainingWrap: el('p_training_days'),
-
-    // ml/kg + preview
-    mlkg: el('p_mlkg'),
-    goalPrev: el('p_goal_preview'),
-
-    // actions
+// actions
     save: el('p_save'),
     reset: el('p_reset'),
     cancel: el('p_cancel'),
@@ -333,8 +325,6 @@ function defaults(){
     height_unit: 'cm',    // 'cm' | 'ftin'
     weight_kg: 71,
     height_cm: '',
-    ml_per_kg: 35,
-
     // nutrition fields
     store_preference: 'none',
     age_y: 23,
@@ -403,11 +393,9 @@ function readFromUI(u){
     .filter(cb => cb.checked)
     .map(cb => cb.getAttribute('data-day'));
 
-  const ml_per_kg = Number(u.mlkg.value);
 
   // quick validations
   const weightIsOk = Number.isFinite(weight_kg) && weight_kg >= 30 && weight_kg <= 300;
-  const mlkgIsOk = Number.isFinite(ml_per_kg) && ml_per_kg >= 20 && ml_per_kg <= 60;
   const heightOk = (u.hcm.value === '' && prefs.height_unit==='cm')
                 || (u.hft.value === '' && u.hin.value === '' && prefs.height_unit==='ftin')
                 || (Number.isFinite(height_cm) && height_cm >= 120 && height_cm <= 230);
@@ -416,15 +404,12 @@ function readFromUI(u){
 
   return {
     prefs,
-    ok: weightIsOk && mlkgIsOk && heightOk && ageOk && bfOk,
     data: {
       name, gender: prefs.gender,
       weight_unit: prefs.weight_unit,
       height_unit: prefs.height_unit,
       weight_kg,
       height_cm: height_cm === '' ? '' : Number(height_cm),
-      ml_per_kg,
-
       age_y: u.age.value === '' ? null : age_y,
       activity_pal,
       goal,
@@ -481,11 +466,6 @@ function writeToUI(u, p){
     const d = cb.getAttribute('data-day');
     cb.checked = days.has(d);
   });
-
-  // ml/kg + preview
-  u.mlkg.value = p.ml_per_kg ?? 35;
-  const litres = computeHydroLitres(p.weight_kg, p.ml_per_kg);
-  u.goalPrev.querySelector('strong').textContent = litres ? `${litres.toFixed(1).replace(/\.0$/, '')} L` : '—';
 }
 
 /* ================== Mount & Events ================== */
@@ -514,22 +494,7 @@ export function mountProfile(){
       u.hcm.value = '';
     }
   });
-
-  // live hydration preview
-  const updatePreview = ()=>{
-    const r = readFromUI(u);
-    if (!Number.isFinite(r.data.weight_kg) || !Number.isFinite(r.data.ml_per_kg)) {
-      u.goalPrev.querySelector('strong').textContent = '—';
-      return;
-    }
-    const litres = computeHydroLitres(r.data.weight_kg, r.data.ml_per_kg);
-    u.goalPrev.querySelector('strong').textContent = `${litres.toFixed(1).replace(/\.0$/, '')} L`;
-  };
-  u.weightVal.addEventListener('input', updatePreview);
-  u.mlkg.addEventListener('input', updatePreview);
-  u.weightUnit.addEventListener('change', updatePreview);
-
-  // Save
+// Save
   u.save.addEventListener('click', ()=>{
     const r = readFromUI(u);
     if (!r.ok){
