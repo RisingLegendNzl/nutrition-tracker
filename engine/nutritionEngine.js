@@ -6,6 +6,7 @@
 // - Returns the day_plan JSON your UI expects
 
 import { foodsBundle } from '../brain/diet.data.js';
+import mealTemplates from '../brain/recipes/meal-templates.js';
 
 // --------------------------- Public API ---------------------------
 export function generateDayPlan(req) {
@@ -159,13 +160,40 @@ function buildMeals(targets, constraints) {
   ];
 
   // Fixed components by diet type (ids should exist in your seed; if not, pretty names render)
-  const menus = (diet === 'vegan' || diet === 'vegetarian')
-    ? veganMenus()
-    : omniMenus();
+  const nameIndex = buildNameIndex(foodsBundle);
 
   const meals = splits.map((m, idx) => {
     const kcalTarget = Math.round(kcalDay * m.share);
-    const base = menus[m.slot] || [];
+    const tpl = pickRandomTemplateForSlot(m.slot, diet);
+    if (!tpl) {
+      const menus = (diet === 'vegan' || diet === 'vegetarian') ? veganMenus() : omniMenus();
+      const base = menus[m.slot] || [];
+      const items = base.map(x => {
+        const kcalPer100 = provider.kcalPer100g(x.food_id, x.kcal_100g);
+        const qty = scaleQtyForKcal(kcalPer100, x.base_qty_g, kcalTarget / base.length);
+        return { food_id: x.food_id, qty_g: Math.max(1, Math.round(qty)), source: 'local', source_ref: null };
+      });
+      return { slot: m.slot, template_id: `tmpl_${m.slot}_v1`, items, totals: { kcal: kcalTarget } };
+    }
+    // Build from template
+    const tplItems = Array.isArray(tpl.items) ? tpl.items : [];
+    const prepared = tplItems.map(it => {
+      const key = String(it.food || '').toLowerCase();
+      const meta = nameIndex.get(key) || null;
+      const id = meta ? meta.id : null;
+      const baseQty = meta ? (meta.canonical_portion_g || 100) : 100;
+      const qtyHint = parseQtyToG(String(it.qty||''), baseQty);
+      const useBase = Number.isFinite(qtyHint) ? qtyHint : baseQty;
+      const kcalPer100 = provider.kcalPer100g(id || 'unknown', undefined);
+      return { food_id: id || key, base_qty_g: useBase, kcal_100g: kcalPer100 || 100 };
+    });
+    const perItemKcal = kcalTarget / Math.max(1, prepared.length);
+    const items = prepared.map(x => {
+      const qty = scaleQtyForKcal(x.kcal_100g, x.base_qty_g, perItemKcal);
+      return { food_id: x.food_id, qty_g: Math.max(1, Math.round(qty)), source: 'template', source_ref: tpl.id || null };
+    });
+    return { slot: m.slot, template_id: tpl.id || null, items, totals: { kcal: kcalTarget } };
+  });
     const items = base.map(x => {
       const kcalPer100 = provider.kcalPer100g(x.food_id, x.kcal_100g);
       const qty = scaleQtyForKcal(kcalPer100, x.base_qty_g, kcalTarget / base.length);
@@ -258,6 +286,51 @@ function veganMenus() {
 
 // --------------------------- Provider, helpers ---------------------------
 class FoodDataProvider {
+// ---- Template helpers (Phase 11) ----
+function buildNameIndex(bundle){
+  const idx = new Map();
+  const foods = (bundle && bundle.foods) || [];
+  for (const f of foods){
+    if (f && typeof f.name === 'string' && typeof f.id === 'string') {
+      idx.set(f.name.toLowerCase(), { id: f.id, canonical_portion_g: f.canonical_portion_g || 100 });
+    }
+  }
+  return idx;
+}
+function parseQtyToG(qtyStr, fallbackG){
+  if (!qtyStr || typeof qtyStr !== 'string') return fallbackG;
+  const s = qtyStr.trim().toLowerCase();
+  const m = s.match(/([0-9]*\.?[0-9]+)/);
+  if (!m) return fallbackG;
+  const val = parseFloat(m[1]);
+  if (s.includes('g')) return val;
+  if (s.includes('ml')) return val; // assume ~1g/ml for simplicity
+  if (s.includes('slice') || s.includes('whole') || s.includes('medium') || s.includes('cup'))
+    return fallbackG;
+  return fallbackG;
+}
+function isTemplateAllowedForDiet(tpl, diet){
+  if (!diet || diet === 'omnivore') return true;
+  const txt = JSON.stringify(tpl.items).toLowerCase();
+  const hasMeatFish = /(chicken|beef|tuna|salmon)/.test(txt);
+  if (diet === 'vegan'){
+    const hasAnimal = /(chicken|beef|tuna|salmon|egg|yogurt|milk|cheese|honey|cottage)/.test(txt);
+    return !hasAnimal;
+  }
+  if (diet === 'vegetarian'){
+    return !hasMeatFish; // allow eggs/dairy
+  }
+  return true;
+}
+function pickRandomTemplateForSlot(slot, diet){
+  const slotNorm = String(slot||'').toLowerCase();
+  const normed = (s) => String(s||'').toLowerCase();
+  const pool = (Array.isArray(mealTemplates) ? mealTemplates : []).filter(t => normed(t.slot) === slotNorm);
+  const allowed = pool.filter(t => isTemplateAllowedForDiet(t, diet));
+  if (!allowed.length) return null;
+  return allowed[Math.floor(Math.random()*allowed.length)];
+}
+
   constructor(bundle) {
     this.map = new Map();
     const foods = (bundle && bundle.foods) || [];
