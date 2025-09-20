@@ -109,62 +109,6 @@ function feetFromCm(cm){
 
 /* ================= UI Rendering ================= */
 
-/* ===== Inline validation helpers (Phase: show missing fields) ===== */
-function setInvalid(el, isBad){
-  if (!el) return;
-  const field = el.closest ? el.closest('.field') : null;
-  if (!field) return;
-  field.classList.toggle('invalid', !!isBad);
-}
-function clearAllInvalid(u){
-  [
-    u.age, u.weightVal, u.hcm, u.hft, u.hin, u.activity, u.goal
-  ].forEach(el => setInvalid(el, false));
-}
-function missingRequired(u){
-  const miss = [];
-  // Age
-  const ageStr = String(u.age.value||'').trim();
-  const age = Number(ageStr);
-  const ageMissing = ageStr === '' || !Number.isFinite(age);
-  setInvalid(u.age, ageMissing);
-  if (ageMissing) miss.push('Age');
-  // Weight
-  const wStr = String(u.weightVal.value||'').trim();
-  const w = Number(wStr);
-  const wMissing = wStr === '' || !Number.isFinite(w);
-  setInvalid(u.weightVal, wMissing);
-  if (wMissing) miss.push('Weight');
-  // Height (cm or ft+in): require at least one mode filled
-  const hunit = (u.heightUnit?.value || 'cm').toLowerCase();
-  let hMissing = false;
-  if (hunit === 'cm'){
-    const hStr = String(u.hcm.value||'').trim();
-    const hv = Number(hStr);
-    hMissing = hStr === '' || !Number.isFinite(hv);
-    setInvalid(u.hcm, hMissing);
-  }else{
-    const fStr = String(u.hft.value||'').trim();
-    const iStr = String(u.hin.value||'').trim();
-    const fOk = fStr !== '' && Number.isFinite(Number(fStr));
-    const iOk = iStr !== '' && Number.isFinite(Number(iStr));
-    hMissing = !(fOk || iOk);
-    setInvalid(u.hft, hMissing);
-    setInvalid(u.hin, hMissing);
-  }
-  if (hMissing) miss.push('Height');
-  // Activity
-  const palMissing = !u.activity.value;
-  setInvalid(u.activity, palMissing);
-  if (palMissing) miss.push('Activity (PAL)');
-  // Goal
-  const goalMissing = !u.goal.value;
-  setInvalid(u.goal, goalMissing);
-  if (goalMissing) miss.push('Goal');
-  return miss;
-}
-
-
 function ensureRoot(){
   if (root) return root;
   root = document.getElementById('profilePage');
@@ -372,7 +316,7 @@ function ui(){
     trainingWrap: el('p_training_days'),
 
     // ml/kg + preview
-    mlkg: el('p_mlkg'),
+    
     goalPrev: el('p_goal_preview'),
     goalVal: el('p_goal_value'),
 
@@ -392,9 +336,7 @@ function defaults(){
     height_unit: 'cm',    // 'cm' | 'ftin'
     weight_kg: 71,
     height_cm: '',
-    ml_per_kg: 35,
-
-    // nutrition fields
+// nutrition fields
     store_preference: 'none',
     age_y: 23,
     activity_pal: 1.6,
@@ -461,10 +403,7 @@ function readFromUI(u){
   const training_days = Array.from(u.trainingWrap.querySelectorAll('input[type="checkbox"]'))
     .filter(cb => cb.checked)
     .map(cb => cb.getAttribute('data-day'));
-
-  const ml_per_kg = Number(u.mlkg.value);
-
-  // quick validations
+// quick validations
   const weightIsOk = Number.isFinite(weight_kg) && weight_kg >= 30 && weight_kg <= 300;
   const mlkgIsOk = Number.isFinite(ml_per_kg) && ml_per_kg >= 20 && ml_per_kg <= 60;
   const heightOk = (u.hcm.value === '' && prefs.height_unit==='cm')
@@ -542,8 +481,7 @@ function writeToUI(u, p){
   });
 
   // ml/kg + preview
-  u.mlkg.value = p.ml_per_kg ?? 35;
-  const litres = computeHydroLitres(p.weight_kg, p.ml_per_kg);
+const litres = computeHydroLitres(p.weight_kg, p.ml_per_kg);
   u.goalPrev.querySelector('strong').textContent = litres ? `${litres.toFixed(1).replace(/\.0$/, '')} L` : '—';
 }
 
@@ -591,10 +529,9 @@ export function mountProfile(){
   // Save
   u.save.addEventListener('click', ()=>{
     const r = readFromUI(u);
-    const missing = missingRequired(u);
-    if (!r.ok || missing.length){
+    if (!r.ok){
       u.error.style.display = 'block';
-      u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
+      u.error.textContent = 'Please check your entries.';
       return;
     }
     u.error.style.display = 'none';
@@ -702,13 +639,6 @@ function onGenerateFromProfile(u){
 
   const result = generateDayPlan(req);
   if (result?.type === 'error'){
-    // Surface error inline and mark required fields
-    try{
-      const u = ui();
-      const miss = missingRequired(u);
-      u.error.style.display = 'block';
-      u.error.textContent = result.message || (miss.length ? `Please complete: ${miss.join(', ')}` : 'Generation error');
-    }catch{}
     showSnack(result.message || 'Generation error');
     return;
   }
