@@ -257,6 +257,16 @@ function veganMenus() {
 }
 
 // --------------------------- Provider, helpers ---------------------------
+// Safe access to templates (no hard import).
+// Optionally, you can expose templates elsewhere via:
+// window.__MEAL_TEMPLATES__ = (await import('./recipes/meal-templates.js')).default;
+function getTemplatesSafe(){
+  try {
+    const t = (typeof window !== 'undefined' && window.__MEAL_TEMPLATES__) || [];
+    return Array.isArray(t) ? t : [];
+  } catch { return []; }
+}
+
 class FoodDataProvider {
   constructor(bundle) {
     this.map = new Map();
