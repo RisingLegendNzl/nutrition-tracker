@@ -72,7 +72,7 @@ export default {
   food_sweet_potato: {
     url: "https://www.coles.com.au/",
     brand: "Produce"
-  }
+  },
   food_tuna_springwater_drained: {
     url: "https://www.coles.com.au/browse/pantry/canned-food-soups-noodles/tuna",
     brand: "Various"
