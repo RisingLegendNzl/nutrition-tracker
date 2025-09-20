@@ -145,6 +145,41 @@ export function attachPlanMenu(container) {
   const saveBtn = makeBtn('Save to Library');
   const exportBtn = makeBtn('Export');
   const importBtn = makeBtn('Import');
+  const regenBtn = makeBtn('Re-generate', 'primary small');
+  regenBtn.onclick = async () => {
+    try {
+      const profMod = await import('./profile.js');
+      const engMod = await import('../engine/nutritionEngine.js');
+      const profile = (typeof profMod.getProfile === 'function') ? (profMod.getProfile() || {}) : {};
+      const constraints = {
+        diet: (profile.diet || 'omnivore'),
+        allergies: profile.allergies || [],
+        dislikes: profile.dislikes || [],
+        store_preference: profile.store_preference || 'none',
+        training_days: profile.training_days || []
+      };
+      const req = { profile: {
+          sex: (profile.gender || 'male'),
+          height_cm: Number(profile.height_cm || 175),
+          weight_kg: Number(profile.weight_kg || 71),
+          age_y: Number(profile.age_y || 23),
+          bodyfat_pct: (profile.bodyfat_pct != null ? Number(profile.bodyfat_pct) : null),
+          activity_pal: Number(profile.activity_pal || 1.6),
+          goal: String(profile.goal || 'maintain')
+        }, constraints };
+      const out = await engMod.generateWeekPlan(req);
+      if (out && out.plan){
+        applyPlanToDiet({ plan: out.plan, meta: out.meta || {} });
+        document.dispatchEvent(new CustomEvent('nutrify:planUpdated'));
+      } else {
+        alert('Could not generate a plan.');
+      }
+    } catch(e){
+      console.warn(e);
+      alert('Re-generation failed');
+    }
+  };
+
 
   libBtn.onclick = () => showLibraryModal();
   saveBtn.onclick = () => {
@@ -164,6 +199,9 @@ export function attachPlanMenu(container) {
         else showLibraryModal(true);
       } catch { toast('Import failed'); }
     };
+  wrap.append(libBtn, saveBtn, exportBtn, importBtn, regenBtn);
+  container.appendChild(wrap);
+
     input.click();
   };
 
