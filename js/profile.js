@@ -240,14 +240,12 @@ function ensureRoot(){
           )).join('')}
         </div>
       </div>
-
       <div class="field">
-        <label for="p_mlkg">Hydration baseline (ml per kg)</label>
-        <input id="p_mlkg" type="number" inputmode="numeric" min="20" max="60" step="1" placeholder="35"/>
         <div id="p_goal_preview" class="pill" style="margin-top:8px">
           <span>Daily hydration goal</span><strong id="p_goal_value">—</strong>
         </div>
       </div>
+
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <button id="p_save" class="secondary">Save</button>
@@ -552,6 +550,8 @@ export function mountProfile(){
   u.cancel.addEventListener('click', ()=>{
     u.page.classList.add('hidden');
   });
+
+  updateGoalPreview();
 
   // Generate Plan button
   injectGenerateButton(u);
