@@ -6,7 +6,6 @@
 // - Returns the day_plan JSON your UI expects
 
 import { foodsBundle } from '../brain/diet.data.js';
-import mealTemplates from '../recipes/meal-templates.js';
 
 // --------------------------- Public API ---------------------------
 export function generateDayPlan(req) {
@@ -159,45 +158,30 @@ function buildMeals(targets, constraints) {
     { slot: 'snacks',    share: 0.10 },
   ];
 
-  // Try templates first; fallback to old menus if none found
-  const nameIdx = buildNameIndex(foodsBundle);
+  // Fixed components by diet type (ids should exist in your seed; if not, pretty names render)
+  const menus = (diet === 'vegan' || diet === 'vegetarian')
+    ? veganMenus()
+    : omniMenus();
 
   const meals = splits.map((m, idx) => {
     const kcalTarget = Math.round(kcalDay * m.share);
-
-    // 1) Template path
-    const tpl = pickRandomTemplateForSlot(m.slot, diet);
-    if (tpl){
-      const raw = Array.isArray(tpl.items) ? tpl.items : [];
-      const prepared = raw.map(it => {
-        const id = resolveFoodIdByName(it.food, nameIdx);
-        if (!id) return null;
-        const meta = nameIdx.get(normName(it.food)) || { canonical_portion_g: 100 };
-        const baseQty = parseQtyToG(String(it.qty||''), meta.canonical_portion_g || 100);
-        const kcal100 = provider.kcalPer100g(id, 100);
-        return { food_id: id, base_qty_g: baseQty, kcal_100g: kcal100 };
-      }).filter(Boolean);
-
-      if (prepared.length){
-        const perItemKcal = kcalTarget / prepared.length;
-        const items = prepared.map(x => {
-          const qty = scaleQtyForKcal(x.kcal_100g, x.base_qty_g, perItemKcal);
-          return { food_id: x.food_id, qty_g: Math.max(1, Math.round(qty)), source: 'template', source_ref: tpl.id || null };
-        });
-        return { slot: m.slot, template_id: tpl.id || null, items, totals: { kcal: kcalTarget } };
-      }
-      // fallthrough → fallback if template resolves to zero items
-    }
-
-    // 2) Fallback: previous deterministic menus
-    const menus = (diet === 'vegan' || diet === 'vegetarian') ? veganMenus() : omniMenus();
     const base = menus[m.slot] || [];
     const items = base.map(x => {
       const kcalPer100 = provider.kcalPer100g(x.food_id, x.kcal_100g);
-      const qty = scaleQtyForKcal(kcalPer100, x.base_qty_g, kcalTarget / Math.max(1, base.length));
-      return { food_id: x.food_id, qty_g: Math.max(1, Math.round(qty)), source: 'local', source_ref: null };
+      const qty = scaleQtyForKcal(kcalPer100, x.base_qty_g, kcalTarget / base.length);
+      return {
+        food_id: x.food_id,
+        qty_g: Math.max(1, Math.round(qty)),
+        source: 'local',
+        source_ref: null
+      };
     });
-    return { slot: m.slot, template_id: `tmpl_${m.slot}_v1`, items, totals: { kcal: kcalTarget } };
+    return {
+      slot: m.slot,
+      template_id: `tmpl_${m.slot}_v1`,
+      items,
+      totals: { kcal: kcalTarget } // keep minimal; UI doesn’t need per-meal macros yet
+    };
   });
 
   const day_totals = {
@@ -273,68 +257,6 @@ function veganMenus() {
 }
 
 // --------------------------- Provider, helpers ---------------------------
-// ---- Phase 11: random template selection + robust name→ID mapping ----
-function normName(s){
-  return String(s||'')
-    .toLowerCase()
-    .replace(/\(.*?\)/g,' ')
-    .replace(/[%']/g,' ')
-    .replace(/\b(extra|virgin|star|lean|traditional|plain|springwater|drained)\b/g,' ')
-    .replace(/[^a-z0-9]+/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
-}
-function buildNameIndex(bundle){
-  const idx = new Map();
-  const foods = (bundle && bundle.foods) || [];
-  for (const f of foods){
-    if (!f || !f.id || !f.name) continue;
-    idx.set(normName(f.name), { id: f.id, canonical_portion_g: f.canonical_portion_g || 100 });
-  }
-  return idx;
-}
-function resolveFoodIdByName(name, idx){
-  if (!name) return null;
-  const raw = String(name).trim();
-  if (raw.startsWith('food_')) return raw;
-  const key = normName(raw);
-  if (idx.has(key)) return idx.get(key).id;
-  const tokens = key.split(' ').filter(Boolean);
-  for (const [k, meta] of idx.entries()){
-    if (tokens.every(t => k.includes(t))) return meta.id;
-  }
-  return null;
-}
-function parseQtyToG(qtyStr, fallbackG){
-  if (!qtyStr || typeof qtyStr !== 'string') return fallbackG;
-  const s = qtyStr.trim().toLowerCase();
-  const m = s.match(/([0-9]*\.?[0-9]+)/);
-  if (!m) return fallbackG;
-  const val = parseFloat(m[1]);
-  if (s.includes('g') || s.includes('ml')) return val;
-  return fallbackG;
-}
-function isTemplateAllowedForDiet(tpl, diet){
-  if (!diet || diet === 'omnivore') return true;
-  const txt = JSON.stringify(tpl.items||[]).toLowerCase();
-  const hasMeatFish = /(chicken|beef|tuna|salmon)/.test(txt);
-  if (diet === 'vegan'){
-    const hasAnimal = /(chicken|beef|tuna|salmon|egg|yogurt|milk|cheese|honey|cottage)/.test(txt);
-    return !hasAnimal;
-  }
-  if (diet === 'vegetarian'){
-    return !hasMeatFish;
-  }
-  return true;
-}
-function pickRandomTemplateForSlot(slot, diet){
-  const slotNorm = String(slot||'').toLowerCase();
-  const pool = (Array.isArray(mealTemplates) ? mealTemplates : []).filter(t => String(t.slot||'').toLowerCase() === slotNorm);
-  const allowed = pool.filter(t => isTemplateAllowedForDiet(t, diet));
-  if (!allowed.length) return null;
-  return allowed[Math.floor(Math.random()*allowed.length)];
-}
-
 class FoodDataProvider {
   constructor(bundle) {
     this.map = new Map();
