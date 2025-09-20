@@ -59,6 +59,9 @@ function storeInfoFor(foodName){
 loadStoreMap();
 try { onProfileChange(()=>{ loadStoreMap().then(()=>{ try{ renderDiet(); }catch{} }); }); } catch {}
 
+// Re-render Diet when a new plan is generated
+try { window.addEventListener('nutrify:planUpdated', ()=>{ try{ renderDiet(); }catch{} }); } catch {}
+
 
 
 function todayWeekdayAEST(){
@@ -133,6 +136,18 @@ const EATEN_KEY   = 'diet_eaten';
 const DAY_KEY     = 'diet_day';
 const QTY_OVR_KEY = 'diet_qty_overrides_v1'; // { [day:meal]: { [foodNameLower]: "120 g" } }
 
+/* -------------------- Plan resolver (Phase G1) -------------------- */
+function getCurrentPlan(){
+  try {
+    const fromLocal = JSON.parse(localStorage.getItem('nutrify_mealPlan') || 'null');
+    if (fromLocal && typeof fromLocal === 'object' && Object.keys(fromLocal).length) return fromLocal;
+  } catch {}
+  if (typeof window !== 'undefined' && window.mealPlan && Object.keys(window.mealPlan||{}).length){
+    return window.mealPlan;
+  }
+  return (mealPlan && Object.keys(mealPlan||{}).length) ? mealPlan : {};
+}
+
 /* -------------------- Overrides helpers -------------------- */
 function getOverrides(){
   return loadState(QTY_OVR_KEY) || {};
@@ -160,21 +175,8 @@ function getEffectiveItems(day, mealName, items){
   });
 }
 
-
-/* Current plan resolver: prefer runtime/window or localStorage over static import */
-function getCurrentPlan(){
-  try {
-    const fromLocal = JSON.parse(localStorage.getItem('nutrify_mealPlan') || 'null');
-    if (fromLocal && typeof fromLocal === 'object' && Object.keys(fromLocal).length) return fromLocal;
-  } catch {}
-  if (typeof window !== 'undefined' && window.mealPlan && Object.keys(window.mealPlan||{}).length){
-    return window.mealPlan;
-  }
-  return (mealPlan && Object.keys(mealPlan||{}).length) ? mealPlan : {};
-}
 /* -------------------- Public API -------------------- */
 export function mountDiet(){
-  try{ window.addEventListener('nutrify:planUpdated', ()=>renderDiet()); }catch{}
   prevBtn.onclick = ()=> changeDay(-1);
   nextBtn.onclick = ()=> changeDay(+1);
   loadStoreMap().then(()=>renderDiet());
