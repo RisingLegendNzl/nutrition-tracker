@@ -73,4 +73,24 @@ export default {
     url: "https://www.coles.com.au/",
     brand: "Produce"
   }
+  food_tuna_springwater_drained: {
+    url: "https://www.coles.com.au/browse/pantry/canned-food-soups-noodles/tuna",
+    brand: "Various"
+  },
+  food_egg_whole: {
+    url: "https://www.coles.com.au/browse/dairy-eggs/eggs",
+    brand: "Eggs"
+  },
+  food_orange: {
+    url: "https://www.coles.com.au/browse/fruit-veg/fruit/citrus",
+    brand: "Produce"
+  },
+  food_mandarin: {
+    url: "https://www.coles.com.au/browse/fruit-veg/fruit/citrus",
+    brand: "Produce"
+  },
+  food_carrots: {
+    url: "https://www.coles.com.au/browse/fruit-veg/vegetables",
+    brand: "Produce"
+  },
 };
