@@ -41,4 +41,36 @@ export default {
     pack_size_g: 750,
     brand: "Woolworths"
   }
+  food_avocado: {
+    url: "https://www.woolworths.com.au/shop/browse/fruit-veg/fruit/avocados",
+    brand: "Produce"
+  },
+  food_banana: {
+    url: "https://www.woolworths.com.au/shop/browse/fruit-veg/fruit/bananas",
+    brand: "Produce"
+  },
+  food_orange: {
+    url: "https://www.woolworths.com.au/shop/browse/fruit-veg/fruit/citrus",
+    brand: "Produce"
+  },
+  food_mandarin: {
+    url: "https://www.woolworths.com.au/shop/browse/fruit-veg/fruit/citrus",
+    brand: "Produce"
+  },
+  food_potatoes: {
+    url: "https://www.woolworths.com.au/shop/browse/fruit-veg/vegetables/potatoes",
+    brand: "Produce"
+  },
+  food_sweet_potato: {
+    url: "https://www.woolworths.com.au/shop/browse/fruit-veg/vegetables/potatoes-sweet",
+    brand: "Produce"
+  },
+  food_spinach: {
+    url: "https://www.woolworths.com.au/shop/browse/fruit-veg/vegetables/leafy-greens",
+    brand: "Produce"
+  },
+  food_tuna_springwater_drained: {
+    url: "https://www.woolworths.com.au/shop/browse/pantry/tuna",
+    brand: "Various"
+  },
 };
