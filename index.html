@@ -217,5 +217,18 @@
 <script type="module" src="js/plan.io.js"></script>
 <script type="module" src="js/plan.mount.js"></script>
 <script type="module" src="js/app.js"></script>
+
+<!-- Phase A: safe templates loader (correct path) -->
+<script type="module">
+  try {
+    const mod = await import('./meal-templates.js');
+    window.__MEAL_TEMPLATES__ = mod.default || [];
+    console.log('[Nutrify] Meal templates loaded:', Array.isArray(window.__MEAL_TEMPLATES__) ? window.__MEAL_TEMPLATES__.length : 0);
+  } catch (e) {
+    console.warn('[Nutrify] Templates not loaded, using fallback menus.', e);
+    window.__MEAL_TEMPLATES__ = [];
+  }
+</script>
+
 </body>
 </html>
