@@ -2,22 +2,6 @@ import { loadState, saveState, GOAL_KEY } from './utils.js';
 import { getProfile, onProfileChange } from './profile.js';
 import { foodsBundle, mealPlan } from '../brain/diet.data.js';
 
-// Prefer latest plan from localStorage or window over the imported default
-function getActivePlan(){
-  try{
-    const raw = localStorage.getItem('nutrify_mealPlan');
-    if (raw){
-      const obj = JSON.parse(raw);
-      if (obj && typeof obj === 'object' && Object.keys(obj).length) return obj;
-    }
-  }catch{}
-  if (typeof window !== 'undefined' && window.mealPlan && typeof window.mealPlan === 'object' && Object.keys(window.mealPlan).length){
-    return window.mealPlan;
-  }
-  return (mealPlan && typeof mealPlan === 'object') ? mealPlan : {};
-}
-
-
 /* -------------------- Nutrition helpers -------------------- */
 
 // Build a legacy per-100g map { k,p,c,f,fib,fe,zn,ca,vC,fol,kplus, unit_g? } keyed by lowercase food name
@@ -176,15 +160,28 @@ function getEffectiveItems(day, mealName, items){
   });
 }
 
+
+/* Current plan resolver: prefer runtime/window or localStorage over static import */
+function getCurrentPlan(){
+  try {
+    const fromLocal = JSON.parse(localStorage.getItem('nutrify_mealPlan') || 'null');
+    if (fromLocal && typeof fromLocal === 'object' && Object.keys(fromLocal).length) return fromLocal;
+  } catch {}
+  if (typeof window !== 'undefined' && window.mealPlan && Object.keys(window.mealPlan||{}).length){
+    return window.mealPlan;
+  }
+  return (mealPlan && Object.keys(mealPlan||{}).length) ? mealPlan : {};
+}
 /* -------------------- Public API -------------------- */
 export function mountDiet(){
+  try{ window.addEventListener('nutrify:planUpdated', ()=>renderDiet()); }catch{}
   prevBtn.onclick = ()=> changeDay(-1);
   nextBtn.onclick = ()=> changeDay(+1);
   loadStoreMap().then(()=>renderDiet());
 }
 
 export function renderDiet(){
-  const plan = getActivePlan();
+  const plan = getCurrentPlan();
   const names = Object.keys(plan);
 
   // resolve active day safely
@@ -371,7 +368,7 @@ function bar(label, val, goal, unit){
 }
 
 function changeDay(delta){
-  const names = Object.keys(getActivePlan() || {});
+  const names = Object.keys(mealPlan || {});
   if (!names.length) return;
   const current = loadState(DAY_KEY) || names[0];
   const next = names[(names.indexOf(current) + delta + names.length) % names.length];
