@@ -126,6 +126,7 @@ function onGenerateFromProfile(u){
   };
 
   const result = generateDayPlan(req);
+  const weekOut = generateWeekPlan({ ...req });
   if (result?.type === 'error'){
     showSnack(result.message || 'Generation error');
     return;
@@ -155,7 +156,7 @@ function onGenerateFromProfile(u){
   } catch {}
 
   // Map engine JSON → legacy weekly plan (same plan to all days)
-  const weeklyPlan = planFromEngine(result);
+  const weeklyPlan = planWeekFromEngine(weekOut && weekOut.plan ? weekOut.plan : {});
 
   // -------------- APPLY VIA IO LAYER --------------
   try {
@@ -182,7 +183,27 @@ function planFromEngine(engineRes){
     items: (m.items || []).map(it => ({
       food_id: it.food_id,
       food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
+      qty: `${Math.round(Number(it.qty_g||0))}
+
+/* Map engine week result -> legacy weekly plan */
+function planWeekFromEngine(weekPlan){
+  const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
+  const mapMeals = (meals) => (meals || []).map(m => ({
+    meal: (m.slot || 'meal').replace(/^[a-z]/, c => c.toUpperCase()),
+    items: (m.items || []).map(it => ({
+      food_id: it.food_id,
+      food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
       qty: `${Math.round(Number(it.qty_g||0))} g`
+    }))
+  }));
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const out = {};
+  for (const d of days){
+    out[d] = mapMeals((weekPlan && weekPlan[d]) || []);
+  }
+  return out;
+}
+ g`
     }))
   }));
   const plan = {};
