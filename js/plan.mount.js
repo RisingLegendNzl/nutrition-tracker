@@ -12,4 +12,4 @@ function tryMount() {
 
 window.addEventListener('DOMContentLoaded', () => setTimeout(tryMount, 0));
 window.addEventListener('hashchange', () => setTimeout(tryMount, 0));
-document.addEventListener('nutrify:planUpdated', () => setTimeout(tryMount, 0));
+window.addEventListener('nutrify:planUpdated', () => setTimeout(tryMount, 0));
