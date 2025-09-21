@@ -1,64 +1,8 @@
-import { foodsBundle } from '../brain/diet.data.js';
 // js/plan.io.js
 // Plan export/import + local library + Library UI for Nutrify
 
 const LIB_KEY = 'nutrify_plan_library_v1';   // localStorage key
 const FILE_EXT = '.nutrify.json';
-
-/* ================== Feature flags & safe loaders ================== */
-export const FEATURE_TEMPLATES_KEY = 'feature_templates_v1';
-
-/** Safe, optional template loader (guarded by feature flag). */
-export async function safeLoadTemplates() {
-  try {
-    const enabled = localStorage.getItem(FEATURE_TEMPLATES_KEY) === '1';
-    if (!enabled) return [];
-    const mod = await import('../brain/recipes/meal-templates.js');
-    const arr = (mod && (mod.default || mod.templates)) || [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-
-/** One-click regenerate using current profile + engine. */
-export async function regenerateFromProfile() {
-  try {
-    const [{ getProfile }, eng] = await Promise.all([
-      import('./profile.js'),
-      import('../engine/nutritionEngine.js')
-    ]);
-    const prof = (typeof getProfile === 'function') ? getProfile() : null;
-    if (!prof) { toast('Set up your Profile first'); return; }
-
-    // Minimal request for engine
-    const req = {
-      profile: {
-        sex: (prof.gender === 'female') ? 'female' : 'male',
-        age_y: Number(prof.age_y),
-        height_cm: Number(prof.height_cm),
-        weight_kg: Number(prof.weight_kg),
-        activity_pal: Number(prof.activity_pal),
-        goal: String(prof.goal || 'maintain'),
-        bodyfat_pct: (prof.bodyfat_pct == null || prof.bodyfat_pct === '') ? null : Number(prof.bodyfat_pct)
-      },
-      constraints: { diet: String(prof.diet || 'omnivore') }
-    };
-
-    const out = (typeof eng.generateWeekPlan === 'function')
-      ? eng.generateWeekPlan(req)
-      : { plan: {} };
-
-    if (!out || !out.plan || !Object.keys(out.plan).length) {
-      toast('Generation failed'); return;
-    }
-    const meta = out.meta || { type: 'week_plan', source: 'regen', created_at: new Date().toISOString() };
-    applyPlanToDiet({ plan: out.plan, meta });
-  } catch {
-    toast('Could not re-generate');
-  }
-}
-
 
 /* ================== Public API ================== */
 
@@ -79,8 +23,7 @@ export function applyPlanToDiet(planObject) {
     return false;
   }
 
-  const adapted = adaptPlanIfNeeded(planObject);
-  window.mealPlan = adapted.plan;
+  window.mealPlan = planObject.plan;
 
   try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan)); } catch {}
 
@@ -158,48 +101,6 @@ export function exportFromLibrary(index) {
   downloadBlob(entry, name);
 }
 
-
-
-/* ================== Engine → UI adapter ================== */
-function adaptPlanIfNeeded(planObject){
-  try{
-    if (!planObject || !planObject.plan || typeof planObject.plan !== 'object') return planObject;
-    // Detect engine shape: items have { food_id, qty_g }
-    const days = Object.keys(planObject.plan||{});
-    if (!days.length) return planObject;
-
-    const foods = (foodsBundle && foodsBundle.foods) || [];
-    const idToName = new Map(foods.map(f => [String(f.id), String(f.name||'')]));
-
-    const looksEngine = !!days.find(d => {
-      const meals = planObject.plan[d] || [];
-      const first = meals && meals[0];
-      const it = first && first.items && first.items[0];
-      return it && ('food_id' in it);
-    });
-    if (!looksEngine) return planObject; // already UI shape
-
-    // Build new UI-shaped plan: { Monday: [{ meal:'Breakfast', items:[{food,qty}] }, ...], ... }
-    const cap = s => (s||'').charAt(0).toUpperCase() + (s||'').slice(1);
-    const uiPlan = {};
-    for (const day of days){
-      const meals = planObject.plan[day] || [];
-      uiPlan[day] = meals.map(m => {
-        const mealName = cap(m.slot || m.meal || 'Meal');
-        const items = (m.items || []).map(it => {
-          const name = idToName.get(String(it.food_id)) || String(it.food_id || it.food || '').replace(/^food_/, '').replace(/_/g,' ');
-          const grams = Math.max(1, Math.round(Number(it.qty_g || it.qty || 0)));
-          return { food: name, qty: grams ? (grams + ' g') : '' };
-        });
-        return { meal: mealName, items };
-      });
-    }
-    return { ...planObject, plan: uiPlan };
-  }catch{
-    return planObject; // fail-open
-  }
-}
-
 /* ----------------- helpers ----------------- */
 
 function suggestName() {
@@ -240,13 +141,11 @@ export function attachPlanMenu(container) {
   wrap.style.marginLeft = 'auto';
 
   const makeBtn = (txt, cls='ghost small') => { const b=document.createElement('button'); b.className=cls; b.textContent=txt; return b; };
-  const regenBtn = makeBtn('Re-generate', 'primary small');
   const libBtn = makeBtn('Library');
   const saveBtn = makeBtn('Save to Library');
   const exportBtn = makeBtn('Export');
   const importBtn = makeBtn('Import');
 
-  regenBtn.onclick = async () => { try { regenBtn.disabled = true; await regenerateFromProfile(); } finally { regenBtn.disabled = false; } };
   libBtn.onclick = () => showLibraryModal();
   saveBtn.onclick = () => {
     const name = prompt('Name this plan:', suggestName());
@@ -268,7 +167,7 @@ export function attachPlanMenu(container) {
     input.click();
   };
 
-  wrap.append(regenBtn, libBtn, saveBtn, exportBtn, importBtn);
+  wrap.append(libBtn, saveBtn, exportBtn, importBtn);
   container.appendChild(wrap);
 }
 
