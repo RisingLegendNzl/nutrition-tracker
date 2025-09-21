@@ -4,6 +4,61 @@
 const LIB_KEY = 'nutrify_plan_library_v1';   // localStorage key
 const FILE_EXT = '.nutrify.json';
 
+/* ================== Feature flags & safe loaders ================== */
+export const FEATURE_TEMPLATES_KEY = 'feature_templates_v1';
+
+/** Safe, optional template loader (guarded by feature flag). */
+export async function safeLoadTemplates() {
+  try {
+    const enabled = localStorage.getItem(FEATURE_TEMPLATES_KEY) === '1';
+    if (!enabled) return [];
+    const mod = await import('../brain/recipes/meal-templates.js');
+    const arr = (mod && (mod.default || mod.templates)) || [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+/** One-click regenerate using current profile + engine. */
+export async function regenerateFromProfile() {
+  try {
+    const [{ getProfile }, eng] = await Promise.all([
+      import('./profile.js'),
+      import('../engine/nutritionEngine.js')
+    ]);
+    const prof = (typeof getProfile === 'function') ? getProfile() : null;
+    if (!prof) { toast('Set up your Profile first'); return; }
+
+    // Minimal request for engine
+    const req = {
+      profile: {
+        sex: (prof.gender === 'female') ? 'female' : 'male',
+        age_y: Number(prof.age_y),
+        height_cm: Number(prof.height_cm),
+        weight_kg: Number(prof.weight_kg),
+        activity_pal: Number(prof.activity_pal),
+        goal: String(prof.goal || 'maintain'),
+        bodyfat_pct: (prof.bodyfat_pct == null || prof.bodyfat_pct === '') ? null : Number(prof.bodyfat_pct)
+      },
+      constraints: { diet: String(prof.diet || 'omnivore') }
+    };
+
+    const out = (typeof eng.generateWeekPlan === 'function')
+      ? eng.generateWeekPlan(req)
+      : { plan: {} };
+
+    if (!out || !out.plan || !Object.keys(out.plan).length) {
+      toast('Generation failed'); return;
+    }
+    const meta = out.meta || { type: 'week_plan', source: 'regen', created_at: new Date().toISOString() };
+    applyPlanToDiet({ plan: out.plan, meta });
+  } catch {
+    toast('Could not re-generate');
+  }
+}
+
+
 /* ================== Public API ================== */
 
 export function captureCurrentPlan() {
@@ -141,46 +196,13 @@ export function attachPlanMenu(container) {
   wrap.style.marginLeft = 'auto';
 
   const makeBtn = (txt, cls='ghost small') => { const b=document.createElement('button'); b.className=cls; b.textContent=txt; return b; };
+  const regenBtn = makeBtn('Re-generate', 'primary small');
   const libBtn = makeBtn('Library');
   const saveBtn = makeBtn('Save to Library');
   const exportBtn = makeBtn('Export');
   const importBtn = makeBtn('Import');
-  const regenBtn = makeBtn('Re-generate', 'primary small');
-  regenBtn.onclick = async () => {
-    try {
-      const profMod = await import('./profile.js');
-      const engMod = await import('../engine/nutritionEngine.js');
-      const profile = (typeof profMod.getProfile === 'function') ? (profMod.getProfile() || {}) : {};
-      const constraints = {
-        diet: (profile.diet || 'omnivore'),
-        allergies: profile.allergies || [],
-        dislikes: profile.dislikes || [],
-        store_preference: profile.store_preference || 'none',
-        training_days: profile.training_days || []
-      };
-      const req = { profile: {
-          sex: (profile.gender || 'male'),
-          height_cm: Number(profile.height_cm || 175),
-          weight_kg: Number(profile.weight_kg || 71),
-          age_y: Number(profile.age_y || 23),
-          bodyfat_pct: (profile.bodyfat_pct != null ? Number(profile.bodyfat_pct) : null),
-          activity_pal: Number(profile.activity_pal || 1.6),
-          goal: String(profile.goal || 'maintain')
-        }, constraints };
-      const out = await engMod.generateWeekPlan(req);
-      if (out && out.plan){
-        applyPlanToDiet({ plan: out.plan, meta: out.meta || {} });
-        document.dispatchEvent(new CustomEvent('nutrify:planUpdated'));
-      } else {
-        alert('Could not generate a plan.');
-      }
-    } catch(e){
-      console.warn(e);
-      alert('Re-generation failed');
-    }
-  };
 
-
+  regenBtn.onclick = async () => { try { regenBtn.disabled = true; await regenerateFromProfile(); } finally { regenBtn.disabled = false; } };
   libBtn.onclick = () => showLibraryModal();
   saveBtn.onclick = () => {
     const name = prompt('Name this plan:', suggestName());
@@ -199,13 +221,10 @@ export function attachPlanMenu(container) {
         else showLibraryModal(true);
       } catch { toast('Import failed'); }
     };
-  wrap.append(libBtn, saveBtn, exportBtn, importBtn, regenBtn);
-  container.appendChild(wrap);
-
     input.click();
   };
 
-  wrap.append(libBtn, saveBtn, exportBtn, importBtn);
+  wrap.append(regenBtn, libBtn, saveBtn, exportBtn, importBtn);
   container.appendChild(wrap);
 }
 
