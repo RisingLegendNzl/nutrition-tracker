@@ -1,108 +1,69 @@
-// filename: js/profile.js
-// Profile UI + storage + Generate Plan (uses unsaved form first, then saved).
-// Adds: age, activity PAL, goal, bodyfat%, diet, allergies, dislikes, training days.
+// js/profile.js — unified Generate -> applyPlanToDiet with week mapping
 
-import { clamp, showSnack } from './utils.js';
 import { applyPlanToDiet } from './plan.io.js';
 import { generateDayPlan, generateWeekPlan } from '../engine/nutritionEngine.js';
 import { foodsBundle } from '../brain/diet.data.js';
+import { showSnack } from './utils.js';
 
-const KEY = 'profile_v1';
-const listeners = new Set();
-
-let root;
-let editBtn;
-let state = null;
-
-function defaults(){
-  return {
-    gender:'male',
-    height_cm:175,
-    weight_kg:70,
-    age_y:23,
-    bodyfat_pct:null,
-    activity_pal:1.6,
-    goal:'maintain',
-    diet:'omnivore',
-    allergies:[],
-    dislikes:[],
-    training_days:[],
-    store_preference:'none'
-  };
-}
-
-export function getProfile(){
-  try{
-    const raw = localStorage.getItem(KEY);
+/* ================= Profile helpers ================= */
+export function getProfile() {
+  try {
+    const raw = localStorage.getItem('nutrify_profile_v1');
     return raw ? JSON.parse(raw) : null;
-  }catch{
+  } catch {
     return null;
   }
 }
 
-export function saveProfile(p){
-  try{ localStorage.setItem(KEY, JSON.stringify(p)); }catch{}
-  listeners.forEach(fn => { try{ fn(p); }catch{} });
+function defaults() {
+  return {
+    gender: 'male',
+    age_y: 23,
+    height_cm: 175,
+    weight_kg: 70,
+    bodyfat_pct: null,
+    activity_pal: 1.6,
+    goal: 'maintain',
+    diet: 'omnivore',
+    allergies: [],
+    dislikes: [],
+    training_days: [],
+    store_preference: 'none'
+  };
 }
 
-function readFromUI(u){
-  const pick = n => (u.querySelector?.(`[name="${n}"]`)?.value ?? u[n]?.value ?? '');
-  const arr = n => (pick(n) ? pick(n).split(',').map(x=>x.trim()).filter(Boolean) : []);
-  const p = {};
-  p.gender = pick('gender') || 'male';
-  p.height_cm = Number(pick('height_cm') || 175);
-  p.weight_kg = Number(pick('weight_kg') || 70);
-  p.age_y = Number(pick('age_y') || 23);
-  p.bodyfat_pct = pick('bodyfat_pct') === '' ? null : Number(pick('bodyfat_pct'));
-  p.activity_pal = Number(pick('activity_pal') || 1.6);
-  p.goal = (pick('goal') || 'maintain').toLowerCase();
-  p.diet = (pick('diet') || 'omnivore').toLowerCase();
-  p.allergies = arr('allergies');
-  p.dislikes = arr('dislikes');
-  p.training_days = arr('training_days');
-  p.store_preference = pick('store_preference') || 'none';
-  return { data: p };
+function readFromUI(u) {
+  const get = (name, def='') => (u[name]?.value ?? u.querySelector?.(`[name="${name}"]`)?.value ?? def);
+  const split = (name) => (get(name,'').split(',').map(x=>x.trim()).filter(Boolean));
+  const data = {};
+  data.gender = get('gender','male');
+  data.age_y = get('age_y','');
+  data.height_cm = get('height_cm','');
+  data.weight_kg = get('weight_kg','');
+  data.bodyfat_pct = get('bodyfat_pct','');
+  data.activity_pal = get('activity_pal','1.6');
+  data.goal = get('goal','maintain');
+  data.diet = get('diet','omnivore');
+  data.allergies = split('allergies');
+  data.dislikes = split('dislikes');
+  data.training_days = split('training_days');
+  data.store_preference = get('store_preference','none');
+  return { data };
 }
 
-/* =============== Render / Mount =============== */
-function ensureRoot(){
-  if (root) return root;
-  root = document.getElementById('profilePage');
-  return root;
-}
-
-export function onProfileChange(cb){ listeners.add(cb); return () => listeners.delete(cb); }
-
-export { ensureRoot as renderProfile, ensureRoot as initProfile };
-
-/* =============== Generate Plan wiring =============== */
-
-function injectGenerateButton(u){
-  let btn = document.getElementById('p_gen');
-  if (!btn){
-    btn = document.createElement('button');
-    btn.id = 'p_gen';
-    btn.className = 'primary';
-    btn.textContent = 'Generate Meal';
-    const host = document.querySelector('#profilePage .card') || document.getElementById('profilePage');
-    if (host) host.appendChild(btn);
-  }
-  btn.onclick = () => onGenerateFromProfile(u);
-}
-
+/* ============= Generate Meal from Profile ============= */
 function onGenerateFromProfile(u){
-  // Prefer UNSAVED form values first
   const r = readFromUI(u);
   const saved = getProfile() || defaults();
 
-  // Compose engine profile with fallback for optional fields
+  // Compose engine profile
   const sex = (r.data.gender || saved.gender || 'male').toLowerCase();
   const height_cm = (r.data.height_cm === '' || r.data.height_cm == null)
       ? (Number(saved.height_cm) || 175)
       : Number(r.data.height_cm);
   const weight_kg = Number(r.data.weight_kg || saved.weight_kg || 71);
   const age_y = Number((r.data.age_y ?? saved.age_y ?? 23) || 23);
-  const bodyfat_pct = (r.data.bodyfat_pct != null ? Number(r.data.bodyfat_pct)
+  const bodyfat_pct = (r.data.bodyfat_pct != null && r.data.bodyfat_pct !== '' ? Number(r.data.bodyfat_pct)
                       : (saved.bodyfat_pct != null ? Number(saved.bodyfat_pct) : null));
   const activity_pal = Number(r.data.activity_pal ?? saved.activity_pal ?? 1.6);
   const goal = String(r.data.goal || saved.goal || 'maintain').toLowerCase();
@@ -125,138 +86,85 @@ function onGenerateFromProfile(u){
     features: { ai_swaps: false, live_prices: false }
   };
 
+  // Day plan (for targets + summary)
   const result = generateDayPlan(req);
-  const weekOut = generateWeekPlan({ ...req });
   if (result?.type === 'error'){
     showSnack(result.message || 'Generation error');
     return;
   }
 
-  // Save engine targets for Diet bars (future-proof)
+  // Save targets for bars
   try {
-    const goalStore = {
+    localStorage.setItem('nutrify_targets', JSON.stringify({
       engine_version: result.engine_version,
       data_version: result.data_version,
       targets: result.targets
-    };
-    localStorage.setItem('nutrify_targets', JSON.stringify(goalStore));
+    }));
   } catch {}
 
-  // Back-compat for legacy Diet bars that read GOAL_KEY ('diet_goal')
+  // Legacy bars
   try {
     const g = result.targets || {};
-    const legacy = {
-      kcal: g.kcal,
-      protein: g.protein_g,
-      fibre: g.fiber_g,
-      iron: 8,
-      zinc: 14
-    };
-    localStorage.setItem('diet_goal', JSON.stringify(legacy));
+    localStorage.setItem('diet_goal', JSON.stringify({
+      kcal: g.kcal, protein: g.protein_g, fibre: g.fiber_g, iron: 8, zinc: 14
+    }));
   } catch {}
 
-  // Map engine JSON → legacy weekly plan (same plan to all days)
+  // True week plan + mapping for Diet
+  const weekOut = generateWeekPlan({ ...req });
   const weeklyPlan = planWeekFromEngine(weekOut && weekOut.plan ? weekOut.plan : {});
 
-  // -------------- APPLY VIA IO LAYER --------------
+  // Apply via IO layer
   try {
-    applyPlanToDiet({ 
-      plan: weeklyPlan, 
-      meta: { type:'week_plan', source:'profile', created_at: new Date().toISOString() } 
+    applyPlanToDiet({
+      plan: weeklyPlan,
+      meta: { type:'week_plan', source:'profile', created_at: new Date().toISOString() }
     });
   } catch (e) {
-    console.warn('applyPlanToDiet failed, falling back', e);
     try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(weeklyPlan)); } catch {}
     try { window.renderDiet && window.renderDiet(); } catch {}
   }
-  // -----------------------------------------------------
 
   showSnack(result.summary || 'Plan generated');
 }
 
-/* Map engine result to legacy mealPlan (same plan to all days) */
-function planFromEngine(engineRes){
-  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
-  const legacyMeals = (engineRes.meals || []).map(m => ({
-    meal: (m.slot || 'meal').replace(/^\w/, c => c.toUpperCase()),
-    items: (m.items || []).map(it => ({
-      food_id: it.food_id,
-      food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
-      qty: `${Math.round(Number(it.qty_g||0))}
-
-/* Map engine week result -> legacy weekly plan */
+/* Map engine week result -> Diet UI weekly plan */
 function planWeekFromEngine(weekPlan){
   const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
   const mapMeals = (meals) => (meals || []).map(m => ({
     meal: (m.slot || 'meal').replace(/^[a-z]/, c => c.toUpperCase()),
     items: (m.items || []).map(it => ({
       food_id: it.food_id,
-      food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
+      food: idToName[it.food_id] || String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' '),
       qty: `${Math.round(Number(it.qty_g||0))} g`
     }))
   }));
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const out = {};
-  for (const d of days){
-    out[d] = mapMeals((weekPlan && weekPlan[d]) || []);
-  }
+  for (const d of days) out[d] = mapMeals((weekPlan && weekPlan[d]) || []);
   return out;
 }
- g`
-    }))
-  }));
-  const plan = {};
-  for (const d of days) plan[d] = legacyMeals;
-  return plan;
-}
 
-/* ============= Utilities ============= */
-function syncUI(u, p){
-  if (!u) return;
-  const set = (name, val) => {
-    const el = u.querySelector?.(`[name="${name}"]`) || u[name];
-    if (el) el.value = (val ?? '');
-  };
-  set('gender', p.gender);
-  set('height_cm', p.height_cm);
-  set('weight_kg', p.weight_kg);
-  set('age_y', p.age_y);
-  set('bodyfat_pct', p.bodyfat_pct ?? '');
-  set('activity_pal', p.activity_pal);
-  set('goal', p.goal);
-  set('diet', p.diet);
-  set('allergies', (p.allergies||[]).join(', '));
-  set('dislikes', (p.dislikes||[]).join(', '));
-  set('training_days', (p.training_days||[]).join(', '));
-  set('store_preference', p.store_preference || 'none');
-}
-
+/* ============= Mount Profile ============= */
 export function mountProfile(){
-  const el = ensureRoot();
-  if (!el) return;
-  // gather a lightweight field map
-  const u = new Proxy(el, {
-    get(target, prop){ return target.querySelector?.(`[name="${String(prop)}"]`); }
-  });
+  const u = {};
+  document.querySelectorAll('#profilePage [name]').forEach(el => u[el.name] = el);
 
+  // Prefill from saved profile if present
   const saved = getProfile() || defaults();
-  syncUI(el, saved);
+  Object.keys(saved).forEach(k => { if (u[k]) u[k].value = saved[k] ?? ''; });
 
-  // Save hook
-  const saveBtn = el.querySelector('#profileSave') || document.getElementById('profileSave');
-  if (saveBtn){
+  const saveBtn = document.getElementById('profileSave');
+  if (saveBtn) {
     saveBtn.onclick = () => {
       const r = readFromUI(u);
-      saveProfile({ ...saved, ...r.data });
+      try { localStorage.setItem('nutrify_profile_v1', JSON.stringify(r.data)); } catch {}
       showSnack('Profile saved');
     };
   }
 
-  // Generate hook
-  const genBtn = el.querySelector('#profileGenerate') || document.getElementById('profileGenerate');
+  const genBtn = document.getElementById('profileGenerate');
   if (genBtn) genBtn.onclick = () => onGenerateFromProfile(u);
-
-  // Also ensure a fallback inline button exists
-  injectGenerateButton(u);
 }
+
+export { onGenerateFromProfile };
