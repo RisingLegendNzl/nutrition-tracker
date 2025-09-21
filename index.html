@@ -118,6 +118,43 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
           <button id="p_save" class="primary">Save</button>
           <button id="p_reset" class="ghost">Reset to defaults</button>
+
+  <!-- Injected Profile fields (Phase 2A) -->
+  <div id="profileFieldsPatch" class="card">
+    <div class="grid two">
+      <label>Diet
+        <select name="diet">
+          <option value="omnivore">Omnivore</option>
+          <option value="vegetarian">Vegetarian</option>
+          <option value="vegan">Vegan</option>
+        </select>
+      </label>
+      <label>Store preference
+        <select name="store_preference">
+          <option value="none">None</option>
+          <option value="coles">Coles</option>
+          <option value="woolworths">Woolworths</option>
+        </select>
+      </label>
+      <label>Body fat %
+        <input type="number" name="bodyfat_pct" placeholder="e.g., 12" min="0" max="60" step="0.1">
+      </label>
+      <label>Allergies (comma-separated)
+        <input type="text" name="allergies" placeholder="e.g., peanuts, dairy">
+      </label>
+      <label>Dislikes (comma-separated)
+        <input type="text" name="dislikes" placeholder="e.g., tuna, coriander">
+      </label>
+      <label>Training days (comma-separated)
+        <input type="text" name="training_days" placeholder="e.g., Mon, Wed, Fri">
+      </label>
+    </div>
+    <div class="row">
+      <button id="profileSave" class="primary">Save</button>
+      <button id="profileGenerate" class="primary">Generate Meal</button>
+    </div>
+  </div>
+
           <button id="p_cancel" class="ghost hidden">Cancel</button>
         </div>
 
