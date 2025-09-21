@@ -642,11 +642,13 @@ function onGenerateFromProfile(u){
   // Convert engine JSON → legacy weekly plan and APPLY DIRECTLY
   const weeklyPlan = planFromEngine(result);
 
-  // -------------- DIRECT APPLY + RERENDER --------------
-  window.mealPlan = weeklyPlan;
-  try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(weeklyPlan)); } catch {}
-  if (typeof window.renderDiet === 'function') {
-    try { window.renderDiet(); } catch {}
+  // -------------- APPLY VIA IO LAYER --------------
+  try {
+    applyPlanToDiet({ plan: weeklyPlan, meta: { type:'week_plan', source:'profile', created_at: new Date().toISOString() } });
+  } catch (e) {
+    console.warn('applyPlanToDiet failed, falling back', e);
+    try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(weeklyPlan)); } catch {}
+    try { window.renderDiet && window.renderDiet(); } catch {}
   }
   // -----------------------------------------------------
 
