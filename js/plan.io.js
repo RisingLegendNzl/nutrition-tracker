@@ -1,3 +1,4 @@
+import { foodsBundle } from '../brain/diet.data.js';
 // js/plan.io.js
 // Plan export/import + local library + Library UI for Nutrify
 
@@ -78,7 +79,8 @@ export function applyPlanToDiet(planObject) {
     return false;
   }
 
-  window.mealPlan = planObject.plan;
+  const adapted = adaptPlanIfNeeded(planObject);
+  window.mealPlan = adapted.plan;
 
   try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan)); } catch {}
 
@@ -154,6 +156,48 @@ export function exportFromLibrary(index) {
   if (!entry) return;
   const name = (entry.meta?.name || 'nutrify-plan') + FILE_EXT;
   downloadBlob(entry, name);
+}
+
+
+
+/* ================== Engine → UI adapter ================== */
+function adaptPlanIfNeeded(planObject){
+  try{
+    if (!planObject || !planObject.plan || typeof planObject.plan !== 'object') return planObject;
+    // Detect engine shape: items have { food_id, qty_g }
+    const days = Object.keys(planObject.plan||{});
+    if (!days.length) return planObject;
+
+    const foods = (foodsBundle && foodsBundle.foods) || [];
+    const idToName = new Map(foods.map(f => [String(f.id), String(f.name||'')]));
+
+    const looksEngine = !!days.find(d => {
+      const meals = planObject.plan[d] || [];
+      const first = meals && meals[0];
+      const it = first && first.items && first.items[0];
+      return it && ('food_id' in it);
+    });
+    if (!looksEngine) return planObject; // already UI shape
+
+    // Build new UI-shaped plan: { Monday: [{ meal:'Breakfast', items:[{food,qty}] }, ...], ... }
+    const cap = s => (s||'').charAt(0).toUpperCase() + (s||'').slice(1);
+    const uiPlan = {};
+    for (const day of days){
+      const meals = planObject.plan[day] || [];
+      uiPlan[day] = meals.map(m => {
+        const mealName = cap(m.slot || m.meal || 'Meal');
+        const items = (m.items || []).map(it => {
+          const name = idToName.get(String(it.food_id)) || String(it.food_id || it.food || '').replace(/^food_/, '').replace(/_/g,' ');
+          const grams = Math.max(1, Math.round(Number(it.qty_g || it.qty || 0)));
+          return { food: name, qty: grams ? (grams + ' g') : '' };
+        });
+        return { meal: mealName, items };
+      });
+    }
+    return { ...planObject, plan: uiPlan };
+  }catch{
+    return planObject; // fail-open
+  }
 }
 
 /* ----------------- helpers ----------------- */
