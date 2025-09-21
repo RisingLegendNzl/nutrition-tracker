@@ -158,10 +158,14 @@ function buildMeals(targets, constraints) {
     { slot: 'snacks',    share: 0.10 },
   ];
 
-  // Fixed components by diet type (ids should exist in your seed; if not, pretty names render)
+
+  // Rotation-aware components by diet type
+  const seed = Math.abs(Math.floor((height * 13 + weight * 7 + age * 3 + (goal==='gain'?1:(goal==='cut'?-1:0))))) % 97;
+  const dayIndex = (req && req.features && Number.isFinite(req.features.day_index)) ? Number(req.features.day_index) : 0;
+
   const menus = (diet === 'vegan' || diet === 'vegetarian')
-    ? veganMenus()
-    : omniMenus();
+    ? veganMenus(dayIndex, seed)
+    : omniMenus(dayIndex, seed);
 
   const meals = splits.map((m, idx) => {
     const kcalTarget = Math.round(kcalDay * m.share);
@@ -202,76 +206,171 @@ function buildMeals(targets, constraints) {
   return { meals, day_totals, compliance };
 }
 
-function omniMenus() {
-  return {
+
+function omniMenus(dayIndex, seed) {
+  // Rotation-LITE: small bank per slot; pick deterministically by (dayIndex + seed).
+  const B = {
     breakfast: [
-      { food_id: 'food_rolled_oats',             base_qty_g: 80,  kcal_100g: 380 },
-      { food_id: 'food_full_cream_milk',         base_qty_g: 250, kcal_100g: 64  },
-      { food_id: 'food_peanut_butter',           base_qty_g: 30,  kcal_100g: 588 },
-      { food_id: 'food_banana',                  base_qty_g: 80,  kcal_100g: 89  }
+      [
+        { food_id: 'food_rolled_oats',             base_qty_g: 120, kcal_100g: 380 },
+        { food_id: 'food_full_cream_milk',         base_qty_g: 300, kcal_100g: 64  },
+        { food_id: 'food_peanut_butter',           base_qty_g: 30,  kcal_100g: 588 },
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  }
+      ],
+      [
+        { food_id: 'food_rolled_oats',             base_qty_g: 100, kcal_100g: 380 },
+        { food_id: 'food_full_cream_milk',         base_qty_g: 250, kcal_100g: 64  },
+        { food_id: 'food_greek_yogurt',            base_qty_g: 150, kcal_100g: 73  },
+        { food_id: 'food_peanut_butter',           base_qty_g: 20,  kcal_100g: 588 },
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  }
+      ],
+      [
+        { food_id: 'food_rolled_oats',             base_qty_g: 90,  kcal_100g: 380 },
+        { food_id: 'food_full_cream_milk',         base_qty_g: 300, kcal_100g: 64  },
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
+        { food_id: 'food_peanut_butter',           base_qty_g: 35,  kcal_100g: 588 }
+      ]
     ],
     lunch: [
-      { food_id: 'food_beef_mince_5_lean',       base_qty_g: 250, kcal_100g: 137 },
-      { food_id: 'food_frozen_mixed_vegetables', base_qty_g: 200, kcal_100g: 40  },
-      { food_id: 'food_sweet_potato',            base_qty_g: 350, kcal_100g: 86  },
-      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      [
+        { food_id: 'food_beef_mince_5_lean',       base_qty_g: 250, kcal_100g: 137 },
+        { food_id: 'food_frozen_mixed_vegetables', base_qty_g: 200, kcal_100g: 40  },
+        { food_id: 'food_sweet_potato',            base_qty_g: 350, kcal_100g: 86  },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ],
+      [
+        { food_id: 'food_beef_mince_5_lean',       base_qty_g: 250, kcal_100g: 137 },
+        { food_id: 'food_frozen_mixed_vegetables', base_qty_g: 200, kcal_100g: 40  },
+        { food_id: 'food_rice_cooked',             base_qty_g: 300, kcal_100g: 130 },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ],
+      [
+        { food_id: 'food_tuna_springwater_drained',base_qty_g: 200, kcal_100g: 116 },
+        { food_id: 'food_lentils_canned_drained',  base_qty_g: 150, kcal_100g: 95  },
+        { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
+        { food_id: 'food_sweet_potato',            base_qty_g: 350, kcal_100g: 86  },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ]
     ],
     dinner: [
-      { food_id: 'food_chicken_thigh_fillets',   base_qty_g: 300, kcal_100g: 145 },
-      { food_id: 'food_rice_cooked',             base_qty_g: 250, kcal_100g: 130 },
-      { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
-      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      [
+        { food_id: 'food_chicken_thigh_fillets',   base_qty_g: 300, kcal_100g: 145 },
+        { food_id: 'food_rice_cooked',             base_qty_g: 250, kcal_100g: 130 },
+        { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ],
+      [
+        { food_id: 'food_chicken_thigh_fillets',   base_qty_g: 300, kcal_100g: 145 },
+        { food_id: 'food_sweet_potato',            base_qty_g: 350, kcal_100g: 86  },
+        { food_id: 'food_carrots',                 base_qty_g: 100, kcal_100g: 41  },
+        { food_id: 'food_peas',                    base_qty_g: 100, kcal_100g: 81  },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ],
+      [
+        { food_id: 'food_chicken_thigh_fillets',   base_qty_g: 300, kcal_100g: 145 },
+        { food_id: 'food_lentils_canned_drained',  base_qty_g: 150, kcal_100g: 95  },
+        { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
+        { food_id: 'food_avocado',                 base_qty_g: 200, kcal_100g: 160 },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ]
     ],
     snacks: [
-      { food_id: 'food_greek_yogurt',            base_qty_g: 170, kcal_100g: 73  },
-      { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
-      { food_id: 'food_avocado',                 base_qty_g: 60,  kcal_100g: 160 }
+      [
+        { food_id: 'food_greek_yogurt',            base_qty_g: 170, kcal_100g: 73  },
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
+        { food_id: 'food_avocado',                 base_qty_g: 60,  kcal_100g: 160 }
+      ],
+      [
+        { food_id: 'food_greek_yogurt',            base_qty_g: 200, kcal_100g: 73  },
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  }
+      ],
+      [
+        { food_id: 'food_full_cream_milk',         base_qty_g: 250, kcal_100g: 64  },
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
+        { food_id: 'food_peanut_butter',           base_qty_g: 20,  kcal_100g: 588 }
+      ]
     ]
+  };
+
+  const pick = (arr, n) => arr[(n % arr.length + arr.length) % arr.length];
+  const idxB = (dayIndex + seed * 31) % B.breakfast.length;
+  const idxL = (dayIndex + seed * 47) % B.lunch.length;
+  const idxD = (dayIndex + seed * 61) % B.dinner.length;
+  const idxS = (dayIndex + seed * 73) % B.snacks.length;
+
+  return {
+    breakfast: pick(B.breakfast, idxB),
+    lunch:     pick(B.lunch,     idxL),
+    dinner:    pick(B.dinner,    idxD),
+    snacks:    pick(B.snacks,    idxS)
   };
 }
 
-function veganMenus() {
-  return {
+function veganMenus(dayIndex, seed) {
+  // Keep simple but rotate between two breakfasts and two mains
+  const B = {
     breakfast: [
-      { food_id: 'food_rolled_oats',             base_qty_g: 90,  kcal_100g: 380 },
-      { food_id: 'food_peanut_butter',           base_qty_g: 15,  kcal_100g: 588 },
-      { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  }
+      [
+        { food_id: 'food_rolled_oats',             base_qty_g: 90,  kcal_100g: 380 },
+        { food_id: 'food_peanut_butter',           base_qty_g: 15,  kcal_100g: 588 },
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  }
+      ],
+      [
+        { food_id: 'food_rolled_oats',             base_qty_g: 100, kcal_100g: 380 },
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
+        { food_id: 'food_peanut_butter',           base_qty_g: 20,  kcal_100g: 588 }
+      ]
     ],
     lunch: [
-      { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
-      { food_id: 'food_rice_cooked',             base_qty_g: 220, kcal_100g: 130 },
-      { food_id: 'food_spinach',                 base_qty_g: 60,  kcal_100g: 23  },
-      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      [
+        { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
+        { food_id: 'food_sweet_potato',            base_qty_g: 350, kcal_100g: 86  },
+        { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ],
+      [
+        { food_id: 'food_tuna_springwater_drained',base_qty_g: 200, kcal_100g: 116 }, // pescetarian-ish; comment out if strict vegan
+        { food_id: 'food_lentils_canned_drained',  base_qty_g: 150, kcal_100g: 95  },
+        { food_id: 'food_sweet_potato',            base_qty_g: 350, kcal_100g: 86  },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ]
     ],
     dinner: [
-      { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
-      { food_id: 'food_potatoes',                base_qty_g: 300, kcal_100g: 77  },
-      { food_id: 'food_peas',                    base_qty_g: 120, kcal_100g: 81  },
-      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      [
+        { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
+        { food_id: 'food_potatoes',                base_qty_g: 350, kcal_100g: 77  },
+        { food_id: 'food_peas',                    base_qty_g: 120, kcal_100g: 81  },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ],
+      [
+        { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
+        { food_id: 'food_rice_cooked',             base_qty_g: 300, kcal_100g: 130 },
+        { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
+        { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+      ]
     ],
     snacks: [
-      { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
-      { food_id: 'food_avocado',                 base_qty_g: 60,  kcal_100g: 160 }
+      [
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
+        { food_id: 'food_avocado',                 base_qty_g: 60,  kcal_100g: 160 }
+      ],
+      [
+        { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  }
+      ]
     ]
   };
-}
+  const pick = (arr, n) => arr[(n % arr.length + arr.length) % arr.length];
+  const idxB = (dayIndex + seed * 17) % B.breakfast.length;
+  const idxL = (dayIndex + seed * 23) % B.lunch.length;
+  const idxD = (dayIndex + seed * 29) % B.dinner.length;
+  const idxS = (dayIndex + seed * 37) % B.snacks.length;
 
-// --------------------------- Provider, helpers ---------------------------
-class FoodDataProvider {
-  constructor(bundle) {
-    this.map = new Map();
-    const foods = (bundle && bundle.foods) || [];
-    for (const f of foods) {
-      const kcal = f?.nutrients_per_100g?.kcal;
-      if (f?.id && Number.isFinite(Number(kcal))) {
-        this.map.set(f.id, Number(kcal));
-      }
-    }
-  }
-  kcalPer100g(id, fallback) {
-    if (this.map.has(id)) return this.map.get(id);
-    return Number.isFinite(fallback) ? fallback : 100; // safe default
-  }
+  return {
+    breakfast: pick(B.breakfast, idxB),
+    lunch:     pick(B.lunch,     idxL),
+    dinner:    pick(B.dinner,    idxD),
+    snacks:    pick(B.snacks,    idxS)
+  };
 }
 
 function scaleQtyForKcal(kcalPer100, baseQtyG, targetKcalForItem) {
@@ -297,13 +396,19 @@ function clamp(x, lo, hi){ return Math.min(hi, Math.max(lo, x)); }
 function round1(x){ return Math.round(x * 10) / 10; }
 
 
+
 export function generateWeekPlan(req){
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const day = generateDayPlan(req);
-  if (!day || !day.meals) return { plan: {} };
-  const base = day.meals;
   const plan = {};
-  days.forEach(d => { plan[d] = base; });
+  for (let i = 0; i < days.length; i++){
+    const r = { ...(req||{}), features: { ...((req&&req.features)||{}), day_index: i } };
+    const day = generateDayPlan(r);
+    if (!day || !day.meals) { plan[days[i]] = []; continue; }
+    // deep copy meals to avoid shared references
+    const cloned = JSON.parse(JSON.stringify(day.meals));
+    plan[days[i]] = cloned;
+  }
   return { plan, meta: { type:'week_plan', source:'engine', created_at: new Date().toISOString() } };
 }
+
 
