@@ -393,3 +393,13 @@ if (document.body.classList.contains('is-diet')) _rerenderDiet();
 try { window.renderDiet = renderDiet; } catch {}
 
 try { window.addEventListener('nutrify:planUpdated', ()=>{ try{ renderDiet(); }catch{} }); } catch {}
+
+/* ==== Nutrify Phase 2B: Diet render hooks (forced) ==== */
+try { 
+  window.addEventListener('nutrify:planUpdated', () => { 
+    try { renderDiet(); } catch (e) {} 
+  }); 
+} catch (e) {}
+try { window.renderDiet = renderDiet; } catch (e) {}
+/* ==== End Phase 2B hooks ==== */
+
