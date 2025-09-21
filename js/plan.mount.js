@@ -13,3 +13,12 @@ function tryMount() {
 window.addEventListener('DOMContentLoaded', () => setTimeout(tryMount, 0));
 window.addEventListener('hashchange', () => setTimeout(tryMount, 0));
 window.addEventListener('nutrify:planUpdated', () => setTimeout(tryMount, 0));
+
+// Mount when route changes to ensure persistence
+window.addEventListener('route:show', () => setTimeout(tryMount, 0));
+
+// Keep the plan menu persistent if the Diet header is re-rendered dynamically
+try {
+  const obs = new MutationObserver(() => { tryMount(); });
+  obs.observe(document.body, { childList: true, subtree: true });
+} catch {}
