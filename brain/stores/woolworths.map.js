@@ -40,7 +40,7 @@ export default {
     url: "https://www.woolworths.com.au/shop/productdetails/321220/woolworths-rolled-traditional-oats",
     pack_size_g: 750,
     brand: "Woolworths"
-  },
+  }
   food_avocado: {
     url: "https://www.woolworths.com.au/shop/browse/fruit-veg/fruit/avocados",
     brand: "Produce"
