@@ -6,7 +6,7 @@
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>Nutrify</title>
 <link href="style.css" rel="stylesheet"/>
-</head>
+<style>#gen_fallback_wrap{display:none}</style></head>
 <body class="empty">
 <!-- TOP BAR -->
 <header class="topbar">
@@ -43,8 +43,8 @@
 <h2 class="section-title" id="p_title">Your Profile</h2>
 <div class="field">
 <label for="p_name">Name</label>
-<input id="p_name" placeholder="e.g., Jack" type="text">
-</input></div>
+<input id="p_name" placeholder="e.g., Jack" type="text"/>
+</div>
 <div class="field">
 <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
 <label for="p_gender" style="margin:0">Gender</label>
@@ -102,14 +102,13 @@
 </div>
 </div>
 </div>
-
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
 <button class="primary" id="p_save">Save</button>
 <button class="ghost" id="p_reset">Reset to defaults</button>
 <button class="ghost hidden" id="p_cancel">Cancel</button>
 </div>
 <div id="p_error" style="color:#ff7b7b;margin-top:8px;display:none"></div>
-</section>
+<div id="gen_fallback_wrap" style="display:none"><button class="primary" id="p_gen_fallback">Generate Meal Plan</button></div></section>
 </section>
 <!-- ===== Diet ===== -->
 <section class="page hidden" id="dietPage">
