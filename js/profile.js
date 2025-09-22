@@ -1,69 +1,612 @@
-// js/profile.js — unified Generate -> applyPlanToDiet with week mapping
+// filename: js/profile.js
+// Profile UI + storage + Generate Plan (uses unsaved form first, then saved).
+// Adds: age, activity PAL, goal, bodyfat%, diet, allergies, dislikes, training days.
 
+import { clamp, showSnack } from './utils.js';
 import { applyPlanToDiet } from './plan.io.js';
 import { generateDayPlan, generateWeekPlan } from '../engine/nutritionEngine.js';
 import { foodsBundle } from '../brain/diet.data.js';
-import { showSnack } from './utils.js';
 
-/* ================= Profile helpers ================= */
-export function getProfile() {
-  try {
-    const raw = localStorage.getItem('nutrify_profile_v1');
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
+
+/* ===== Phase-0 helpers: week mapping & apply ===== */
+function mapWeekToDiet(weekOut){
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
+  const toDietItems = (items=[]) => items.map(it => ({
+    food_id: it.food_id,
+    food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
+    qty: `${Math.round(Number(it.qty_g||0))} g`
+  }));
+  const out = {};
+  for (const d of days){
+    const meals = (weekOut?.plan?.[d] || []).map(m => ({
+      meal: (m.slot || m.meal || 'meal').replace(/^[a-z]/, c => c.toUpperCase()),
+      items: toDietItems(m.items)
+    }));
+    out[d] = meals;
   }
+  return out;
+}
+const KEY = 'profile_v1';
+const listeners = new Set();
+
+let root;
+let editBtn;
+let state = null;
+
+function nowDate(){ return new Date().toISOString().slice(0,10); }
+
+/* ================= Storage ================= */
+
+export function getProfile(){
+  if (state) return state;
+  try{
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    const migrated = migrate(obj);
+    if (isValid(migrated)){ state = migrated; return migrated; }
+    return null;
+  }catch{ return null; }
 }
 
-function defaults() {
+function saveProfile(p){
+  const toSave = { ...p, updated_at: nowDate() };
+  localStorage.setItem(KEY, JSON.stringify(toSave));
+  state = toSave;
+  listeners.forEach(cb => { try{ cb(toSave); }catch{} });
+  showSnack('Profile saved.');
+}
+
+function migrate(p){
+  if (!p) return p;
+  // add defaults if missing (non-breaking)
+  if (!('weight_unit' in p)) p.weight_unit = 'kg';
+  if (!('height_unit' in p)) p.height_unit = 'cm';
+  if (!('gender' in p))      p.gender = 'male';
+
+  // new nutrition fields
+  if (!('store_preference' in p)) p.store_preference = 'none';
+  if (!('age_y' in p))          p.age_y = 23;
+  if (!('activity_pal' in p))   p.activity_pal = 1.6;
+  if (!('goal' in p))           p.goal = 'maintain';
+  if (!('bodyfat_pct' in p))    p.bodyfat_pct = null;
+  if (!('diet' in p))           p.diet = 'omnivore';
+  if (!('allergies' in p))      p.allergies = [];
+  if (!('dislikes' in p))       p.dislikes = [];
+  if (!('training_days' in p))  p.training_days = [];
+  return p;
+}
+
+export function onProfileChange(cb){ listeners.add(cb); return ()=>listeners.delete(cb); }
+export function requireComplete(){ return !!getProfile(); }
+
+/* ================ Validation ================= */
+
+function isValid(p){
+  if (!p) return false;
+  const w = Number(p.weight_kg);
+if (!Number.isFinite(w) || w < 30 || w > 300) return false;
+// height is optional in your UI; if provided, validate range
+  if (p.height_cm !== '' && p.height_cm != null) {
+    const h = Number(p.height_cm);
+    if (!Number.isFinite(h) || h < 120 || h > 230) return false;
+  }
+
+  // nutrition fields (lenient)
+  if (p.age_y != null && (!Number.isFinite(Number(p.age_y)) || p.age_y < 18 || p.age_y > 65)) return false;
+  if (p.activity_pal != null && (!Number.isFinite(Number(p.activity_pal)) || p.activity_pal < 1.2 || p.activity_pal > 1.9)) return false;
+  if (p.goal && !['cut','maintain','gain'].includes(String(p.goal).toLowerCase())) return false;
+  if (p.bodyfat_pct != null && p.bodyfat_pct !== '' && (!Number.isFinite(Number(p.bodyfat_pct)) || p.bodyfat_pct < 5 || p.bodyfat_pct > 50)) return false;
+  if (p.diet && !['omnivore','vegetarian','vegan','pescetarian'].includes(String(p.diet))) return false;
+  if (p.store_preference && !['none','coles','woolworths'].includes(String(p.store_preference))) return false;
+
+  return true;
+}
+
+/* ============ Compute helpers / units ============ */
+
+function computeHydroLitres(weight_kg){
+  const ml = weight_kg * 35; // fixed auto baseline
+  return Math.round(ml) / 1000;
+}
+function kgFromLbs(lbs){ return Math.round((Number(lbs)||0) * 0.45359237 * 10) / 10; }
+function cmFromFeetIn(feet, inches){
+  const f = Number(feet)||0, i = Number(inches)||0;
+  return Math.round(((f*12 + i) * 2.54));
+}
+function lbsFromKg(kg){ return Math.round((Number(kg)||0) / 0.45359237); }
+function feetFromCm(cm){
+  if (!Number.isFinite(Number(cm))) return ['', ''];
+  const totalIn = (Number(cm)||0) / 2.54;
+  const f = Math.floor(totalIn / 12);
+  const i = Math.round(totalIn - f*12);
+  return [f, i];
+}
+
+/* ================= UI Rendering ================= */
+
+function ensureRoot(){
+  if (root) return root;
+  root = document.getElementById('profilePage');
+  if (!root){
+    root = document.createElement('section');
+    root.id = 'profilePage';
+    root.className = 'page hidden';
+    document.getElementById('app')?.appendChild(root);
+  }
+  root.innerHTML = `
+    <section class="card">
+      <h2 class="section-title" id="p_title">Your Profile</h2>
+
+      <div class="field">
+        <label for="p_name">Name</label>
+        <input id="p_name" type="text" placeholder="e.g., Jack"/>
+      </div>
+
+      <div class="field">
+        <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+          <label for="p_gender" style="margin:0">Gender</label>
+          <select id="p_gender" style="max-width:160px">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+          <label for="p_age_y" style="margin:0">Age (years)</label>
+          <input id="p_age_y" type="number" inputmode="numeric" min="18" max="65" placeholder="e.g., 23" style="max-width:160px"/>
+        </div>
+      </div>
+
+      <div class="field">
+        <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+          <label for="p_weight_value" style="margin:0">Weight</label>
+          <select id="u_w_unit" style="max-width:120px">
+            <option value="kg">kg</option>
+            <option value="lb">lb</option>
+          </select>
+        </div>
+        <input id="p_weight_value" type="number" inputmode="decimal" placeholder="kg" min="30" max="300"/>
+      </div>
+
+      <div class="field">
+        <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+          <label style="margin:0">Height</label>
+          <select id="u_h_unit" style="max-width:120px">
+            <option value="cm">cm</option>
+            <option value="ftin">ft/in</option>
+          </select>
+        </div>
+        <div id="h_cm_block">
+          <input id="p_height_cm" type="number" inputmode="decimal" placeholder="cm" min="120" max="230"/>
+        </div>
+        <div id="h_ftin_block" class="hidden">
+          <div style="display:flex;gap:8px">
+            <input id="p_height_ft" type="number" inputmode="numeric" placeholder="ft" min="4" max="7" style="flex:1"/>
+            <input id="p_height_in" type="number" inputmode="numeric" placeholder="in" min="0" max="11" style="flex:1"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="p_bodyfat">Bodyfat % (optional)</label>
+        <input id="p_bodyfat" type="number" inputmode="decimal" placeholder="%" min="5" max="50" step="0.5"/>
+      </div>
+
+      <div class="field">
+        <label for="p_activity">Activity (PAL)</label>
+        <select id="p_activity">
+          <option value="1.2">Sedentary (1.2)</option>
+          <option value="1.375">Light (1.375)</option>
+          <option value="1.55">Moderate (1.55)</option>
+          <option value="1.725">Active (1.725)</option>
+          <option value="1.9">Very active (1.9)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="p_goal">Goal</label>
+        <select id="p_goal">
+          <option value="cut">Cut</option>
+          <option value="maintain" selected>Maintain</option>
+          <option value="gain">Gain</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="p_diet">Diet type</label>
+        <select id="p_diet">
+          <option value="omnivore" selected>Omnivore</option>
+          <option value="vegetarian">Vegetarian</option>
+          <option value="vegan">Vegan</option>
+          <option value="pescetarian">Pescetarian</option>
+        </select>
+      </div>
+
+
+<div class="field">
+  <label for="p_store">Preferred store</label>
+  <select id="p_store">
+    <option value="none" selected>None</option>
+    <option value="coles">Coles</option>
+    <option value="woolworths">Woolworths</option>
+  </select>
+</div>
+
+      <div class="field">
+        <label for="p_allergies">Allergies (comma-separated)</label>
+        <input id="p_allergies" type="text" placeholder="e.g., milk, soy"/>
+      </div>
+
+      <div class="field">
+        <label for="p_dislikes">Dislikes (comma-separated)</label>
+        <input id="p_dislikes" type="text" placeholder="e.g., capsicum, olives"/>
+      </div>
+
+      <div class="field">
+        <label>Training days (optional)</label>
+        <div id="p_training_days" class="chips">
+          ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>(
+            `<label class="chip">
+               <input type="checkbox" data-day="${d}"/>
+               ${d}
+             </label>`
+          )).join('')}
+        </div>
+      </div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button id="p_save" class="secondary">Save</button>
+        <button id="p_reset" class="ghost">Reset to defaults</button>
+        <button id="p_cancel" class="ghost">Cancel</button>
+        <!-- Generate Plan button is injected here at runtime -->
+      </div>
+
+      <div id="p_error" style="color:#ff7b7b;margin-top:8px;display:none"></div>
+    </section>
+  `;
+  return root;
+}
+
+function ensureEditButton(){
+  if (editBtn && document.body.contains(editBtn)) return editBtn;
+  const hdr = document.querySelector('.topbar') || document.querySelector('.app-header');
+  if (!hdr) return null;
+  editBtn = document.createElement('button');
+  editBtn.id = 'editProfileBtn';
+  editBtn.className = 'ghost';
+  editBtn.textContent = 'Edit Profile';
+  editBtn.style.marginLeft = '8px';
+  hdr.appendChild(editBtn);
+  editBtn.addEventListener('click', () => {
+    const u = ui();
+    const p = getProfile() || defaults();
+    writeToUI(u, p);
+    document.getElementById('p_title').textContent = 'Edit Profile';
+    show(false);
+  });
+  return editBtn;
+}
+
+function ui(){
+  ensureRoot();
+  ensureEditButton();
+  const el = (id)=>document.getElementById(id);
   return {
-    gender: 'male',
+    page: root,
+    title: el('p_title'),
+    name: el('p_name'),
+    gender: el('p_gender'),
+
+    age: el('p_age_y'),
+
+    // weight
+    weightVal: el('p_weight_value'),
+    weightUnit: el('u_w_unit'),
+
+    // height
+    heightUnit: el('u_h_unit'),
+    hcmBlock: el('h_cm_block'),
+    hftinBlock: el('h_ftin_block'),
+    hcm: el('p_height_cm'),
+    hft: el('p_height_ft'),
+    hin: el('p_height_in'),
+
+    bodyfat: el('p_bodyfat'),
+    activity: el('p_activity'),
+    goal: el('p_goal'),
+    diet: el('p_diet'),
+    store: el('p_store'),
+    allergies: el('p_allergies'),
+    dislikes: el('p_dislikes'),
+    trainingWrap: el('p_training_days'),
+
+    // ml/kg + preview
+    
+    
+    
+
+    // actions
+    save: el('p_save'),
+    reset: el('p_reset'),
+    cancel: el('p_cancel'),
+    error: el('p_error'),
+  };
+}
+
+function defaults(){
+  return {
+    name: '',
+    gender: 'male',       // 'male' | 'female'
+    weight_unit: 'kg',    // 'kg' | 'lb'
+    height_unit: 'cm',    // 'cm' | 'ftin'
+    weight_kg: 71,
+    height_cm: '',
+    
+
+    // nutrition fields
+    store_preference: 'none',
     age_y: 23,
-    height_cm: 175,
-    weight_kg: 70,
-    bodyfat_pct: null,
     activity_pal: 1.6,
     goal: 'maintain',
+    bodyfat_pct: null,
     diet: 'omnivore',
     allergies: [],
     dislikes: [],
     training_days: [],
-    store_preference: 'none'
+
+    created_at: nowDate(),
+    updated_at: nowDate(),
   };
 }
 
-function readFromUI(u) {
-  const get = (name, def='') => (u[name]?.value ?? u.querySelector?.(`[name="${name}"]`)?.value ?? def);
-  const split = (name) => (get(name,'').split(',').map(x=>x.trim()).filter(Boolean));
-  const data = {};
-  data.gender = get('gender','male');
-  data.age_y = get('age_y','');
-  data.height_cm = get('height_cm','');
-  data.weight_kg = get('weight_kg','');
-  data.bodyfat_pct = get('bodyfat_pct','');
-  data.activity_pal = get('activity_pal','1.6');
-  data.goal = get('goal','maintain');
-  data.diet = get('diet','omnivore');
-  data.allergies = split('allergies');
-  data.dislikes = split('dislikes');
-  data.training_days = split('training_days');
-  data.store_preference = get('store_preference','none');
-  return { data };
+/* =============== Read/Write UI =============== */
+
+function readFromUI(u){
+  const prefs = {
+    weight_unit: u.weightUnit.value === 'lb' ? 'lb' : 'kg',
+    height_unit: u.heightUnit.value === 'ftin' ? 'ftin' : 'cm',
+    gender: (u.gender.value || 'male') === 'female' ? 'female' : 'male',
+  };
+
+  // basic fields
+  const name = u.name.value.trim();
+  const age_y = Number(u.age.value || '');
+
+  // weight
+  let weight_kg;
+  if (prefs.weight_unit === 'kg'){
+    weight_kg = Number(u.weightVal.value);
+  }else{
+    weight_kg = kgFromLbs(u.weightVal.value);
+  }
+
+  // height
+  let height_cm;
+  if (prefs.height_unit === 'cm'){
+    height_cm = u.hcm.value === '' ? '' : Number(u.hcm.value);
+  }else{
+    if (u.hft.value === '' && u.hin.value === '') height_cm = '';
+    else height_cm = cmFromFeetIn(u.hft.value, u.hin.value);
+  }
+
+  // nutrition sliders
+  const bodyfat_pct = u.bodyfat.value === '' ? null : Number(u.bodyfat.value);
+  const activity_pal = Number(u.activity.value || 1.6);
+  const goal = String(u.goal.value || 'maintain').toLowerCase();
+  const diet = String(u.diet.value || 'omnivore');
+  const store_preference = String(u.store.value || 'none');
+
+  // lists
+  const allergies = (u.allergies.value || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+  const dislikes = (u.dislikes.value || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  // training days
+  const training_days = Array.from(u.trainingWrap.querySelectorAll('input[type="checkbox"]'))
+    .filter(cb => cb.checked)
+    .map(cb => cb.getAttribute('data-day'));
+
+  
+  // quick validations
+  const weightIsOk = Number.isFinite(weight_kg) && weight_kg >= 30 && weight_kg <= 300;
+  const heightOk = (u.hcm.value === '' && prefs.height_unit==='cm')
+                || (u.hft.value === '' && u.hin.value === '' && prefs.height_unit==='ftin')
+                || (Number.isFinite(height_cm) && height_cm >= 120 && height_cm <= 230);
+  const ageOk = (u.age.value === '') || (Number.isFinite(age_y) && age_y >= 18 && age_y <= 65);
+  const bfOk = (bodyfat_pct === null) || (Number.isFinite(bodyfat_pct) && bodyfat_pct >= 5 && bodyfat_pct <= 50);
+
+  return {
+    prefs,
+    ok: weightIsOk && heightOk && ageOk && bfOk,
+    data: {
+      name, gender: prefs.gender,
+      weight_unit: prefs.weight_unit,
+      height_unit: prefs.height_unit,
+      weight_kg,
+      height_cm: height_cm === '' ? '' : Number(height_cm),
+
+      age_y: u.age.value === '' ? null : age_y,
+      activity_pal,
+      goal,
+      bodyfat_pct,
+      diet,
+      store_preference,
+      allergies,
+      dislikes,
+      training_days
+    }
+  };
 }
 
-/* ============= Generate Meal from Profile ============= */
+function writeToUI(u, p){
+  u.title.textContent = 'Your Profile';
+  u.name.value = p.name || '';
+  u.gender.value = p.gender || 'male';
+  u.age.value = (p.age_y ?? '') === null ? '' : (p.age_y ?? '');
+
+  // units
+  u.weightUnit.value = p.weight_unit || 'kg';
+  u.heightUnit.value = p.height_unit || 'cm';
+
+  // weight value
+  if ((p.weight_unit || 'kg') === 'kg') u.weightVal.value = p.weight_kg ?? '';
+  else u.weightVal.value = lbsFromKg(p.weight_kg ?? 0);
+
+  // height blocks
+  if ((p.height_unit || 'cm') === 'cm'){
+    u.hcmBlock.classList.remove('hidden');
+    u.hftinBlock.classList.add('hidden');
+    u.hcm.value = p.height_cm ?? '';
+  } else {
+    u.hcmBlock.classList.add('hidden');
+    u.hftinBlock.classList.remove('hidden');
+    const [ft, inch] = feetFromCm(p.height_cm ?? '');
+    u.hft.value = ft || '';
+    u.hin.value = inch || '';
+  }
+
+  // nutrition / goal fields
+  u.bodyfat.value = (p.bodyfat_pct ?? '') === null ? '' : (p.bodyfat_pct ?? '');
+  u.activity.value = String(p.activity_pal ?? 1.6);
+  u.goal.value = String(p.goal || 'maintain').toLowerCase();
+  u.diet.value = p.diet || 'omnivore';
+  if (u.store) u.store.value = p.store_preference || 'none';
+
+  u.allergies.value = Array.isArray(p.allergies) ? p.allergies.join(', ') : '';
+  u.dislikes.value = Array.isArray(p.dislikes) ? p.dislikes.join(', ') : '';
+
+  // training days
+  const days = new Set(p.training_days || []);
+  u.trainingWrap.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    const d = cb.getAttribute('data-day');
+    cb.checked = days.has(d);
+  });
+
+  }
+
+/* ================== Mount & Events ================== */
+
+function show(readonly=true){
+  const u = ui();
+  if (readonly){
+    const p = getProfile() || defaults();
+    writeToUI(u, p);
+  }
+  u.page.classList.remove('hidden');
+}
+
+export function mountProfile(){
+  const u = ui();
+
+  // unit switchers
+  u.heightUnit.addEventListener('change', ()=>{
+    if (u.heightUnit.value === 'cm'){
+      u.hcmBlock.classList.remove('hidden');
+      u.hftinBlock.classList.add('hidden');
+      u.hft.value = ''; u.hin.value = '';
+    } else {
+      u.hcmBlock.classList.add('hidden');
+      u.hftinBlock.classList.remove('hidden');
+      u.hcm.value = '';
+    }
+  });
+// Save
+  u.save.addEventListener('click', ()=>{
+    const r = readFromUI(u);
+    if (!r.ok){
+      u.error.style.display = 'block';
+      u.error.textContent = 'Please check your entries.';
+      return;
+    }
+    u.error.style.display = 'none';
+
+    // Normalize optional fields
+    const cleaned = { ...r.data };
+    if (cleaned.age_y === null) cleaned.age_y = 23; // default
+    saveProfile(cleaned);
+  });
+
+  // Reset
+  u.reset.addEventListener('click', ()=>{
+    const d = defaults();
+    writeToUI(u, d);
+  });
+
+  // Cancel (hide)
+  u.cancel.addEventListener('click', ()=>{
+    u.page.classList.add('hidden');
+  });
+
+  // Generate Plan button
+  injectGenerateButton(u);
+
+  // ---- JS enhancer for chips (fallback for browsers without :has) ----
+  u.trainingWrap.querySelectorAll('label.chip').forEach(lbl => {
+    const cb = lbl.querySelector('input[type="checkbox"]');
+    const sync = () => lbl.classList.toggle('is-checked', cb.checked);
+    cb.addEventListener('change', sync);
+    cb.addEventListener('blur', sync);
+    sync();
+  });
+}
+
+export { ensureRoot as renderProfile, ensureRoot as initProfile };
+
+/* =============== Generate Plan wiring =============== */
+
+
+function injectGenerateButton(u){
+  let btn = document.getElementById('p_gen');
+  if (!btn){
+    btn = document.createElement('button');
+    btn.id = 'p_gen';
+    btn.className = 'primary';
+    btn.textContent = 'Generate Meal Plan';
+    u.cancel.parentElement.appendChild(btn);
+  }
+  btn.onclick = ()=>{
+    const r = readFromUI(u);
+    const missing = (typeof missingRequired==='function') ? missingRequired(u) : [];
+    if (!r.ok || missing.length){
+      u.error.style.display = 'block';
+      u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
+      return;
+    }
+    u.error.style.display = 'none';
+    const req = { profile: r.data, constraints: { diet: r.data.diet, allergies: r.data.allergies, dislikes: r.data.dislikes } };
+    try{
+      const out = generateWeekPlan(req);
+      if (out && out.plan){
+        applyPlanToDiet({ plan: out.plan, meta: out.meta || {} });
+      }
+    }catch(e){
+      console.warn('Generation failed', e);
+      alert('Could not generate a plan.');
+    }
+  };
+}
+
 function onGenerateFromProfile(u){
+  // Prefer UNSAVED form values first
   const r = readFromUI(u);
   const saved = getProfile() || defaults();
 
-  // Compose engine profile
+  // Compose engine profile with fallback for optional fields
   const sex = (r.data.gender || saved.gender || 'male').toLowerCase();
   const height_cm = (r.data.height_cm === '' || r.data.height_cm == null)
       ? (Number(saved.height_cm) || 175)
       : Number(r.data.height_cm);
   const weight_kg = Number(r.data.weight_kg || saved.weight_kg || 71);
   const age_y = Number((r.data.age_y ?? saved.age_y ?? 23) || 23);
-  const bodyfat_pct = (r.data.bodyfat_pct != null && r.data.bodyfat_pct !== '' ? Number(r.data.bodyfat_pct)
+  const bodyfat_pct = (r.data.bodyfat_pct != null ? Number(r.data.bodyfat_pct)
                       : (saved.bodyfat_pct != null ? Number(saved.bodyfat_pct) : null));
   const activity_pal = Number(r.data.activity_pal ?? saved.activity_pal ?? 1.6);
   const goal = String(r.data.goal || saved.goal || 'maintain').toLowerCase();
@@ -86,85 +629,88 @@ function onGenerateFromProfile(u){
     features: { ai_swaps: false, live_prices: false }
   };
 
-  // Day plan (for targets + summary)
   const result = generateDayPlan(req);
   if (result?.type === 'error'){
     showSnack(result.message || 'Generation error');
     return;
   }
 
-  // Save targets for bars
+
+  // ---- Phase 1: Save engine targets for Diet bars (future-proof) ----
   try {
-    localStorage.setItem('nutrify_targets', JSON.stringify({
+    const goalStore = {
       engine_version: result.engine_version,
       data_version: result.data_version,
       targets: result.targets
-    }));
+    };
+    localStorage.setItem('nutrify_targets', JSON.stringify(goalStore));
   } catch {}
 
-  // Legacy bars
+  // Back-compat for legacy Diet bars that read GOAL_KEY ('diet_goal')
   try {
     const g = result.targets || {};
-    localStorage.setItem('diet_goal', JSON.stringify({
-      kcal: g.kcal, protein: g.protein_g, fibre: g.fiber_g, iron: 8, zinc: 14
-    }));
+    const legacy = {
+      kcal: g.kcal,
+      protein: g.protein_g,
+      fibre: g.fiber_g,
+      iron: 8,
+      zinc: 14
+    };
+    localStorage.setItem('diet_goal', JSON.stringify(legacy));
   } catch {}
-
-  // True week plan + mapping for Diet
-  const weekOut = generateWeekPlan({ ...req });
-  const weeklyPlan = planWeekFromEngine(weekOut && weekOut.plan ? weekOut.plan : {});
-
-  // Apply via IO layer
+  // -------------------------------------------------------------------
+  //   // Phase-0: generate a proper WEEK plan and apply to Diet
+  let weekOut;
   try {
-    applyPlanToDiet({
-      plan: weeklyPlan,
-      meta: { type:'week_plan', source:'profile', created_at: new Date().toISOString() }
-    });
+    weekOut = generateWeekPlan(req);
   } catch (e) {
-    try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(weeklyPlan)); } catch {}
-    try { window.renderDiet && window.renderDiet(); } catch {}
+    console?.warn?.('generateWeekPlan failed, falling back to day plan clone', e);
+    weekOut = null;
   }
 
-  showSnack(result.summary || 'Plan generated');
-}
+  if (weekOut && weekOut.plan){
+    const mappedWeek = mapWeekToDiet(weekOut);
+    try {
+      applyPlanToDiet({
+        plan: mappedWeek,
+        meta: { type:'week_plan', source:'profile', created_at: new Date().toISOString() }
+      });
+    } catch (e){
+      // Fallback: write directly if applyPlanToDiet throws
+      try {
+        window.mealPlan = mappedWeek;
+        localStorage.setItem('nutrify_mealPlan', JSON.stringify(mappedWeek));
+        window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: { plan: mappedWeek } }));
+      } catch{}
+    }
+  } else {
+    // Ultimate fallback: adapt current day-result meals into all days
+    const legacyMeals = (result?.meals || []).map(m => ({
+      meal: (m.slot || 'meal').replace(/^[a-z]/, c => c.toUpperCase()),
+      items: (m.items||[]).map(it => ({
+        food_id: it.food_id,
+        food: (foodsBundle?.foods||[]).find(f=>f.id===it.food_id)?.name || String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' '),
+        qty: `${Math.round(Number(it.qty_g||0))} g`
+      }))
+    }));
+    const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    const cloned = Object.fromEntries(days.map(d => [d, legacyMeals]));
+    applyPlanToDiet({ plan: cloned, meta: { type:'fallback_clone', source:'profile' } });
+  }
 
-/* Map engine week result -> Diet UI weekly plan */
-function planWeekFromEngine(weekPlan){
+  return;
+function planFromEngine(engineRes){
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
-  const mapMeals = (meals) => (meals || []).map(m => ({
-    meal: (m.slot || 'meal').replace(/^[a-z]/, c => c.toUpperCase()),
+  const legacyMeals = (engineRes.meals || []).map(m => ({
+    meal: (m.slot || 'meal').replace(/^\w/, c => c.toUpperCase()),
     items: (m.items || []).map(it => ({
       food_id: it.food_id,
-      food: idToName[it.food_id] || String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' '),
+      food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
       qty: `${Math.round(Number(it.qty_g||0))} g`
     }))
   }));
-  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const out = {};
-  for (const d of days) out[d] = mapMeals((weekPlan && weekPlan[d]) || []);
-  return out;
+  const plan = {};
+  for (const d of days) plan[d] = legacyMeals;
+  return plan;
 }
-
-/* ============= Mount Profile ============= */
-export function mountProfile(){
-  const u = {};
-  document.querySelectorAll('#profilePage [name]').forEach(el => u[el.name] = el);
-
-  // Prefill from saved profile if present
-  const saved = getProfile() || defaults();
-  Object.keys(saved).forEach(k => { if (u[k]) u[k].value = saved[k] ?? ''; });
-
-  const saveBtn = document.getElementById('profileSave');
-  if (saveBtn) {
-    saveBtn.onclick = () => {
-      const r = readFromUI(u);
-      try { localStorage.setItem('nutrify_profile_v1', JSON.stringify(r.data)); } catch {}
-      showSnack('Profile saved');
-    };
-  }
-
-  const genBtn = document.getElementById('profileGenerate');
-  if (genBtn) genBtn.onclick = () => onGenerateFromProfile(u);
-}
-
-export { onGenerateFromProfile };
