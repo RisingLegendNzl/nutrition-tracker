@@ -3,6 +3,26 @@ import { getProfile, onProfileChange } from './profile.js';
 import { getPlan } from './storage.js';
 import { foodsBundle, mealPlan } from '../brain/diet.data.js';
 
+/* ---- Adapter: allow engine-shaped meals to render in legacy UI ---- */
+function toDisplayMeals(dayMeals){
+  // If already in display shape (items have 'food' + 'qty'), return as-is
+  const looksDisplay = Array.isArray(dayMeals) && dayMeals.every(m => Array.isArray(m?.items) && m.items.every(it => 'food' in it && 'qty' in it));
+  if (looksDisplay) return dayMeals;
+
+  // Engine shape: [{slot, items:[{food_id, qty_g}]}]
+  const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
+  const toItems = (items=[]) => items.map(it => ({
+    food_id: it.food_id,
+    food: idToName[it.food_id] || String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' '),
+    qty: `${Math.round(Number(it.qty_g||0))} g`
+  }));
+  return (dayMeals || []).map(m => ({
+    meal: (m.slot || 'Meal').replace(/^[a-z]/, c => c.toUpperCase()),
+    items: toItems(m.items || [])
+  }));
+}
+
+
 /* -------------------- Nutrition helpers -------------------- */
 
 // Build a legacy per-100g map { k,p,c,f,fib,fe,zn,ca,vC,fol,kplus, unit_g? } keyed by lowercase food name
