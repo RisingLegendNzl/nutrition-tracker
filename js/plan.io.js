@@ -1,5 +1,49 @@
+import { foodsBundle } from '../brain/diet.data.js';
 // js/plan.io.js
 // Plan export/import + local library + Library UI for Nutrify
+/* Normalize incoming plan shapes (engine → diet UI) */
+function adaptPlanIfNeeded(planObject){
+  try{
+    if (!planObject || typeof planObject !== 'object') return { plan: {}, meta: { reason:'invalid' } };
+    const inPlan = planObject.plan || planObject;
+    // Detect if already in Diet shape: Monday exists and items have 'food' + 'qty'
+    const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    const looksDiet = days.every(d => inPlan && inPlan[d] && Array.isArray(inPlan[d]) && inPlan[d].every(m => Array.isArray(m.items) && m.items.every(it => 'food' in it && 'qty' in it)));
+    if (looksDiet) return { plan: inPlan, meta: { type:'diet_shape', passthrough:true } };
+
+    // Otherwise, expect engine-like: { Monday:[{slot,items:[{food_id, qty_g}]}], ... } or flat meals array
+    const idToName = Object.fromEntries(((foodsBundle && foodsBundle.foods) ? foodsBundle.foods : []).map(f => [f.id, f.name]));
+    const toDietItems = (items=[]) => items.map(it => ({
+      food_id: it.food_id,
+      food: idToName[it.food_id] || String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' '),
+      qty: `${Math.round(Number(it.qty_g||0))} g`
+    }));
+
+    let out = {};
+    if (days.some(d => d in inPlan)){
+      for (const d of days){
+        const meals = (inPlan[d] || []).map(m => ({
+          meal: (m.slot || m.meal || 'meal').replace(/^[a-z]/, c => c.toUpperCase()),
+          items: toDietItems(m.items)
+        }));
+        out[d] = meals;
+      }
+    } else if (Array.isArray(inPlan.meals)) {
+      const meals = inPlan.meals.map(m => ({
+        meal: (m.slot || m.meal || 'meal').replace(/^[a-z]/, c => c.toUpperCase()),
+        items: toDietItems(m.items)
+      }));
+      for (const d of days) out[d] = meals;
+    } else {
+      out = {}; // fallback
+    }
+
+    const meta = Object.assign({ adapted:true, from:'engine_shape' }, planObject.meta || {});
+    return { plan: out, meta };
+  } catch (e){
+    return { plan: planObject.plan || {}, meta: Object.assign({ adapted:false, error:String(e) }, planObject.meta || {}) };
+  }
+}
 
 const LIB_KEY = 'nutrify_plan_library_v1';   // localStorage key
 const FILE_EXT = '.nutrify.json';
@@ -24,6 +68,9 @@ export function applyPlanToDiet(planObject) {
   }
 
   window.mealPlan = planObject.plan;
+  // Phase-0: adapt if needed
+  const adapted = adaptPlanIfNeeded(planObject);
+  window.mealPlan = adapted.plan;
 
   try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan)); } catch {}
 
@@ -35,7 +82,7 @@ export function applyPlanToDiet(planObject) {
   }
 
   try {
-    window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: planObject }));
+    window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: adapted }));
   } catch {}
 
   toast('Plan applied');
