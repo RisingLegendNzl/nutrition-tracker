@@ -1,3 +1,4 @@
+window.NUTRIFY_DEBUG = (window.NUTRIFY_DEBUG ?? false);
 // filename: js/profile.js
 // Profile UI + storage + Generate Plan (uses unsaved form first, then saved).
 // Adds: age, activity PAL, goal, bodyfat%, diet, allergies, dislikes, training days.
@@ -585,7 +586,8 @@ function injectGenerateButton(u){
     try{
       const out = generateWeekPlan(req);
       if (out && out.plan){
-        applyPlanToDiet({ plan: out.plan, meta: out.meta || {} });
+        try{ if(window.NUTRIFY_DEBUG) console.log('[applyPlanToDiet] mapping week'); }catch{}
+      applyPlanToDiet({ plan: out.plan, meta: out.meta || {} });
       }
     }catch(e){
       console.warn('Generation failed', e);
@@ -662,7 +664,7 @@ function onGenerateFromProfile(u){
   //   // Phase-0: generate a proper WEEK plan and apply to Diet
   let weekOut;
   try {
-    weekOut = generateWeekPlan(req);
+    weekOut = generateWeekPlan(req); try{ if(window.NUTRIFY_DEBUG) console.log('[generateWeekPlan] ok', weekOut && Object.keys(weekOut.plan||{}).length); }catch{}
   } catch (e) {
     console?.warn?.('generateWeekPlan failed, falling back to day plan clone', e);
     weekOut = null;
