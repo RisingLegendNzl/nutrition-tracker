@@ -217,7 +217,7 @@
 <script type="module">
   (async () => {
     try {
-      const mod = await import('./meal-templates.js');
+      const mod = await import('./brain/recipes/meal-templates.js');
       window.__MEAL_TEMPLATES__ = mod.default || [];
       console.log('[Nutrify] Meal templates loaded:', Array.isArray(window.__MEAL_TEMPLATES__) ? window.__MEAL_TEMPLATES__.length : 0);
     } catch (e) {
