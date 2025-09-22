@@ -1,4 +1,6 @@
 import { foodsBundle } from '../brain/diet.data.js';
+import { getPlan, setPlan } from './storage.js';
+import { EVENT_NAMES } from './constants.js';
 // js/plan.io.js
 // Plan export/import + local library + Library UI for Nutrify
 /* Normalize incoming plan shapes (engine → diet UI) */
@@ -72,7 +74,9 @@ export function applyPlanToDiet(planObject) {
   const adapted = adaptPlanIfNeeded(planObject);
   window.mealPlan = adapted.plan;
 
-  try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan)); } catch {}
+  setPlan(window.mealPlan);
+
+  try { document.dispatchEvent(new CustomEvent(EVENT_NAMES.PLAN_UPDATED)); } catch {}
 
   if (typeof window.renderDiet === 'function') {
     try { window.renderDiet(); } catch {}
@@ -164,7 +168,9 @@ function setLib(arr) {
   try { localStorage.setItem(LIB_KEY, JSON.stringify(arr)); } catch {}
 }
 function fromLocal() {
-  try { return JSON.parse(localStorage.getItem('nutrify_mealPlan') || 'null') || {}; }
+  const stored = getPlan();
+  if (stored && Object.keys(stored).length) return stored;
+  try { return window.mealPlan || {}; }
   catch { return {}; }
 }
 function downloadBlob(obj, filename) {
