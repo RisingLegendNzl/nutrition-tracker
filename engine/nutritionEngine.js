@@ -1,4 +1,4 @@
-const menus = (diet === 'vegan' || diet === 'vegetarian') ? veganMenus(variant) : omniMenus(variant);// engine/nutritionEngine.js
+// engine/nutritionEngine.js
 // Minimal, deterministic Nutrition Engine for Nutrify (Phase 2 demo)
 // - Computes targets from profile (BMR -> TDEE -> goal -> macros)
 // - Builds a simple full-day plan using fixed templates
@@ -36,7 +36,7 @@ export function generateDayPlan(req) {
   }
 
   // 3) Deterministic meal templates (very simple starter set)
-  const plan = buildMeals(targets, c, (req && (req.variant|0)) || 0);
+  const plan = buildMeals(targets, c);
 
   // 4) Compose result
   const res = {
@@ -145,7 +145,7 @@ function bmrKatch(w, bfPct) {
 // Very simple deterministic templates & scaling. We only ensure kcal.
 // If real nutrients exist in foodsBundle, we’ll use them; otherwise use fallback table.
 
-function buildMeals(targets, constraints, variant = 0) {
+function buildMeals(targets, constraints) {
   const provider = new FoodDataProvider(foodsBundle);
   const diet = (constraints && constraints.diet) || 'omnivore';
   const kcalDay = targets.kcal;
@@ -202,94 +202,94 @@ function buildMeals(targets, constraints, variant = 0) {
   return { meals, day_totals, compliance };
 }
 
-function omniMenus(variant = 0){
-  const v = Math.abs(variant) % 3;
-  // Define small option pools using existing IDs (no new IDs)
-  const breakfastOpts = [
-    [ // v0 oats + pb + banana
-      { food_id: 'food_rolled_oats',   base_qty_g: 90,  kcal_100g: 380 },
-      { food_id: 'food_peanut_butter', base_qty_g: 15,  kcal_100g: 588 },
-      { food_id: 'food_banana',        base_qty_g: 118, kcal_100g: 89  }
-    ],
-    [ // v1 greek yogurt + oats + banana (+pb small)
-      { food_id: 'food_greek_yogurt',  base_qty_g: 200, kcal_100g: 73  },
-      { food_id: 'food_rolled_oats',   base_qty_g: 60,  kcal_100g: 380 },
-      { food_id: 'food_banana',        base_qty_g: 118, kcal_100g: 89  },
-      { food_id: 'food_peanut_butter', base_qty_g: 10,  kcal_100g: 588 }
-    ],
-    [ // v2 oats + banana (lighter), pb a bit more
-      { food_id: 'food_rolled_oats',   base_qty_g: 80,  kcal_100g: 380 },
-      { food_id: 'food_banana',        base_qty_g: 118, kcal_100g: 89  },
-      { food_id: 'food_peanut_butter', base_qty_g: 18,  kcal_100g: 588 }
-    ]
-  ];
-
-  const beefSet = [
-    { food_id: 'food_beef_mince_5_lean',       base_qty_g: 250, kcal_100g: 137 },
-    { food_id: 'food_frozen_mixed_vegetables', base_qty_g: 200, kcal_100g: 40  },
-    { food_id: 'food_sweet_potato',            base_qty_g: 350, kcal_100g: 86  },
-    { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
-  ];
-  const chickenSet = [
-    { food_id: 'food_chicken_thigh_fillets',   base_qty_g: 300, kcal_100g: 145 },
-    { food_id: 'food_rice_cooked',             base_qty_g: 250, kcal_100g: 130 },
-    { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
-    { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
-  ];
-
-  // Rotate lunch/dinner between beef and chicken based on v
-  const lunchOpts  = [ beefSet, chickenSet, beefSet ];
-  const dinnerOpts = [ chickenSet, beefSet, chickenSet ];
-
+function omniMenus() {
   return {
-    breakfast: breakfastOpts[v],
-    lunch:     lunchOpts[v],
-    dinner:    dinnerOpts[v],
+    breakfast: [
+      { food_id: 'food_rolled_oats',             base_qty_g: 80,  kcal_100g: 380 },
+      { food_id: 'food_full_cream_milk',         base_qty_g: 250, kcal_100g: 64  },
+      { food_id: 'food_peanut_butter',           base_qty_g: 30,  kcal_100g: 588 },
+      { food_id: 'food_banana',                  base_qty_g: 80,  kcal_100g: 89  }
+    ],
+    lunch: [
+      { food_id: 'food_beef_mince_5_lean',       base_qty_g: 250, kcal_100g: 137 },
+      { food_id: 'food_frozen_mixed_vegetables', base_qty_g: 200, kcal_100g: 40  },
+      { food_id: 'food_sweet_potato',            base_qty_g: 350, kcal_100g: 86  },
+      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+    ],
+    dinner: [
+      { food_id: 'food_chicken_thigh_fillets',   base_qty_g: 300, kcal_100g: 145 },
+      { food_id: 'food_rice_cooked',             base_qty_g: 250, kcal_100g: 130 },
+      { food_id: 'food_spinach',                 base_qty_g: 100, kcal_100g: 23  },
+      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+    ],
     snacks: [
-      { food_id: 'food_greek_yogurt',   base_qty_g: 170, kcal_100g: 73  },
-      { food_id: 'food_banana',         base_qty_g: 118, kcal_100g: 89  },
-      { food_id: 'food_avocado',        base_qty_g: 60,  kcal_100g: 160 }
+      { food_id: 'food_greek_yogurt',            base_qty_g: 170, kcal_100g: 73  },
+      { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
+      { food_id: 'food_avocado',                 base_qty_g: 60,  kcal_100g: 160 }
     ]
   };
-}}
+}
 
-function veganMenus(variant = 0){
-  const v = Math.abs(variant) % 2;
-  const breakfastOpts = [
-    [
-      { food_id: 'food_rolled_oats',    base_qty_g: 90,  kcal_100g: 380 },
-      { food_id: 'food_peanut_butter',  base_qty_g: 15,  kcal_100g: 588 },
-      { food_id: 'food_banana',         base_qty_g: 118, kcal_100g: 89  }
-    ],
-    [
-      { food_id: 'food_greek_yogurt',   base_qty_g: 200, kcal_100g: 73  }, /* if strict vegan, UI can swap yogurt later */
-      { food_id: 'food_rolled_oats',    base_qty_g: 60,  kcal_100g: 380 },
-      { food_id: 'food_banana',         base_qty_g: 118, kcal_100g: 89  }
-    ]
-  ];
-  const lentilSet = [
-    { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
-    { food_id: 'food_rice_cooked',             base_qty_g: 220, kcal_100g: 130 },
-    { food_id: 'food_spinach',                 base_qty_g: 60,  kcal_100g: 23  },
-    { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
-  ];
-  const altSet = [
-    { food_id: 'food_lentils_canned_drained',  base_qty_g: 180, kcal_100g: 95  },
-    { food_id: 'food_sweet_potato',            base_qty_g: 320, kcal_100g: 86  },
-    { food_id: 'food_spinach',                 base_qty_g: 80,  kcal_100g: 23  },
-    { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
-  ];
-  const lunchOpts  = [ lentilSet, altSet ];
-  const dinnerOpts = [ altSet, lentilSet ];
-
+function veganMenus() {
   return {
-    breakfast: breakfastOpts[v],
-    lunch:     lunchOpts[v],
-    dinner:    dinnerOpts[v],
+    breakfast: [
+      { food_id: 'food_rolled_oats',             base_qty_g: 90,  kcal_100g: 380 },
+      { food_id: 'food_peanut_butter',           base_qty_g: 15,  kcal_100g: 588 },
+      { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  }
+    ],
+    lunch: [
+      { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
+      { food_id: 'food_rice_cooked',             base_qty_g: 220, kcal_100g: 130 },
+      { food_id: 'food_spinach',                 base_qty_g: 60,  kcal_100g: 23  },
+      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+    ],
+    dinner: [
+      { food_id: 'food_lentils_canned_drained',  base_qty_g: 200, kcal_100g: 95  },
+      { food_id: 'food_potatoes',                base_qty_g: 300, kcal_100g: 77  },
+      { food_id: 'food_peas',                    base_qty_g: 120, kcal_100g: 81  },
+      { food_id: 'food_olive_oil',               base_qty_g: 10,  kcal_100g: 884 }
+    ],
     snacks: [
-      { food_id: 'food_banana',         base_qty_g: 118, kcal_100g: 89  },
-      { food_id: 'food_avocado',        base_qty_g: 60,  kcal_100g: 160 }
+      { food_id: 'food_banana',                  base_qty_g: 118, kcal_100g: 89  },
+      { food_id: 'food_avocado',                 base_qty_g: 60,  kcal_100g: 160 }
     ]
+  };
+}
+
+// --------------------------- Provider, helpers ---------------------------
+class FoodDataProvider {
+  constructor(bundle) {
+    this.map = new Map();
+    const foods = (bundle && bundle.foods) || [];
+    for (const f of foods) {
+      const kcal = f?.nutrients_per_100g?.kcal;
+      if (f?.id && Number.isFinite(Number(kcal))) {
+        this.map.set(f.id, Number(kcal));
+      }
+    }
+  }
+  kcalPer100g(id, fallback) {
+    if (this.map.has(id)) return this.map.get(id);
+    return Number.isFinite(fallback) ? fallback : 100; // safe default
+  }
+}
+
+function scaleQtyForKcal(kcalPer100, baseQtyG, targetKcalForItem) {
+  // qty_g = (target_kcal / kcal_per_g)
+  const kcalPerG = Math.max(1e-6, kcalPer100 / 100);
+  const scaled = targetKcalForItem / kcalPerG;
+  // dampen scaling extremes: blend 70% scaled + 30% base
+  return 0.7 * scaled + 0.3 * baseQtyG;
+}
+
+function error(engine_version, data_version, code, message, suggestions) {
+  return {
+    engine_version,
+    data_version,
+    type: 'error',
+    code,
+    message,
+    suggestions: suggestions || []
   };
 }
 
@@ -299,11 +299,11 @@ function round1(x){ return Math.round(x * 10) / 10; }
 
 export function generateWeekPlan(req){
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const day = generateDayPlan(req);
+  if (!day || !day.meals) return { plan: {} };
+  const base = day.meals;
   const plan = {};
-  days.forEach((d, idx) => {
-    const day = generateDayPlan(Object.assign({}, req, { variant: idx }));
-    plan[d] = (day && day.meals) ? day.meals : [];
-  });
+  days.forEach(d => { plan[d] = base; });
   return { plan, meta: { type:'week_plan', source:'engine', created_at: new Date().toISOString() } };
 }
 
