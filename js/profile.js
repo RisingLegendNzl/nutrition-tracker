@@ -589,21 +589,6 @@ function injectGenerateButton(u){
     }
   };
 }
-else if (actions && btn.parentElement !== actions) {
-    try { actions.appendChild(btn); } catch {}
-  }
-` : 'Please check your entries.';
-      return;
-    }
-    u.error.style.display = 'none';
-    try {
-      onGenerateFromProfile(u);
-    } catch (e){
-      try{ console.warn('Generate failed', e); }catch{}
-      alert('Could not generate a plan.');
-    }
-  };
-}
 ` : 'Please check your entries.';
       return;
     }
