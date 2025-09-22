@@ -644,7 +644,7 @@ function onGenerateFromProfile(u){
 
   // -------------- DIRECT APPLY + RERENDER --------------
   window.mealPlan = weeklyPlan;
-  try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(weeklyPlan)); } catch {}
+  // plan persisted via applyPlanToDiet/storage
   if (typeof window.renderDiet === 'function') {
     try { window.renderDiet(); } catch {}
   }
