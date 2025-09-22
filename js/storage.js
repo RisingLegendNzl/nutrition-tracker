@@ -46,7 +46,7 @@ export function setPlan(planObj) {
   if (!planObj || typeof planObj !== 'object') return false;
   const ok = safeSet(LS_KEYS.PLAN, planObj);
   if (ok) {
-    try { document.dispatchEvent(new CustomEvent(EVENT_NAMES.PLAN_UPDATED)); } catch {}
+    document.dispatchEvent(new CustomEvent(EVENT_NAMES.PLAN_UPDATED));
   }
   return ok;
 }
