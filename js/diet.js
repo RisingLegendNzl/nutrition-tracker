@@ -39,9 +39,9 @@ async function loadStoreMap() {
   try {
     const pref = (getProfile()?.store_preference) || 'none';
     if (pref === 'coles') {
-      __storeMap = (await import('./coles.map.js')).default || null;
+      __storeMap = (await import('../brain/stores/coles.map.js')).default || null; try{ if(window.NUTRIFY_DEBUG) console.log('[storeMap] loaded coles', __storeMap && Object.keys(__storeMap).length); }catch{}
     } else if (pref === 'woolworths') {
-      __storeMap = (await import('./woolworths.map.js')).default || null;
+      __storeMap = (await import('../brain/stores/woolworths.map.js')).default || null; try{ if(window.NUTRIFY_DEBUG) console.log('[storeMap] loaded woolworths', __storeMap && Object.keys(__storeMap).length); }catch{}
     } else {
       __storeMap = null;
     }
@@ -49,7 +49,7 @@ async function loadStoreMap() {
 }
 
 function storeInfoFor(foodName){
-  if (!__storeMap) return null;
+  if (!__storeMap || typeof __storeMap !== 'object') return null;
   const id = NAME_TO_ID.get(String(foodName||'').toLowerCase());
   if (!id) return null;
   return __storeMap[id] || null;
@@ -393,13 +393,3 @@ if (document.body.classList.contains('is-diet')) _rerenderDiet();
 try { window.renderDiet = renderDiet; } catch {}
 
 try { window.addEventListener('nutrify:planUpdated', ()=>{ try{ renderDiet(); }catch{} }); } catch {}
-
-/* ==== Nutrify Phase 2B: Diet render hooks (forced) ==== */
-try { 
-  window.addEventListener('nutrify:planUpdated', () => { 
-    try { renderDiet(); } catch (e) {} 
-  }); 
-} catch (e) {}
-try { window.renderDiet = renderDiet; } catch (e) {}
-/* ==== End Phase 2B hooks ==== */
-
