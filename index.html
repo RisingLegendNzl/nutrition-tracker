@@ -1,287 +1,219 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Nutrify</title>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Nutrify</title>
+<link href="style.css" rel="stylesheet"/>
 </head>
 <body class="empty">
-
-  <!-- TOP BAR -->
-  <header class="topbar">
-    <h1 class="brand" id="homeLink">Nutrify</h1>
-    <button id="menuBtn" class="hamburger" aria-expanded="false" aria-controls="menuPanel" aria-label="Open menu">
-      <span></span><span></span><span></span>
-    </button>
-  </header>
-
-  <!-- HAMBURGER MENU PANEL -->
-  <div id="menuPanel" class="menu-panel" hidden>
-    <div class="menu-header">
-      <label class="avatar" for="avatarInput" title="Upload profile image">
-        <img id="avatarImg" alt="Profile image">
-      </label>
-      <input id="avatarInput" type="file" accept="image/*" hidden>
-      <div class="menu-title">Profile</div>
-    </div>
-    <nav class="menu-nav">
-      <button class="menu-item" data-page="profile">Profile</button>
-      <button class="menu-item" data-page="diet">Diet</button>
-      <button class="menu-item" data-page="supps">Sup-Stack</button>
-      <button class="menu-item" data-page="hydro">Hydration</button>
-    </nav>
-  </div>
-
-  <!-- MAIN APP -->
-  <main id="appMain">
-    <!-- ===== Home (default blank landing) ===== -->
-    <section id="homePage">
-      <!-- intentionally blank for now -->
-    </section>
-
-    <!-- ===== Profile ===== -->
-    <section id="profilePage" class="page hidden">
-      <section class="card">
-        <h2 class="section-title" id="p_title">Your Profile</h2>
-
-        <div class="field">
-          <label for="p_name">Name</label>
-          <input id="p_name" type="text" placeholder="e.g., Jack"/>
-        </div>
-
-        <div class="field">
-          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
-            <label for="p_gender" style="margin:0">Gender</label>
-            <select id="p_gender" style="max-width:160px">
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-          </div>
-
-        <div class="field">
-          <label for="p_age_y">Age</label>
-          <input id="p_age_y" type="number" min="18" max="65" placeholder="e.g., 28"/>
-        </div>
-
-        <div class="field">
-          <label for="p_activity">Activity level (PAL)</label>
-          <select id="p_activity">
-            <option value="1.2">Sedentary (1.2)</option>
-            <option value="1.4">Light (1.4)</option>
-            <option value="1.6" selected>Moderate (1.6)</option>
-            <option value="1.8">Active (1.8)</option>
-            <option value="2.0">Very active (2.0)</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="p_goal">Goal</label>
-          <select id="p_goal">
-            <option value="cut">Cut</option>
-            <option value="maintain" selected>Maintain</option>
-            <option value="gain">Gain</option>
-          </select>
-        </div>
-
-        </div>
-
-        <div class="field">
-          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
-            <label for="p_weight_value" style="margin:0">Weight</label>
-            <select id="u_w_unit" style="max-width:120px">
-              <option value="kg">kg</option>
-              <option value="lb">lb</option>
-            </select>
-          </div>
-          <input id="p_weight_value" type="number" inputmode="decimal" placeholder="kg" min="30" max="300"/>
-        </div>
-
-        <div class="field">
-          <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
-            <label style="margin:0">Height</label>
-            <select id="u_h_unit" style="max-width:120px">
-              <option value="cm">cm</option>
-              <option value="ftin">ft/in</option>
-            </select>
-          </div>
-          <div id="h_cm_block"><input id="p_height_cm" type="number" inputmode="decimal" placeholder="cm" min="120" max="230"/></div>
-          <div id="h_ftin_block" class="hidden">
-            <div style="display:flex;gap:8px">
-              <input id="p_height_ft" type="number" inputmode="numeric" placeholder="ft" min="4" max="7" style="flex:1"/>
-              <input id="p_height_in" type="number" inputmode="numeric" placeholder="in" min="0" max="11" style="flex:1"/>
-            </div>
-          </div>
-        </div>
+<!-- TOP BAR -->
+<header class="topbar">
+<h1 class="brand" id="homeLink">Nutrify</h1>
+<button aria-controls="menuPanel" aria-expanded="false" aria-label="Open menu" class="hamburger" id="menuBtn">
+<span></span><span></span><span></span>
+</button>
+</header>
+<!-- HAMBURGER MENU PANEL -->
+<div class="menu-panel" hidden="" id="menuPanel">
+<div class="menu-header">
+<label class="avatar" for="avatarInput" title="Upload profile image">
+<img alt="Profile image" id="avatarImg"/>
+</label>
+<input accept="image/*" hidden="" id="avatarInput" type="file"/>
+<div class="menu-title">Profile</div>
+</div>
+<nav class="menu-nav">
+<button class="menu-item" data-page="profile">Profile</button>
+<button class="menu-item" data-page="diet">Diet</button>
+<button class="menu-item" data-page="supps">Sup-Stack</button>
+<button class="menu-item" data-page="hydro">Hydration</button>
+</nav>
+</div>
+<!-- MAIN APP -->
+<main id="appMain">
+<!-- ===== Home (default blank landing) ===== -->
+<section id="homePage">
+<!-- intentionally blank for now -->
+</section>
+<!-- ===== Profile ===== -->
+<section class="page hidden" id="profilePage">
+<section class="card">
+<h2 class="section-title" id="p_title">Your Profile</h2>
+<div class="field">
+<label for="p_name">Name</label>
+<input id="p_name" placeholder="e.g., Jack" type="text">
+</input></div>
+<div class="field">
+<div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+<label for="p_gender" style="margin:0">Gender</label>
+<select id="p_gender" style="max-width:160px">
+<option value="male">Male</option>
+<option value="female">Female</option>
+</select>
+</div>
+<div class="field">
+<label for="p_age_y">Age</label>
+<input id="p_age_y" max="65" min="18" placeholder="e.g., 28" type="number"/>
+</div>
+<div class="field">
+<label for="p_activity">Activity level (PAL)</label>
+<select id="p_activity">
+<option value="1.2">Sedentary (1.2)</option>
+<option value="1.4">Light (1.4)</option>
+<option selected="" value="1.6">Moderate (1.6)</option>
+<option value="1.8">Active (1.8)</option>
+<option value="2.0">Very active (2.0)</option>
+</select>
+</div>
+<div class="field">
+<label for="p_goal">Goal</label>
+<select id="p_goal">
+<option value="cut">Cut</option>
+<option selected="" value="maintain">Maintain</option>
+<option value="gain">Gain</option>
+</select>
+</div>
+</div>
+<div class="field">
+<div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+<label for="p_weight_value" style="margin:0">Weight</label>
+<select id="u_w_unit" style="max-width:120px">
+<option value="kg">kg</option>
+<option value="lb">lb</option>
+</select>
+</div>
+<input id="p_weight_value" inputmode="decimal" max="300" min="30" placeholder="kg" type="number"/>
+</div>
+<div class="field">
+<div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+<label style="margin:0">Height</label>
+<select id="u_h_unit" style="max-width:120px">
+<option value="cm">cm</option>
+<option value="ftin">ft/in</option>
+</select>
+</div>
+<div id="h_cm_block"><input id="p_height_cm" inputmode="decimal" max="230" min="120" placeholder="cm" type="number"/></div>
+<div class="hidden" id="h_ftin_block">
+<div style="display:flex;gap:8px">
+<input id="p_height_ft" inputmode="numeric" max="7" min="4" placeholder="ft" style="flex:1" type="number"/>
+<input id="p_height_in" inputmode="numeric" max="11" min="0" placeholder="in" style="flex:1" type="number"/>
+</div>
+</div>
 </div>
 
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-          <button id="p_save" class="primary">Save</button>
-          <button id="p_reset" class="ghost">Reset to defaults</button>
-
-  <!-- Injected Profile fields (Phase 2A) -->
-  <div id="profileFieldsPatch" class="card">
-    <div class="grid two">
-      <label>Diet
-        <select name="diet">
-          <option value="omnivore">Omnivore</option>
-          <option value="vegetarian">Vegetarian</option>
-          <option value="vegan">Vegan</option>
-        </select>
-      </label>
-      <label>Store preference
-        <select name="store_preference">
-          <option value="none">None</option>
-          <option value="coles">Coles</option>
-          <option value="woolworths">Woolworths</option>
-        </select>
-      </label>
-      <label>Body fat %
-        <input type="number" name="bodyfat_pct" placeholder="e.g., 12" min="0" max="60" step="0.1">
-      </label>
-      <label>Allergies (comma-separated)
-        <input type="text" name="allergies" placeholder="e.g., peanuts, dairy">
-      </label>
-      <label>Dislikes (comma-separated)
-        <input type="text" name="dislikes" placeholder="e.g., tuna, coriander">
-      </label>
-      <label>Training days (comma-separated)
-        <input type="text" name="training_days" placeholder="e.g., Mon, Wed, Fri">
-      </label>
-    </div>
-    <div class="row">
-      <button id="profileSave" class="primary">Save</button>
-      <button id="profileGenerate" class="primary">Generate Meal</button>
-    </div>
-  </div>
-
-          <button id="p_cancel" class="ghost hidden">Cancel</button>
-        </div>
-
-        <div id="p_error" style="color:#ff7b7b;margin-top:8px;display:none"></div>
-      </section>
-    </section>
-
-    <!-- ===== Diet ===== -->
-    <section id="dietPage" class="page hidden">
-      <section class="card">
-        <div class="day-switcher">
-          <button id="prevDay" class="ghost small">Prev</button>
-          <div id="dayName" class="day-name">Monday</div>
-          <button id="nextDay" class="ghost small">Next</button>
-        </div>
-
-        <div id="bars"></div>
-        <div id="macroSummary" class="summary-row"></div>
-        <div id="meals"></div>
-      </section>
-    </section>
-
-    <!-- ===== Sup-Stack ===== -->
-    <section id="suppsPage" class="page hidden">
-      <section class="card">
-        <div style="display:flex; gap:8px; justify-content:flex-end; margin-bottom:10px">
-          <button id="addSupp" class="primary">Add</button>
-          <button id="restoreDefaults" class="ghost">Restore defaults</button>
-        </div>
-
-        <div id="suppList"></div>
-
-        <div id="sheet" class="sheet hidden">
-          <div class="sheet-card">
-            <h3 id="sheetTitle" class="section-title">Add supplement</h3>
-            <form id="suppForm">
-              <div class="field"><span>Name</span><input id="fName" type="text" placeholder="e.g., Creatine"/></div>
-              <div class="field"><span>Dose</span><input id="fDose" type="text" placeholder="e.g., 5 g"/></div>
-              <div class="field"><span>Timing</span><input id="fTiming" type="text" placeholder="e.g., Any time"/></div>
-              <div class="field"><span>Pairs well with</span><input id="fPairs" type="text" placeholder="e.g., Food"/></div>
-              <div class="field"><span>Notes</span><textarea id="fNotes" rows="3" placeholder="Optional notes"></textarea></div>
-              <div class="sheet-row">
-                <button type="button" id="cancelSheet" class="ghost">Cancel</button>
-                <button type="submit" class="primary">Save</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </section>
-    </section>
-
-    <!-- ===== Hydration ===== -->
-    <section id="hydroPage" class="page hidden">
-      <section class="card">
-        <div class="hydro-goal-row">
-          <div class="hydro-goal">
-            <div class="hydro-goal-label">Goal</div>
-            <div class="hydro-goal-values">
-              <strong><span id="goalLitres">3.0</span> L</strong>
-              <span>(<span id="goalMl">3000</span> ml)</span>
-            </div>
-          </div>
-          <button id="editGoalBtn" class="ghost">Edit Goal</button>
-        </div>
-
-        <div class="bottle-wrap">
-          <div class="bottle human-mask">
-            <div id="bottleFill" class="bottle-fill"></div>
-            <div class="bottle-gloss"></div>
-          </div>
-          <div class="hydro-numbers">
-            <div id="todayStr" class="today-str">Today: 0 L / 3.0 L</div>
-            <div id="pctStr" class="pct-str">0%</div>
-          </div>
-        </div>
-
-        <div class="hydro-actions">
-          <div class="quick-adds">
-            <button class="pill pill-btn" data-ml="250">+250 ml</button>
-            <button class="pill pill-btn" data-ml="350">+350 ml</button>
-            <button class="pill pill-btn" data-ml="500">+500 ml</button>
-            <button class="pill pill-btn" data-ml="750">+750 ml</button>
-          </div>
-          <div class="custom-add">
-            <input id="customMl" type="number" inputmode="numeric" placeholder="Custom ml"/>
-            <button id="addCustom" class="ghost">Add</button>
-            <button id="resetWater" class="ghost">Reset</button>
-          </div>
-        </div>
-
-        <div class="hydro-history" id="hydroHistory"></div>
-      </section>
-    </section>
-
-  </main>
-
-  <!-- Snackbar (shared by modules) -->
-  <div id="snackbar" class="snackbar hidden">
-    <span id="snackMsg"></span>
-    <button id="undoBtn" class="link">Undo</button>
-  </div>
-
-  <!-- Scripts -->
-  <!-- Data bundles first -->
-<script type="module" src="brain/supps.data.js"></script>
-<script type="module" src="brain/diet.data.js"></script>
-
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+<button class="primary" id="p_save">Save</button>
+<button class="ghost" id="p_reset">Reset to defaults</button>
+<button class="ghost hidden" id="p_cancel">Cancel</button>
+</div>
+<div id="p_error" style="color:#ff7b7b;margin-top:8px;display:none"></div>
+</section>
+</section>
+<!-- ===== Diet ===== -->
+<section class="page hidden" id="dietPage">
+<section class="card">
+<div class="day-switcher">
+<button class="ghost small" id="prevDay">Prev</button>
+<div class="day-name" id="dayName">Monday</div>
+<button class="ghost small" id="nextDay">Next</button>
+</div>
+<div id="bars"></div>
+<div class="summary-row" id="macroSummary"></div>
+<div id="meals"></div>
+</section>
+</section>
+<!-- ===== Sup-Stack ===== -->
+<section class="page hidden" id="suppsPage">
+<section class="card">
+<div style="display:flex; gap:8px; justify-content:flex-end; margin-bottom:10px">
+<button class="primary" id="addSupp">Add</button>
+<button class="ghost" id="restoreDefaults">Restore defaults</button>
+</div>
+<div id="suppList"></div>
+<div class="sheet hidden" id="sheet">
+<div class="sheet-card">
+<h3 class="section-title" id="sheetTitle">Add supplement</h3>
+<form id="suppForm">
+<div class="field"><span>Name</span><input id="fName" placeholder="e.g., Creatine" type="text"/></div>
+<div class="field"><span>Dose</span><input id="fDose" placeholder="e.g., 5 g" type="text"/></div>
+<div class="field"><span>Timing</span><input id="fTiming" placeholder="e.g., Any time" type="text"/></div>
+<div class="field"><span>Pairs well with</span><input id="fPairs" placeholder="e.g., Food" type="text"/></div>
+<div class="field"><span>Notes</span><textarea id="fNotes" placeholder="Optional notes" rows="3"></textarea></div>
+<div class="sheet-row">
+<button class="ghost" id="cancelSheet" type="button">Cancel</button>
+<button class="primary" type="submit">Save</button>
+</div>
+</form>
+</div>
+</div>
+</section>
+</section>
+<!-- ===== Hydration ===== -->
+<section class="page hidden" id="hydroPage">
+<section class="card">
+<div class="hydro-goal-row">
+<div class="hydro-goal">
+<div class="hydro-goal-label">Goal</div>
+<div class="hydro-goal-values">
+<strong><span id="goalLitres">3.0</span> L</strong>
+<span>(<span id="goalMl">3000</span> ml)</span>
+</div>
+</div>
+<button class="ghost" id="editGoalBtn">Edit Goal</button>
+</div>
+<div class="bottle-wrap">
+<div class="bottle human-mask">
+<div class="bottle-fill" id="bottleFill"></div>
+<div class="bottle-gloss"></div>
+</div>
+<div class="hydro-numbers">
+<div class="today-str" id="todayStr">Today: 0 L / 3.0 L</div>
+<div class="pct-str" id="pctStr">0%</div>
+</div>
+</div>
+<div class="hydro-actions">
+<div class="quick-adds">
+<button class="pill pill-btn" data-ml="250">+250 ml</button>
+<button class="pill pill-btn" data-ml="350">+350 ml</button>
+<button class="pill pill-btn" data-ml="500">+500 ml</button>
+<button class="pill pill-btn" data-ml="750">+750 ml</button>
+</div>
+<div class="custom-add">
+<input id="customMl" inputmode="numeric" placeholder="Custom ml" type="number"/>
+<button class="ghost" id="addCustom">Add</button>
+<button class="ghost" id="resetWater">Reset</button>
+</div>
+</div>
+<div class="hydro-history" id="hydroHistory"></div>
+</section>
+</section>
+</main>
+<!-- Snackbar (shared by modules) -->
+<div class="snackbar hidden" id="snackbar">
+<span id="snackMsg"></span>
+<button class="link" id="undoBtn">Undo</button>
+</div>
+<!-- Scripts -->
+<!-- Data bundles first -->
+<script src="brain/supps.data.js?v=fix1" type="module"></script>
+<script src="brain/diet.data.js?v=fix1" type="module"></script>
 <!-- App utilities -->
-<script type="module" src="data.js"></script>
-<script type="module" src="js/utils.js"></script>
-
+<script src="data.js?v=fix1" type="module"></script>
+<script src="js/utils.js?v=fix1" type="module"></script>
 <!-- Engine -->
-<script type="module" src="engine/nutritionEngine.js"></script>
-
+<script src="engine/nutritionEngine.js?v=fix1" type="module"></script>
 <!-- Diet first so window.renderDiet is defined -->
-<script type="module" src="js/diet.js"></script>
-
+<script src="js/diet.js?v=fix1" type="module"></script>
 <!-- Then Profile (calls renderDiet after generation) -->
-<script type="module" src="js/profile.js"></script>
-
+<script src="js/profile.js?v=fix1" type="module"></script>
 <!-- Other app modules -->
-<script type="module" src="js/supps.js"></script>
-<script type="module" src="js/hydration.js"></script>
-<script type="module" src="js/plan.io.js"></script>
-<script type="module" src="js/plan.mount.js"></script>
-<script type="module" src="js/app.js"></script>
-
+<script src="js/supps.js?v=fix1" type="module"></script>
+<script src="js/hydration.js?v=fix1" type="module"></script>
+<script src="js/plan.io.js?v=fix1" type="module"></script>
+<script src="js/plan.mount.js?v=fix1" type="module"></script>
+<script src="js/app.js?v=fix1" type="module"></script>
 <!-- Phase A: safe templates loader (correct path + no top-level await) -->
 <script type="module">
   (async () => {
@@ -295,6 +227,5 @@
     }
   })();
 </script>
-
 </body>
 </html>
