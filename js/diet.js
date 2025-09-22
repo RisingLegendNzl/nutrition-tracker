@@ -1,5 +1,6 @@
 import { loadState, saveState, GOAL_KEY } from './utils.js';
 import { getProfile, onProfileChange } from './profile.js';
+import { getPlan } from './storage.js';
 import { foodsBundle, mealPlan } from '../brain/diet.data.js';
 
 /* -------------------- Nutrition helpers -------------------- */
@@ -169,7 +170,7 @@ export function mountDiet(){
 
 function getCurrentPlan(){
   try {
-    const fromLocal = JSON.parse(localStorage.getItem('nutrify_mealPlan') || 'null');
+    const fromLocal = getPlan();
     if (fromLocal && typeof fromLocal === 'object' && Object.keys(fromLocal).length) return fromLocal;
   } catch {}
   if (typeof window !== 'undefined' && window.mealPlan && Object.keys(window.mealPlan||{}).length){
