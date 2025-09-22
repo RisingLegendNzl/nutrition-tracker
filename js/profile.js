@@ -1,4 +1,3 @@
-window.NUTRIFY_DEBUG = (window.NUTRIFY_DEBUG ?? false);
 // filename: js/profile.js
 // Profile UI + storage + Generate Plan (uses unsaved form first, then saved).
 // Adds: age, activity PAL, goal, bodyfat%, diet, allergies, dislikes, training days.
@@ -8,26 +7,6 @@ import { applyPlanToDiet } from './plan.io.js';
 import { generateDayPlan, generateWeekPlan } from '../engine/nutritionEngine.js';
 import { foodsBundle } from '../brain/diet.data.js';
 
-
-/* ===== Phase-0 helpers: week mapping & apply ===== */
-function mapWeekToDiet(weekOut){
-  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
-  const toDietItems = (items=[]) => items.map(it => ({
-    food_id: it.food_id,
-    food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
-    qty: `${Math.round(Number(it.qty_g||0))} g`
-  }));
-  const out = {};
-  for (const d of days){
-    const meals = (weekOut?.plan?.[d] || []).map(m => ({
-      meal: (m.slot || m.meal || 'meal').replace(/^[a-z]/, c => c.toUpperCase()),
-      items: toDietItems(m.items)
-    }));
-    out[d] = meals;
-  }
-  return out;
-}
 const KEY = 'profile_v1';
 const listeners = new Set();
 
@@ -565,31 +544,20 @@ export { ensureRoot as renderProfile, ensureRoot as initProfile };
 
 
 function injectGenerateButton(u){
-  // Place Generate button alongside Save/Reset (stable actions row)
-  const actions = document.getElementById('p_save')?.parentElement || u.cancel?.parentElement || u.page;
   let btn = document.getElementById('p_gen');
   if (!btn){
     btn = document.createElement('button');
     btn.id = 'p_gen';
     btn.className = 'primary';
     btn.textContent = 'Generate Meal Plan';
+    u.cancel.parentElement.appendChild(btn);
   }
-  if (actions && btn.parentElement !== actions){
-    try { actions.appendChild(btn); } catch {}
-  }
-` : 'Please check your entries.';
-      return;
-    }
-    u.error.style.display = 'none';
-    try {
-      onGenerateFromProfile(u);
-    } catch (e){
-      try{ console.warn('Generate failed', e); }catch{}
-      alert('Could not generate a plan.');
-    }
-  };
-}
-` : 'Please check your entries.';
+  btn.onclick = ()=>{
+    const r = readFromUI(u);
+    const missing = (typeof missingRequired==='function') ? missingRequired(u) : [];
+    if (!r.ok || missing.length){
+      u.error.style.display = 'block';
+      u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
       return;
     }
     u.error.style.display = 'none';
@@ -597,8 +565,7 @@ function injectGenerateButton(u){
     try{
       const out = generateWeekPlan(req);
       if (out && out.plan){
-        try{ if(window.NUTRIFY_DEBUG) console.log('[applyPlanToDiet] mapping week'); }catch{}
-      applyPlanToDiet({ plan: out.plan, meta: out.meta || {} });
+        applyPlanToDiet({ plan: out.plan, meta: out.meta || {} });
       }
     }catch(e){
       console.warn('Generation failed', e);
@@ -672,46 +639,21 @@ function onGenerateFromProfile(u){
     localStorage.setItem('diet_goal', JSON.stringify(legacy));
   } catch {}
   // -------------------------------------------------------------------
-  //   // Phase-0: generate a proper WEEK plan and apply to Diet
-  let weekOut;
-  try {
-    weekOut = generateWeekPlan(req); try{ if(window.NUTRIFY_DEBUG) console.log('[generateWeekPlan] ok', weekOut && Object.keys(weekOut.plan||{}).length); }catch{}
-  } catch (e) {
-    console?.warn?.('generateWeekPlan failed, falling back to day plan clone', e);
-    weekOut = null;
-  }
+  // Convert engine JSON → legacy weekly plan and APPLY DIRECTLY
+  const weeklyPlan = planFromEngine(result);
 
-  if (weekOut && weekOut.plan){
-    const mappedWeek = mapWeekToDiet(weekOut);
-    try {
-      applyPlanToDiet({
-        plan: mappedWeek,
-        meta: { type:'week_plan', source:'profile', created_at: new Date().toISOString() }
-      });
-    } catch (e){
-      // Fallback: write directly if applyPlanToDiet throws
-      try {
-        window.mealPlan = mappedWeek;
-        localStorage.setItem('nutrify_mealPlan', JSON.stringify(mappedWeek));
-        window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: { plan: mappedWeek } }));
-      } catch{}
-    }
-  } else {
-    // Ultimate fallback: adapt current day-result meals into all days
-    const legacyMeals = (result?.meals || []).map(m => ({
-      meal: (m.slot || 'meal').replace(/^[a-z]/, c => c.toUpperCase()),
-      items: (m.items||[]).map(it => ({
-        food_id: it.food_id,
-        food: (foodsBundle?.foods||[]).find(f=>f.id===it.food_id)?.name || String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' '),
-        qty: `${Math.round(Number(it.qty_g||0))} g`
-      }))
-    }));
-    const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-    const cloned = Object.fromEntries(days.map(d => [d, legacyMeals]));
-    applyPlanToDiet({ plan: cloned, meta: { type:'fallback_clone', source:'profile' } });
+  // -------------- DIRECT APPLY + RERENDER --------------
+  window.mealPlan = weeklyPlan;
+  try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(weeklyPlan)); } catch {}
+  if (typeof window.renderDiet === 'function') {
+    try { window.renderDiet(); } catch {}
   }
+  // -----------------------------------------------------
 
-  return;
+  showSnack(result.summary || 'Plan generated');
+}
+
+/* Map engine result to legacy mealPlan (same plan to all days) */
 function planFromEngine(engineRes){
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
