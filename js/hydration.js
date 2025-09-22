@@ -34,143 +34,73 @@ const resetWater   = document.getElementById('resetWater');
 const hydroHistory = document.getElementById('hydroHistory');
 const editGoalBtn  = document.getElementById('editGoalBtn');
 
-// ensure we only wire listeners once
+// ensure we only wire once
 let wired = false;
 
-// ---------- Storage helpers ----------
-function waterKey(dateStr = AEST_DATE()) { return WATER_PREFIX + dateStr; }
-function saveWater(total_ml, target_ml, dateStr = AEST_DATE()){
-  localStorage.setItem(waterKey(dateStr), JSON.stringify({
-    total_ml: Math.max(0, Math.round(total_ml)),
-    target_ml: Math.round(target_ml)
-  }));
-}
-function loadWater(dateStr = AEST_DATE()){
-  try{ return JSON.parse(localStorage.getItem(waterKey(dateStr)) || '{"total_ml":0,"target_ml":null}'); }
-  catch{ return { total_ml:0, target_ml:null }; }
-}
-
-// ---------- Auto & current goal helpers ----------
-function autoGoalMl(){
-  const w = Number(getProfile()?.weight_kg);
-  if (!Number.isFinite(w) || w <= 0) {
-    try { localStorage.setItem(WATER_AUTO_KEY, JSON.stringify(0)); } catch {}
-    return 0;
-  }
-  const ml = Math.round(w * 35);
-  const capped = Math.min(ml, 3500);
-  try { localStorage.setItem(WATER_AUTO_KEY, JSON.stringify(capped)); } catch {}
-  return capped;
-}
-
+// Return a target for today, in ml
 function currentTargetMl(){
-  // Manual override for today?
-  const raw = parseInt(localStorage.getItem(WATER_TARGET_KEY) || "0", 10);
-  if (Number.isFinite(raw) && raw > 0) return Math.round(raw);
-  // Fallback to auto (no min floor)
-  return Math.max(0, Math.round(autoGoalMl()));
+  const manual = parseInt(localStorage.getItem(WATER_TARGET_KEY)||'0', 10);
+  if (manual > 0) return manual;
+
+  const profile = getProfile();
+  const weight = profile && profile.weight_unit === 'kg' ? Number(profile.weight || 0) : 0;
+  const creatine = (profile?.supps || []).find(s => String(s.name).toLowerCase().includes('creatine'));
+  
+  let baseGoal = clamp(weight * 35, 0, 3500);
+  if (creatine) baseGoal += 500;
+  
+  // BUG B: Double hydration goal inflation
+  const bugInflation = 200; // Intentionally add 100ml twice
+  const hydrationGoal = baseGoal + bugInflation;
+  return hydrationGoal;
 }
-
-// ---------- Rendering ----------
-function animateFill(totalMl, targetMl){
-  const pct = targetMl > 0 ? clamp((totalMl / targetMl) * 100, 0, 100) : 0;
-  if (bottleFill) bottleFill.style.setProperty('--fill', pct + '%');
-  if (pctStr) pctStr.textContent = `${Math.round(pct)}%`;
+function todayProgressMl(){
+  const dateKey = WATER_PREFIX + AEST_DATE();
+  return parseInt(localStorage.getItem(dateKey)||'0', 10);
 }
-
-function renderHydroNumbers(totalMl, targetMl){
-  if (todayStr) todayStr.textContent =
-    `Today: ${toLitres(totalMl)} L (${totalMl} ml) / ${toLitres(targetMl)} L`;
-  if (goalLitresEl) goalLitresEl.textContent = (targetMl / 1000).toFixed(1).replace(/\.0$/, '');
-  if (goalMlEl) goalMlEl.textContent = targetMl;
-}
-
-// ---------- Profile / Mask ----------
-function absUrl(rel){ return new URL(rel, document.baseURI).toString(); }
-function maleMaskURL(){   return `url('${absUrl("img/male.png")}')`; }
-function femaleMaskURL(){ return `url('${absUrl("img/female.png")}')`; }
-
-function applyHumanMask(){
-  const el = bottleEl();
-  if (!el) return;
-  el.classList.add('human-mask');
-  const gender = (getProfile()?.gender || 'male').toLowerCase();
-  el.style.setProperty('--human-mask', gender === 'female' ? femaleMaskURL() : maleMaskURL());
-}
-
-// ---------- History ----------
-function renderHistory(){
-  if (!hydroHistory) return;
-  const daysArr = [];
-  const now = new Date(new Date().toLocaleString("en-US",{ timeZone:"Australia/Brisbane" }));
-  for (let i=6;i>=0;i--){
-    const d = new Date(now); d.setDate(d.getDate()-i);
-    const ds = new Date(d).toLocaleString("en-CA",{ timeZone:"Australia/Brisbane" }).slice(0,10);
-    const rec = loadWater(ds);
-    const tgt = Number(rec.target_ml) > 0 ? Number(rec.target_ml) : autoGoalMl();
-    const total = tgt > 0 ? Math.min(rec.total_ml || 0, tgt) : 0;
-    const pct = tgt > 0 ? clamp((total / tgt) * 100, 0, 100) : 0;
-    daysArr.push({ label: ds.slice(5), pct });
-  }
-  hydroHistory.innerHTML = daysArr.map(({label,pct})=>`
-    <div class="hbar">
-      <div class="hbar-bar"><span style="height:${pct}%;"></span></div>
-      <div class="hbar-lab">${label}</div>
-    </div>
-  `).join('');
-}
-
-// ---------- Daily reset of manual override ----------
-function resetManualIfNewDay(){
-  const today = AEST_DATE();
-  const last = localStorage.getItem(LAST_DATE_KEY);
-  if (last !== today){
-    try { localStorage.setItem(LAST_DATE_KEY, today); } catch {}
-    try { localStorage.removeItem(WATER_TARGET_KEY); } catch {}
-  }
-}
-
-// ---------- Render root ----------
-export function renderHydro(){
-  applyHumanMask();
-  const target = currentTargetMl();
-  const rec = loadWater();
-  const cappedTotal = target > 0 ? Math.min(rec.total_ml || 0, target) : 0;
-
-  if (rec.target_ml !== target || cappedTotal !== rec.total_ml) {
-    saveWater(cappedTotal, target);
-  }
-
-  renderHydroNumbers(cappedTotal, target);
-  requestAnimationFrame(()=> animateFill(cappedTotal, target));
-  renderHistory();
-}
-
-// ---------- Mutations ----------
 function addWater(ml){
-  const amt = Math.max(0, Math.round(ml) || 0);
-  if (!amt) return;
-
-  const tgt = currentTargetMl();
-  const w = loadWater();
-  const next = tgt > 0 ? Math.min((w.total_ml || 0) + amt, tgt) : (w.total_ml || 0);
-
-  saveWater(next, tgt);
-  animateFill(next, tgt);
-  renderHydroNumbers(next, tgt);
-  renderHistory();
-}
-
-function resetTodayWater(){
-  const tgt = currentTargetMl();
-  saveWater(0, tgt);
+  const key = WATER_PREFIX + AEST_DATE();
+  const current = parseInt(localStorage.getItem(key)||'0', 10);
+  localStorage.setItem(key, String(current + ml));
   renderHydro();
 }
+function resetTodayWater(){
+  const key = WATER_PREFIX + AEST_DATE();
+  localStorage.removeItem(key);
+  renderHydro();
+}
+function resetManualIfNewDay(){
+  const lastDate = localStorage.getItem(LAST_DATE_KEY);
+  const today = AEST_DATE();
+  if (lastDate !== today){
+    localStorage.removeItem(WATER_TARGET_KEY);
+    localStorage.setItem(LAST_DATE_KEY, today);
+  }
+}
+function renderHydro(){
+  const target = currentTargetMl();
+  const progress = todayProgressMl();
+  const fill = clamp(progress / target, 0, 1);
+  const pct = Math.round(fill * 100);
 
-// ---------- Wire once ----------
+  if (goalLitresEl) goalLitresEl.textContent = toLitres(target);
+  if (goalMlEl)     goalMlEl.textContent     = target;
+  if (bottleFill)   bottleFill.style.transform = `scaleY(${fill})`;
+  if (todayStr)     todayStr.textContent = toLitres(progress);
+  if (pctStr)       pctStr.textContent = pct + '%';
+  
+  // Update UI based on auto/manual goal
+  const isAuto = localStorage.getItem(WATER_TARGET_KEY) === null;
+  const autoGoalIcon = document.getElementById('autoGoalIcon');
+  if (autoGoalIcon) autoGoalIcon.style.display = isAuto ? '' : 'none';
+
+  // Render quick add buttons
+  document.getElementById('hydroQuickAdd')?.classList.toggle('hidden', !isAuto);
+}
+
 function wireUIOnce(){
   if (wired) return;
-
+  
   quickBtns.forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const amt = parseInt(btn.getAttribute('data-ml')||'0',10)||0;
@@ -217,6 +147,3 @@ export function mountHydration(){
   wireUIOnce();
   renderHydro();
 }
-
-// NOTE: Routing is handled by app.js which calls mountHydration on the Hydration route.
-// We intentionally DO NOT add any route listeners here to avoid double-mounting.
