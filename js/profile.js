@@ -565,24 +565,19 @@ export { ensureRoot as renderProfile, ensureRoot as initProfile };
 
 
 function injectGenerateButton(u){
-  // Choose a stable actions container (row with Save/Reset)
-  let actions = document.getElementById('p_save')?.parentElement || u.cancel?.parentElement || u.page;
+  // Place Generate button alongside Save/Reset (stable actions row)
+  const actions = document.getElementById('p_save')?.parentElement || u.cancel?.parentElement || u.page;
   let btn = document.getElementById('p_gen');
   if (!btn){
     btn = document.createElement('button');
     btn.id = 'p_gen';
     btn.className = 'primary';
     btn.textContent = 'Generate Meal Plan';
-    if (actions) actions.appendChild(btn);
-  } else if (actions && btn.parentElement !== actions) {
+  }
+  if (actions && btn.parentElement !== actions){
     try { actions.appendChild(btn); } catch {}
   }
-  btn.onclick = ()=>{
-    const r = readFromUI(u);
-    const missing = (typeof missingRequired==='function') ? missingRequired(u) : [];
-    if (!r.ok || missing.length){
-      u.error.style.display = 'block';
-      u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
+` : 'Please check your entries.';
       return;
     }
     u.error.style.display = 'none';
@@ -594,12 +589,22 @@ function injectGenerateButton(u){
     }
   };
 }
-  btn.onclick = ()=>{
-    const r = readFromUI(u);
-    const missing = (typeof missingRequired==='function') ? missingRequired(u) : [];
-    if (!r.ok || missing.length){
-      u.error.style.display = 'block';
-      u.error.textContent = missing.length ? `Please complete: ${missing.join(', ')}` : 'Please check your entries.';
+else if (actions && btn.parentElement !== actions) {
+    try { actions.appendChild(btn); } catch {}
+  }
+` : 'Please check your entries.';
+      return;
+    }
+    u.error.style.display = 'none';
+    try {
+      onGenerateFromProfile(u);
+    } catch (e){
+      try{ console.warn('Generate failed', e); }catch{}
+      alert('Could not generate a plan.');
+    }
+  };
+}
+` : 'Please check your entries.';
       return;
     }
     u.error.style.display = 'none';
