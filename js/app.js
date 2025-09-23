@@ -114,7 +114,7 @@ window.showPage = showPage;  // if other modules want to route
 (function initLanding(){
   const last = sessionStorage.getItem(LAST_PAGE);
   if (last && PAGES[last]) showPage(last);
-  else { showPage('diet'); }
+  else { document.body.classList.add('empty'); hideAllPages(); }  // header only
 })();
 
 // ---------- hamburger ----------
