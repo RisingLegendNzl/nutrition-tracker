@@ -644,27 +644,46 @@ function onGenerateFromProfile(u){
   // Convert engine JSON → legacy weekly plan and APPLY DIRECTLY
   const weeklyPlan = planFromEngine(result);
 
-  // -------------- DIRECT APPLY + RERENDER --------------
-  window.mealPlan = weeklyPlan;
-  try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(weeklyPlan)); } catch {}
-  if (typeof window.renderDiet === 'function') {
-    try { window.renderDiet(); } catch {}
+  // -------------- APPLY VIA plan.io (preferred) --------------
+  try {
+    applyPlanToDiet(result); // persists to NUTRIFY__PLAN and legacy key, emits PLAN_UPDATED
+  } catch (e) {
+    // Fallback to legacy apply for safety
+    const weeklyPlan = planFromEngine(result || {});
+    window.mealPlan = weeklyPlan;
+    try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(weeklyPlan)); } catch {}
+    if (typeof window.renderDiet === 'function') { try { window.renderDiet(); } catch {} }
   }
   // -----------------------------------------------------
-
-  showSnack(result.summary || 'Plan generated');
+showSnack(result.summary || 'Plan generated');
 }
 
 /* Map engine result to legacy mealPlan (same plan to all days) */
+
 function planFromEngine(engineRes){
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const idToName = Object.fromEntries((foodsBundle?.foods || []).map(f => [f.id, f.name]));
+
+  // CASE A: New week-plan { plan: { Monday:{breakfast:{},lunch:{},dinner:{},snacks:{}}, ... } }
+  if (engineRes && engineRes.plan && typeof engineRes.plan === 'object' && Object.keys(engineRes.plan).length){
+    const plan = {};
+    for (const d of days){
+      const dayObj = engineRes.plan[d] || {};
+      const mealsArr = [];
+      if (dayObj.breakfast) mealsArr.push({ meal:'Breakfast', items: (dayObj.breakfast.items||[])});
+      if (dayObj.lunch)     mealsArr.push({ meal:'Lunch',     items: (dayObj.lunch.items||[])});
+      if (dayObj.dinner)    mealsArr.push({ meal:'Dinner',    items: (dayObj.dinner.items||[])});
+      if (dayObj.snacks)    mealsArr.push({ meal:'Snacks',    items: (dayObj.snacks.items||[])});
+      plan[d] = mealsArr;
+    }
+    return plan;
+  }
+
+  // CASE B: Day-plan { meals: [...] } → replicate into a week (legacy behavior)
   const legacyMeals = (engineRes.meals || []).map(m => ({
     meal: (m.slot || 'meal').replace(/^\w/, c => c.toUpperCase()),
     items: (m.items || []).map(it => ({
-      food_id: it.food_id,
-      food: idToName[it.food_id] || (String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' ')),
-      qty: `${Math.round(Number(it.qty_g||0))} g`
+      food: it.food || it.food_name || String(it.food_id||'').replace(/^food_/,'').replace(/_/g,' '),
+      qty: (typeof it.qty === 'string' && it.qty) ? it.qty : `${Math.round(Number(it.qty_g||0))} g`
     }))
   }));
   const plan = {};
