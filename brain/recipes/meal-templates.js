@@ -134,7 +134,7 @@ export default [
 
 // ---- AUTO-GENERATED GOAL×DIET COVERAGE (Phase Templates) ----
   {
-    id: "rcp_omni_bulk_chicken_rice_spinach",
+    id: "rcp_omnivore_bulk_chicken_rice_spinach",
     name: "Chicken, Rice & Spinach (Bulk)",
     slot: "Dinner",
     items: [
@@ -145,7 +145,7 @@ export default [
     ]
   },
   {
-    id: "rcp_omni_maintain_chicken_rice_spinach",
+    id: "rcp_omnivore_maintain_chicken_rice_spinach",
     name: "Chicken, Rice & Spinach (Maintain)",
     slot: "Dinner",
     items: [
@@ -156,7 +156,7 @@ export default [
     ]
   },
   {
-    id: "rcp_omni_cut_chicken_rice_spinach",
+    id: "rcp_omnivore_cut_chicken_rice_spinach",
     name: "Chicken, Rice & Spinach (Cut)",
     slot: "Dinner",
     items: [
@@ -296,7 +296,7 @@ export default [
     ]
   },
   {
-    id: "rcp_pescatarian_bulk_eggs_rice_spin",
+    id: "rcp_pescetarian_bulk_eggs_rice_spin",
     name: "Eggs, Rice & Spinach (Pesc, Bulk)",
     slot: "Dinner",
     items: [
@@ -307,7 +307,7 @@ export default [
     ]
   },
   {
-    id: "rcp_pescatarian_maintain_eggs_rice_spin",
+    id: "rcp_pescetarian_maintain_eggs_rice_spin",
     name: "Eggs, Rice & Spinach (Pesc, Maintain)",
     slot: "Dinner",
     items: [
@@ -318,7 +318,7 @@ export default [
     ]
   },
   {
-    id: "rcp_pescatarian_cut_eggs_rice_spin",
+    id: "rcp_pescetarian_cut_eggs_rice_spin",
     name: "Eggs, Rice & Spinach (Pesc, Cut)",
     slot: "Dinner",
     items: [
