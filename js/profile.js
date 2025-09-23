@@ -561,7 +561,9 @@ function injectGenerateButton(u){
       return;
     }
     u.error.style.display = 'none';
-    const req = { profile: r.data, constraints: { diet: r.data.diet, allergies: r.data.allergies, dislikes: r.data.dislikes } };
+    const _supps = JSON.parse(localStorage.getItem('supps_v1') || '[]');
+    const _creatineOn = !!(_supps||[]).find(s => String(s.name||'').toLowerCase().includes('creatine'));
+    const req = { profile: r.data, constraints: { diet: r.data.diet, allergies: r.data.allergies, dislikes: r.data.dislikes, creatineOn: _creatineOn } };
     try{
       const out = generateWeekPlan(req);
       if (out && out.plan){
