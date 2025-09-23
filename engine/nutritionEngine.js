@@ -6,6 +6,8 @@
 // - Returns the day_plan JSON your UI expects
 
 import { foodsBundle } from '../brain/diet.data.js';
+import templates from '../brain/recipes/meal-templates.js';
+import { pickWeekFromTemplates } from './rotation.js';
 import { NUTRITION_DB } from '../brain/nutritional.info.js';
 
 // --------------------------- Public API ---------------------------
@@ -368,6 +370,13 @@ function hydrationGoalMl(profile, creatineOn=false){
 
 
 export function generateWeekPlan(req){
+  const p = (req && req.profile) || {};
+  const c = (req && req.constraints) || {};
+  // Try rotation-based selection from templates first
+  const week = pickWeekFromTemplates({profile: p, constraints: c}, templates);
+  if (week) return { plan: week, meta: { type:'week_plan', source:'rotation', created_at: new Date().toISOString() } };
+
+  // Fallback to the existing day-based replication
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const day = generateDayPlan(req);
   if (!day || !day.meals) return { plan: {} };
@@ -376,4 +385,3 @@ export function generateWeekPlan(req){
   days.forEach(d => { plan[d] = base; });
   return { plan, meta: { type:'week_plan', source:'engine', created_at: new Date().toISOString() } };
 }
-
