@@ -6,6 +6,7 @@
 // - Returns the day_plan JSON your UI expects
 
 import { foodsBundle } from '../brain/diet.data.js';
+import { NUTRITION_DB } from '../brain/nutritional.info.js';
 
 // --------------------------- Public API ---------------------------
 export function generateDayPlan(req) {
@@ -295,6 +296,75 @@ function error(engine_version, data_version, code, message, suggestions) {
 
 function clamp(x, lo, hi){ return Math.min(hi, Math.max(lo, x)); }
 function round1(x){ return Math.round(x * 10) / 10; }
+
+
+// --- Helpers for template-based plan ---
+function parseQtyToGrams(qtyStr){
+  if (!qtyStr) return 0;
+  const m = String(qtyStr).trim().match(/^([0-9]+(?:\.[0-9]+)?)\s*(g|gram|grams)$/i);
+  if (m){ return Math.round(parseFloat(m[1])); }
+  // Fallback: numbers without unit treated as grams
+  const n = parseFloat(qtyStr);
+  return Number.isFinite(n) ? Math.round(n) : 0;
+}
+
+function nutrientFor(foodName){
+  const hit = NUTRITION_DB[foodName];
+  if (hit) return hit;
+  // Basic fuzzy: lowercase match
+  const key = Object.keys(NUTRITION_DB).find(k => k.toLowerCase() === String(foodName).toLowerCase());
+  return key ? NUTRITION_DB[key] : null;
+}
+
+function sumNutrients(items){
+  const acc = { kcal:0, protein_g:0, fat_g:0, carbs_g:0, fiber_g:0,
+                calcium_mg:0, iron_mg:0, zinc_mg:0, vit_c_mg:0, folate_ug:0, potassium_mg:0 };
+  for (const it of (items||[])){
+    const n = nutrientFor(it.food);
+    const g = parseQtyToGrams(it.qty);
+    if (!n || !g) continue;
+    const factor = g / (n.per || 100);
+    acc.kcal += (n.k||0)*factor;
+    acc.protein_g += (n.p||0)*factor;
+    acc.fat_g += (n.f||0)*factor;
+    acc.carbs_g += (n.c||0)*factor;
+    acc.fiber_g += (n.fib||0)*factor;
+    acc.calcium_mg += (n.ca||0)*factor;
+    acc.iron_mg += (n.fe||0)*factor;
+    acc.zinc_mg += (n.zn||0)*factor;
+    acc.vit_c_mg += (n.vC||0)*factor;
+    acc.folate_ug += (n.fol||0)*factor;
+    acc.potassium_mg += (n.kplus||0)*factor;
+  }
+  // round
+  for (const k of Object.keys(acc)){
+    acc[k] = Math.round(acc[k]*10)/10;
+  }
+  return acc;
+}
+
+function dayFromTemplates(dayDef){
+  // dayDef is an object with breakfast/lunch/dinner arrays of {food, qty}
+  const meals = {
+    breakfast: { name: 'Breakfast', items: dayDef.breakfast || [] },
+    lunch:     { name: 'Lunch',     items: dayDef.lunch || [] },
+    dinner:    { name: 'Dinner',    items: dayDef.dinner || [] },
+    snacks:    { name: 'Snacks',    items: [] }
+  };
+  // day totals = sum of all items
+  const allItems = [].concat(meals.breakfast.items, meals.lunch.items, meals.dinner.items, meals.snacks.items);
+  const totals = sumNutrients(allItems);
+  return { meals, totals };
+}
+
+function hydrationGoalMl(profile, creatineOn=false){
+  const w = Number(profile?.weight_kg);
+  let ml = (Number.isFinite(w) && w>0) ? Math.round(w*35) : 0;
+  ml = Math.min(ml, 3500);
+  if (creatineOn) ml = Math.min(ml + 500, 3500);
+  return ml;
+}
+
 
 
 export function generateWeekPlan(req){
