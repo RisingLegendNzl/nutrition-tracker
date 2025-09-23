@@ -25,7 +25,12 @@ export function applyPlanToDiet(planObject) {
 
   window.mealPlan = planObject.plan;
 
-  try { localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan)); } catch {}
+  try {
+    localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan));
+  } catch {}
+  try {
+    localStorage.setItem('NUTRIFY__PLAN', JSON.stringify(planObject));
+  } catch {}
 
   if (typeof window.renderDiet === 'function') {
     try { window.renderDiet(); } catch {}
@@ -36,6 +41,7 @@ export function applyPlanToDiet(planObject) {
 
   try {
     window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: planObject }));
+    window.dispatchEvent(new CustomEvent('PLAN_UPDATED', { detail: planObject }));
   } catch {}
 
   toast('Plan applied');
