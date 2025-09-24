@@ -4,3 +4,28 @@ export function validateFoodMinimal(food) {
   const missing = need.filter(k => !(k in food));
   return missing;
 }
+
+// Validate that a weekly plan has entries for all seven days and each day includes breakfast, lunch and dinner.
+// Returns an array of issues (empty if valid).
+export function validateWeeklyPlan(plan) {
+  const issues = [];
+  const expectedDays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  if (!plan || typeof plan !== 'object') {
+    issues.push('Plan is missing or not an object');
+    return issues;
+  }
+  expectedDays.forEach(day => {
+    const dayPlan = plan[day];
+    if (!dayPlan) {
+      issues.push(`Missing day: ${day}`);
+    } else {
+      // Check presence of breakfast, lunch and dinner slots
+      ['breakfast','lunch','dinner'].forEach(slot => {
+        if (!dayPlan[slot]) {
+          issues.push(`${day} missing ${slot}`);
+        }
+      });
+    }
+  });
+  return issues;
+}
