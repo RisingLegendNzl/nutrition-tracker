@@ -1,5 +1,9 @@
-// Data migrations — upgrade older bundles to latest DATA_VERSION.
-// Keep as no-op for now; we’ll add steps when schemas evolve.
-export function migrateToLatest(data) {
-  return data;
+// Database or data format migrations for the Nutrify brain.
+
+export function runMigrations() {
+  // Placeholder: no migrations to run in the skeleton phase.
 }
+
+export default {
+  runMigrations,
+};
