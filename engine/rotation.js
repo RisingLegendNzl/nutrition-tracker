@@ -50,41 +50,69 @@ export function pickWeekFromTemplates({profile={}, constraints={}}, allTemplates
   return buildWeekFull(pool, {goal: rawGoal, diet: normKey});
 }
 
-function buildWeekFull(pool, profile){
+function buildWeekFull(pool, profile) {
+  // Produce a full week plan (Mon–Sun) with deterministic yet varied meals.
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const seedBase = hash(JSON.stringify(profile));
-  // Group templates by their intended slot
-  const bySlot = {
-    breakfast: pool.filter(t => String(t.slot||'').toLowerCase() === 'breakfast'),
-    lunch:     pool.filter(t => String(t.slot||'').toLowerCase() === 'lunch'),
-    dinner:    pool.filter(t => String(t.slot||'').toLowerCase() === 'dinner')
-  };
-  // Fallback: if a slot pool is empty, use the whole pool
-  if (!bySlot.breakfast.length) bySlot.breakfast = pool;
-  if (!bySlot.lunch.length)     bySlot.lunch = pool;
-  if (!bySlot.dinner.length)    bySlot.dinner = pool;
 
-  // Helper to produce a deterministic order for a given slot
-  function seededOrder(len, slotSeed) {
-    return Array.from({ length: len }, (_, i) => i)
-      .sort((a, b) => pseudoRand(seedBase + slotSeed + a) - pseudoRand(seedBase + slotSeed + b));
-  }
-  const orderB = seededOrder(bySlot.breakfast.length, 13);
-  const orderL = seededOrder(bySlot.lunch.length,     29);
-  const orderD = seededOrder(bySlot.dinner.length,    47);
+  // Group templates by intended slot
+  const bySlot = {
+    breakfast: pool.filter(t => String(t.slot || '').toLowerCase() === 'breakfast'),
+    lunch:     pool.filter(t => String(t.slot || '').toLowerCase() === 'lunch'),
+    dinner:    pool.filter(t => String(t.slot || '').toLowerCase() === 'dinner')
+  };
+  // Fallback: if a slot pool is empty, fall back to the full pool
+  if (!bySlot.breakfast.length) bySlot.breakfast = pool;
+  if (!bySlot.lunch.length)     bySlot.lunch     = pool;
+  if (!bySlot.dinner.length)    bySlot.dinner    = pool;
+
+  // Determine a deterministic seed based on the profile and current week start
+  // Compute Monday of current week (local time) to anchor the week seed
+  const now = new Date();
+  const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dow = localDate.getDay(); // 0=Sun,1=Mon...
+  const offset = (dow === 0 ? -6 : 1 - dow);
+  const monday = new Date(localDate);
+  monday.setDate(localDate.getDate() + offset);
+  const weekIso = monday.toISOString().slice(0, 10);
+
+  const baseSeed = hash(JSON.stringify(profile)) ^ hash(weekIso);
 
   const out = {};
-  days.forEach((d, dayIndex) => {
-    // Cycle through the ordered pools independently per slot
-    const b = bySlot.breakfast[ orderB[ dayIndex % orderB.length ] ];
-    const l = bySlot.lunch[     orderL[ dayIndex % orderL.length ] ];
-    const di= bySlot.dinner[    orderD[ dayIndex % orderD.length ] ];
-    out[d] = {
-      breakfast: makeMeal(b, 'Breakfast'),
-      lunch:     makeMeal(l, 'Lunch'),
-      dinner:    makeMeal(di, 'Dinner'),
-      snacks:    { name:'Snacks', items: [] }
-    };
+  days.forEach((d, dayIdx) => {
+    const used = new Set();
+    const dayPlan = {};
+    // iterate through breakfast, lunch, dinner slots
+    ['breakfast','lunch','dinner'].forEach((slot, slotIdx) => {
+      const slotPool = bySlot[slot];
+      if (!slotPool.length) {
+        dayPlan[slot] = { name: slot.charAt(0).toUpperCase() + slot.slice(1), items: [] };
+        return;
+      }
+      // Generate a deterministic ordering for this slot and day
+      const indices = Array.from({ length: slotPool.length }, (_, i) => i).sort((a, b) => {
+        const sa = baseSeed ^ ((dayIdx + 1) << 4) ^ (slotIdx << 3) ^ (a + 1);
+        const sb = baseSeed ^ ((dayIdx + 1) << 4) ^ (slotIdx << 3) ^ (b + 1);
+        return pseudoRand(sa) - pseudoRand(sb);
+      });
+      let chosen = null;
+      for (const idx of indices) {
+        const tmpl = slotPool[idx];
+        if (!tmpl || used.has(tmpl.id)) continue;
+        chosen = tmpl;
+        break;
+      }
+      if (!chosen) {
+        // fallback: take first
+        chosen = slotPool[indices[0]];
+      }
+      used.add(chosen.id);
+      // Save meal with friendly name
+      const displayName = slot.charAt(0).toUpperCase() + slot.slice(1);
+      dayPlan[slot] = makeMeal(chosen, displayName);
+    });
+    // Always include snacks slot (empty for rotation)
+    dayPlan.snacks = { name: 'Snacks', items: [] };
+    out[d] = dayPlan;
   });
   return out;
 }
