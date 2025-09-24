@@ -4,65 +4,14 @@
 const LIB_KEY = 'nutrify_plan_library_v1';   // localStorage key
 const FILE_EXT = '.nutrify.json';
 
-/* ================== Public API ================== */
-
-export function captureCurrentPlan() {
-  const plan = window.mealPlan || fromLocal();
-  const meta = {
-    name: suggestName(),
-    created_at: new Date().toISOString(),
-    engine_version: 'v1.0.0',
-    data_version: '2025-09-17',
-  };
-  return { meta, plan };
-}
-
-export function applyPlanToDiet(planObject) {
-  if (!planObject || !planObject.plan || typeof planObject.plan !== 'object') {
-    toast('Invalid plan object');
-    return false;
-  }
-
-  // Convert to legacy array-of-meals structure for UI compatibility
-  const legacyPlan = toLegacyPlan(planObject.plan);
-  // Persist legacy plan for current session and localStorage
-  window.mealPlan = legacyPlan;
-
-  try {
-    localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan));
-  } catch {}
-  try {
-    // Store full object with legacy plan replacing original for consistency
-    const merged = { ...planObject, plan: legacyPlan };
-    localStorage.setItem('NUTRIFY__PLAN', JSON.stringify(merged));
-  } catch {}
-
-  if (typeof window.renderDiet === 'function') {
-    try { window.renderDiet(); } catch {}
-  } else {
-    location.hash = '#diet';
-    setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), 0);
-  }
-
-  try {
-    // Dispatch events with legacy plan to downstream listeners
-    const detailObj = { ...planObject, plan: legacyPlan };
-    window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: detailObj }));
-    window.dispatchEvent(new CustomEvent('PLAN_UPDATED', { detail: detailObj }));
-  } catch {}
-
-  toast('Plan applied');
-  return true;
-}
-
-// Convert an engine-style weekly plan ({ Monday:{breakfast:{...},...}, ... })
-// into the legacy format used by the Diet UI ({ Monday:[{meal:'Breakfast',items:[]},...], ... }).
+// Convert engine-style weekly plan ({ Monday:{breakfast:{}, ...}, ... })
+// into the legacy format used by the Diet UI ({ Monday:[{meal:'Breakfast',items:[]}, ...], ... }).
 function toLegacyPlan(plan) {
   const result = {};
   for (const day of Object.keys(plan || {})) {
     const val = plan[day];
     if (Array.isArray(val)) {
-      // Already legacy
+      // Already legacy array-of-meal objects
       result[day] = val;
       continue;
     }
@@ -78,6 +27,56 @@ function toLegacyPlan(plan) {
     }
   }
   return result;
+}
+
+/* ================== Public API ================== */
+
+export function captureCurrentPlan() {
+  const plan = window.mealPlan || fromLocal();
+  const meta = {
+    name: suggestName(),
+    created_at: new Date().toISOString(),
+    engine_version: 'v1.0.0',
+    data_version: '2025-09-17',
+  };
+  return { meta, plan };
+}
+
+export function applyPlanToDiet(planObject) {
+  if (!planObject || !planObject.plan || typeof planObject.plan !== 'object') {
+    toast('Invalid plan object'); 
+    return false;
+  }
+  // Convert engine-style weekly plan (object of slots) into legacy array-of-meals structure
+  const legacyPlan = toLegacyPlan(planObject.plan);
+  // Build a merged object preserving meta/days while replacing plan with legacy format
+  const merged = { ...planObject, plan: legacyPlan };
+
+  window.mealPlan = legacyPlan;
+
+  try {
+    localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan));
+  } catch {}
+  try {
+    localStorage.setItem('NUTRIFY__PLAN', JSON.stringify(merged));
+  } catch {}
+
+  // Notify UI to re-render
+  if (typeof window.renderDiet === 'function') {
+    try { window.renderDiet(); } catch {}
+  } else {
+    // Fallback: trigger hashchange to mount diet page
+    location.hash = '#diet';
+    setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), 0);
+  }
+
+  try {
+    window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: merged }));
+    window.dispatchEvent(new CustomEvent('PLAN_UPDATED', { detail: merged }));
+  } catch {}
+
+  toast('Plan applied');
+  return true;
 }
 
 /* -------- Download / Upload (file based) -------- */
