@@ -19,17 +19,22 @@ export function captureCurrentPlan() {
 
 export function applyPlanToDiet(planObject) {
   if (!planObject || !planObject.plan || typeof planObject.plan !== 'object') {
-    toast('Invalid plan object'); 
+    toast('Invalid plan object');
     return false;
   }
 
-  window.mealPlan = planObject.plan;
+  // Convert to legacy array-of-meals structure for UI compatibility
+  const legacyPlan = toLegacyPlan(planObject.plan);
+  // Persist legacy plan for current session and localStorage
+  window.mealPlan = legacyPlan;
 
   try {
     localStorage.setItem('nutrify_mealPlan', JSON.stringify(window.mealPlan));
   } catch {}
   try {
-    localStorage.setItem('NUTRIFY__PLAN', JSON.stringify(planObject));
+    // Store full object with legacy plan replacing original for consistency
+    const merged = { ...planObject, plan: legacyPlan };
+    localStorage.setItem('NUTRIFY__PLAN', JSON.stringify(merged));
   } catch {}
 
   if (typeof window.renderDiet === 'function') {
@@ -40,12 +45,39 @@ export function applyPlanToDiet(planObject) {
   }
 
   try {
-    window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: planObject }));
-    window.dispatchEvent(new CustomEvent('PLAN_UPDATED', { detail: planObject }));
+    // Dispatch events with legacy plan to downstream listeners
+    const detailObj = { ...planObject, plan: legacyPlan };
+    window.dispatchEvent(new CustomEvent('nutrify:planUpdated', { detail: detailObj }));
+    window.dispatchEvent(new CustomEvent('PLAN_UPDATED', { detail: detailObj }));
   } catch {}
 
   toast('Plan applied');
   return true;
+}
+
+// Convert an engine-style weekly plan ({ Monday:{breakfast:{...},...}, ... })
+// into the legacy format used by the Diet UI ({ Monday:[{meal:'Breakfast',items:[]},...], ... }).
+function toLegacyPlan(plan) {
+  const result = {};
+  for (const day of Object.keys(plan || {})) {
+    const val = plan[day];
+    if (Array.isArray(val)) {
+      // Already legacy
+      result[day] = val;
+      continue;
+    }
+    if (val && typeof val === 'object') {
+      const arr = [];
+      if (val.breakfast) arr.push({ meal: val.breakfast.name || 'Breakfast', items: val.breakfast.items || [] });
+      if (val.lunch)     arr.push({ meal: val.lunch.name     || 'Lunch',     items: val.lunch.items     || [] });
+      if (val.dinner)    arr.push({ meal: val.dinner.name    || 'Dinner',    items: val.dinner.items    || [] });
+      if (val.snacks)    arr.push({ meal: val.snacks.name    || 'Snacks',    items: val.snacks.items    || [] });
+      result[day] = arr;
+    } else {
+      result[day] = [];
+    }
+  }
+  return result;
 }
 
 /* -------- Download / Upload (file based) -------- */
@@ -273,8 +305,8 @@ function renderLibraryList(container) {
     const expB  = mkBtn('Export', '#6b7280', () => { exportFromLibrary(i); });
     const delB  = mkBtn('Delete', '#ef4444', () => {
       if (confirm('Delete this saved plan?')) {
-        deleteFromLibrary(i);
-        renderLibraryList(container);
+      deleteFromLibrary(i);
+      renderLibraryList(container);
       }
     });
 
