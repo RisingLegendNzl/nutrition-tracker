@@ -198,10 +198,289 @@ function ensureRoot(){
 
       <div class="field">
         <label for="p_diet">Diet type</label>
+        <select id="p_diet">
+          <option value="omnivore" selected>Omnivore</option>
+          <option value="vegetarian">Vegetarian</option>
+          <option value="vegan">Vegan</option>
+          <option value="pescetarian">Pescetarian</option>
+        </select>
       </div>
+
+
+<div class="field">
+  <label for="p_store">Preferred store</label>
+  <select id="p_store">
+    <option value="none" selected>None</option>
+    <option value="coles">Coles</option>
+    <option value="woolworths">Woolworths</option>
+  </select>
+</div>
+
+      <div class="field">
+        <label for="p_allergies">Allergies (comma-separated)</label>
+        <input id="p_allergies" type="text" placeholder="e.g., milk, soy"/>
+      </div>
+
+      <div class="field">
+        <label for="p_dislikes">Dislikes (comma-separated)</label>
+        <input id="p_dislikes" type="text" placeholder="e.g., capsicum, olives"/>
+      </div>
+
+      <div class="field">
+        <label>Training days (optional)</label>
+        <div id="p_training_days" class="chips">
+          ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>(
+            `<label class="chip">
+               <input type="checkbox" data-day="${d}"/>
+               ${d}
+             </label>`
+          )).join('')}
+        </div>
+      </div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button id="p_save" class="secondary">Save</button>
+        <button id="p_reset" class="ghost">Reset to defaults</button>
+        <button id="p_cancel" class="ghost">Cancel</button>
+        <!-- Generate Plan button is injected here at runtime -->
+      </div>
+
+      <div id="p_error" style="color:#ff7b7b;margin-top:8px;display:none"></div>
     </section>
   `;
   return root;
+}
+
+function ensureEditButton(){
+  if (editBtn && document.body.contains(editBtn)) return editBtn;
+  const hdr = document.querySelector('.topbar') || document.querySelector('.app-header');
+  if (!hdr) return null;
+  editBtn = document.createElement('button');
+  editBtn.id = 'editProfileBtn';
+  editBtn.className = 'ghost';
+  editBtn.textContent = 'Edit Profile';
+  editBtn.style.marginLeft = '8px';
+  hdr.appendChild(editBtn);
+  editBtn.addEventListener('click', () => {
+    const u = ui();
+    const p = getProfile() || defaults();
+    writeToUI(u, p);
+    document.getElementById('p_title').textContent = 'Edit Profile';
+    show(false);
+  });
+  return editBtn;
+}
+
+function ui(){
+  ensureRoot();
+  ensureEditButton();
+  const el = (id)=>document.getElementById(id);
+  return {
+    page: root,
+    title: el('p_title'),
+    name: el('p_name'),
+    gender: el('p_gender'),
+
+    age: el('p_age_y'),
+
+    // weight
+    weightVal: el('p_weight_value'),
+    weightUnit: el('u_w_unit'),
+
+    // height
+    heightUnit: el('u_h_unit'),
+    hcmBlock: el('h_cm_block'),
+    hftinBlock: el('h_ftin_block'),
+    hcm: el('p_height_cm'),
+    hft: el('p_height_ft'),
+    hin: el('p_height_in'),
+
+    bodyfat: el('p_bodyfat'),
+    activity: el('p_activity'),
+    goal: el('p_goal'),
+    diet: el('p_diet'),
+    store: el('p_store'),
+    allergies: el('p_allergies'),
+    dislikes: el('p_dislikes'),
+    trainingWrap: el('p_training_days'),
+
+    // ml/kg + preview
+    
+    
+    
+
+    // actions
+    save: el('p_save'),
+    reset: el('p_reset'),
+    cancel: el('p_cancel'),
+    error: el('p_error'),
+  };
+}
+
+function defaults(){
+  return {
+    name: '',
+    gender: 'male',       // 'male' | 'female'
+    weight_unit: 'kg',    // 'kg' | 'lb'
+    height_unit: 'cm',    // 'cm' | 'ftin'
+    weight_kg: 71,
+    height_cm: '',
+    
+
+    // nutrition fields
+    store_preference: 'none',
+    age_y: 23,
+    activity_pal: 1.6,
+    goal: 'maintain',
+    bodyfat_pct: null,
+    diet: 'omnivore',
+    allergies: [],
+    dislikes: [],
+    training_days: [],
+
+    created_at: nowDate(),
+    updated_at: nowDate(),
+  };
+}
+
+/* =============== Read/Write UI =============== */
+
+function readFromUI(u){
+  const prefs = {
+    weight_unit: u.weightUnit.value === 'lb' ? 'lb' : 'kg',
+    height_unit: u.heightUnit.value === 'ftin' ? 'ftin' : 'cm',
+    gender: (u.gender.value || 'male') === 'female' ? 'female' : 'male',
+  };
+
+  // basic fields
+  const name = u.name.value.trim();
+  const age_y = Number(u.age.value || '');
+
+  // weight
+  let weight_kg;
+  if (prefs.weight_unit === 'kg'){
+    weight_kg = Number(u.weightVal.value);
+  }else{
+    weight_kg = kgFromLbs(u.weightVal.value);
+  }
+
+  // height
+  let height_cm;
+  if (prefs.height_unit === 'cm'){
+    height_cm = u.hcm.value === '' ? '' : Number(u.hcm.value);
+  }else{
+    if (u.hft.value === '' && u.hin.value === '') height_cm = '';
+    else height_cm = cmFromFeetIn(u.hft.value, u.hin.value);
+  }
+
+  // nutrition sliders
+  const bodyfat_pct = u.bodyfat.value === '' ? null : Number(u.bodyfat.value);
+  const activity_pal = Number(u.activity.value || 1.6);
+  const goal = String(u.goal.value || 'maintain').toLowerCase();
+  const diet = String(u.diet.value || 'omnivore');
+  const store_preference = String(u.store.value || 'none');
+
+  // lists
+  const allergies = (u.allergies.value || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+  const dislikes = (u.dislikes.value || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  // training days
+  const training_days = Array.from(u.trainingWrap.querySelectorAll('input[type="checkbox"]'))
+    .filter(cb => cb.checked)
+    .map(cb => cb.getAttribute('data-day'));
+
+  
+  // quick validations
+  const weightIsOk = Number.isFinite(weight_kg) && weight_kg >= 30 && weight_kg <= 300;
+  const heightOk = (u.hcm.value === '' && prefs.height_unit==='cm')
+                || (u.hft.value === '' && u.hin.value === '' && prefs.height_unit==='ftin')
+                || (Number.isFinite(height_cm) && height_cm >= 120 && height_cm <= 230);
+  const ageOk = (u.age.value === '') || (Number.isFinite(age_y) && age_y >= 18 && age_y <= 65);
+  const bfOk = (bodyfat_pct === null) || (Number.isFinite(bodyfat_pct) && bodyfat_pct >= 5 && bodyfat_pct <= 50);
+
+  return {
+    prefs,
+    ok: weightIsOk && heightOk && ageOk && bfOk,
+    data: {
+      name, gender: prefs.gender,
+      weight_unit: prefs.weight_unit,
+      height_unit: prefs.height_unit,
+      weight_kg,
+      height_cm: height_cm === '' ? '' : Number(height_cm),
+
+      age_y: u.age.value === '' ? null : age_y,
+      activity_pal,
+      goal,
+      bodyfat_pct,
+      diet,
+      store_preference,
+      allergies,
+      dislikes,
+      training_days
+    }
+  };
+}
+
+function writeToUI(u, p){
+  u.title.textContent = 'Your Profile';
+  u.name.value = p.name || '';
+  u.gender.value = p.gender || 'male';
+  u.age.value = (p.age_y ?? '') === null ? '' : (p.age_y ?? '');
+
+  // units
+  u.weightUnit.value = p.weight_unit || 'kg';
+  u.heightUnit.value = p.height_unit || 'cm';
+
+  // weight value
+  if ((p.weight_unit || 'kg') === 'kg') u.weightVal.value = p.weight_kg ?? '';
+  else u.weightVal.value = lbsFromKg(p.weight_kg ?? 0);
+
+  // height blocks
+  if ((p.height_unit || 'cm') === 'cm'){
+    u.hcmBlock.classList.remove('hidden');
+    u.hftinBlock.classList.add('hidden');
+    u.hcm.value = p.height_cm ?? '';
+  } else {
+    u.hcmBlock.classList.add('hidden');
+    u.hftinBlock.classList.remove('hidden');
+    const [ft, inch] = feetFromCm(p.height_cm ?? '');
+    u.hft.value = ft || '';
+    u.hin.value = inch || '';
+  }
+
+  // nutrition / goal fields
+  u.bodyfat.value = (p.bodyfat_pct ?? '') === null ? '' : (p.bodyfat_pct ?? '');
+  u.activity.value = String(p.activity_pal ?? 1.6);
+  u.goal.value = String(p.goal || 'maintain').toLowerCase();
+  u.diet.value = p.diet || 'omnivore';
+  if (u.store) u.store.value = p.store_preference || 'none';
+
+  u.allergies.value = Array.isArray(p.allergies) ? p.allergies.join(', ') : '';
+  u.dislikes.value = Array.isArray(p.dislikes) ? p.dislikes.join(', ') : '';
+
+  // training days
+  const days = new Set(p.training_days || []);
+  u.trainingWrap.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    const d = cb.getAttribute('data-day');
+    cb.checked = days.has(d);
+  });
+
+  }
+
+/* ================== Mount & Events ================== */
+
+function show(readonly=true){
+  const u = ui();
+  if (readonly){
+    const p = getProfile() || defaults();
+    writeToUI(u, p);
+  }
+  u.page.classList.remove('hidden');
 }
 
 export function mountProfile(){
