@@ -1,15 +1,13 @@
-// js/plan.mount.js
-// Mounts the plan menu onto the Diet header when the Diet page is visible.
+// Mounts a nutrition plan into the DOM.
+// In this skeleton phase, the function is a placeholder.
 
-import { attachPlanMenu } from './plan.io.js';
-
-function tryMount() {
-  const diet = document.getElementById('dietPage');
-  if (!diet || diet.classList.contains('hidden')) return;
-  const header = diet.querySelector('.day-switcher') || diet.querySelector('.card');
-  if (header) attachPlanMenu(header);
+export function mountPlan(plan, container) {
+  // Future implementation will render the plan into the given container.
+  if (container) {
+    container.textContent = 'Plan mount placeholder';
+  }
 }
 
-window.addEventListener('DOMContentLoaded', () => setTimeout(tryMount, 0));
-window.addEventListener('hashchange', () => setTimeout(tryMount, 0));
-document.addEventListener('nutrify:planUpdated', () => setTimeout(tryMount, 0));
+export default {
+  mountPlan,
+};
