@@ -52,28 +52,37 @@ export function pickWeekFromTemplates({profile={}, constraints={}}, allTemplates
 
 function buildWeekFull(pool, profile){
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  const seed = hash(JSON.stringify(profile));
-  const order = pool.map((_,i)=>i).sort((a,b)=> (pseudoRand(seed + a) - pseudoRand(seed + b)));
-
+  const seedBase = hash(JSON.stringify(profile));
+  // Group templates by their intended slot
   const bySlot = {
-    breakfast: pool.filter(t => String(t.slot||'').toLowerCase()==='breakfast'),
-    lunch:     pool.filter(t => String(t.slot||'').toLowerCase()==='lunch'),
-    dinner:    pool.filter(t => String(t.slot||'').toLowerCase()==='dinner')
+    breakfast: pool.filter(t => String(t.slot||'').toLowerCase() === 'breakfast'),
+    lunch:     pool.filter(t => String(t.slot||'').toLowerCase() === 'lunch'),
+    dinner:    pool.filter(t => String(t.slot||'').toLowerCase() === 'dinner')
   };
   // Fallback: if a slot pool is empty, use the whole pool
   if (!bySlot.breakfast.length) bySlot.breakfast = pool;
   if (!bySlot.lunch.length)     bySlot.lunch = pool;
   if (!bySlot.dinner.length)    bySlot.dinner = pool;
 
+  // Helper to produce a deterministic order for a given slot
+  function seededOrder(len, slotSeed) {
+    return Array.from({ length: len }, (_, i) => i)
+      .sort((a, b) => pseudoRand(seedBase + slotSeed + a) - pseudoRand(seedBase + slotSeed + b));
+  }
+  const orderB = seededOrder(bySlot.breakfast.length, 13);
+  const orderL = seededOrder(bySlot.lunch.length,     29);
+  const orderD = seededOrder(bySlot.dinner.length,    47);
+
   const out = {};
-  days.forEach((d, k)=>{
-    const b = bySlot.breakfast[ order[k % bySlot.breakfast.length] ];
-    const l = bySlot.lunch[     order[(k+1) % bySlot.lunch.length] ];
-    const di= bySlot.dinner[    order[(k+2) % bySlot.dinner.length] ];
+  days.forEach((d, dayIndex) => {
+    // Cycle through the ordered pools independently per slot
+    const b = bySlot.breakfast[ orderB[ dayIndex % orderB.length ] ];
+    const l = bySlot.lunch[     orderL[ dayIndex % orderL.length ] ];
+    const di= bySlot.dinner[    orderD[ dayIndex % orderD.length ] ];
     out[d] = {
       breakfast: makeMeal(b, 'Breakfast'),
       lunch:     makeMeal(l, 'Lunch'),
-      dinner:    makeMeal(di,'Dinner'),
+      dinner:    makeMeal(di, 'Dinner'),
       snacks:    { name:'Snacks', items: [] }
     };
   });
