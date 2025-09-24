@@ -373,7 +373,6 @@ export function generateWeekPlan(req){
   const p = (req && req.profile) || {};
   const c = (req && req.constraints) || {};
   const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-
   // Attempt to build a weekly plan from recipe templates
   let weeklyPlan = pickWeekFromTemplates({ profile: p, constraints: c }, templates);
   let sourceType = 'rotation';
