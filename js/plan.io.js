@@ -4,7 +4,7 @@
 const LIB_KEY = 'nutrify_plan_library_v1';   // localStorage key
 const FILE_EXT = '.nutrify.json';
 
-// Convert engine-style weekly plan ({ Monday:{breakfast:{}, ...}, ... })
+// Convert an engine-style weekly plan ({ Monday:{breakfast:{}, ...}, ... })
 // into the legacy format used by the Diet UI ({ Monday:[{meal:'Breakfast',items:[]}, ...], ... }).
 function toLegacyPlan(plan) {
   const result = {};
