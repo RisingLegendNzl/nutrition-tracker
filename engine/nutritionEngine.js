@@ -303,7 +303,7 @@ function round1(x){ return Math.round(x * 10) / 10; }
 // --- Helpers for template-based plan ---
 function parseQtyToGrams(qtyStr){
   if (!qtyStr) return 0;
-  const m = String(qtyStr).trim().match(/^([0-9]+(?:\.[0-9]+)?)\s*(g|gram|grams)$/i);
+  const m = String(qtyStr).trim().match(/^([0-9]+(?:\\.[0-9]+)?)\\s*(g|gram|grams)$/i);
   if (m){ return Math.round(parseFloat(m[1])); }
   // Fallback: numbers without unit treated as grams
   const n = parseFloat(qtyStr);
@@ -367,14 +367,40 @@ function hydrationGoalMl(profile, creatineOn=false){
   return ml;
 }
 
-
+// Attach ISO dates to each day in a weekly plan.
+// Computes the ISO week start (Monday of current week) and assigns `date` to each day.
+function attachIsoDates(planObj) {
+  const result = {};
+  // Determine Monday of the current week (local time)
+  const today = new Date();
+  const localDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dayOfWeek = localDate.getDay(); // 0=Sun,1=Mon,...
+  const offset = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+  const monday = new Date(localDate);
+  monday.setDate(localDate.getDate() + offset);
+  const weekStartIso = monday.toISOString().slice(0, 10);
+  const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  dayNames.forEach((name, idx) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + idx);
+    const iso = d.toISOString().slice(0, 10);
+    const orig = planObj[name] || {};
+    // Shallow copy original day object and attach ISO date
+    result[name] = { ...orig, date: iso };
+  });
+  return { plan: result, week_start_iso: weekStartIso, created_at: new Date().toISOString() };
+}
 
 export function generateWeekPlan(req){
   const p = (req && req.profile) || {};
   const c = (req && req.constraints) || {};
   // Try rotation-based selection from templates first
   const week = pickWeekFromTemplates({profile: p, constraints: c}, templates);
-  if (week) return { plan: week, meta: { type:'week_plan', source:'rotation', created_at: new Date().toISOString() } };
+  if (week) {
+    // Attach ISO dates to each day and record week start
+    const enriched = attachIsoDates(week);
+    return { plan: enriched.plan, meta: { type:'week_plan', source:'rotation', created_at: enriched.created_at, week_start_iso: enriched.week_start_iso } };
+  }
 
   // Fallback to the existing day-based replication
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -383,5 +409,6 @@ export function generateWeekPlan(req){
   const base = day.meals;
   const plan = {};
   days.forEach(d => { plan[d] = base; });
-  return { plan, meta: { type:'week_plan', source:'engine', created_at: new Date().toISOString() } };
+  const enriched = attachIsoDates(plan);
+  return { plan: enriched.plan, meta: { type:'week_plan', source:'engine', created_at: enriched.created_at, week_start_iso: enriched.week_start_iso } };
 }
