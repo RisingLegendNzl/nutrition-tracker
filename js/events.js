@@ -26,7 +26,11 @@ export function emit(eventName, detail) {
   if (!set) return;
   // Call handlers safely; never throw across the bus
   for (const fn of Array.from(set)) {
-    try { fn(detail); } catch (err) { console.error('Event handler error', { eventName, err }); }
+    try {
+      fn(detail);
+    } catch (err) {
+      console.error('Event handler error', { eventName, err });
+    }
   }
 }
 
